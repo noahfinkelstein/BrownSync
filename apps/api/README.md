@@ -38,8 +38,11 @@ src/server.ts    @hono/node-server entry (API_PORT, default 8787)
 ```
 
 Handlers never build SQL: tests inject a fake `Queries` (see `test/fixtures.ts`) so the suite
-runs without a database; the SQL itself is exercised by CI's postgis job applying
-`db/migrations/*.sql`. Response bodies are validated against the contract Out-schemas in every
+runs without a database. The SQL itself is verified semantically by CI's postgis job, which
+applies `db/migrations/*.sql` and then runs the rollback-safe assertion script
+`db/checks/0002_api_checks.sql` (overlap/bbox/category/q filtering, ilike-metacharacter
+escaping, day-token expansion incl. `TTh` vs `T`/`Th`, DST wall time, term-window fallback,
+health rollup). Response bodies are validated against the contract Out-schemas in every
 environment except production, so mapper/SQL drift fails loudly in dev and CI.
 
 ## Commands
