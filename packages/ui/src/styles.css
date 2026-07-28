@@ -1,2 +1,228 @@
-/* BrownSync token stylesheet — canonical values live in @brownsync/contract (tokens.ts).
-   Populated fully by Phase 1 agent D. */
+/* BrownSync token stylesheet — handoff §6 design law rendered to CSS.
+   Canonical values live in @brownsync/contract (tokens.ts, taxonomy.ts);
+   src/tokens.test.ts fails the build if the two drift apart.
+
+   Consumers import this file ONCE as the app stylesheet:
+     import "@brownsync/ui/styles.css";
+   It pulls in Tailwind v4, the fonts, and registers every token both as a
+   plain custom property (for the map style / deck.gl) and as a Tailwind
+   theme value (bg-bg-base, text-accent, font-mono, text-13, rounded-4 …). */
+
+@import "tailwindcss";
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+/* Component classes below live in this package's source. */
+@source "./";
+
+:root {
+  color-scheme: dark;
+
+  /* §6.1 — background stack */
+  --bg-base: #0b0e12;
+  --bg-raised: #11151b;
+  --bg-overlay: #171c24;
+  --line: #232a35;
+
+  /* §6.1 — text triad */
+  --text-primary: #e8ecf1;
+  --text-secondary: #8b94a3;
+  --text-faint: #566070;
+
+  /* §6.1 — THE signal color. Live/now indicators + primary actions ONLY. */
+  --accent: #d96c3d;
+
+  /* §6.3 — cartography */
+  --map-road: #1c222b;
+  --map-water: #0d1319;
+  --map-green: #131a16;
+
+  /* Contract §4 — category palette (OKLCH L≈0.72 C≈0.09, tuned on dark) */
+  --cat-academic: #73abda;
+  --cat-class: #61b1cf;
+  --cat-club: #5eb7a7;
+  --cat-arts: #b296d2;
+  --cat-athletics: #d78d92;
+  --cat-food: #bfa060;
+  --cat-social: #ce8eb2;
+  --cat-career: #57b5bf;
+  --cat-wellness: #81b482;
+  --cat-admin: #94a0dd;
+
+  /* Source-health status ramp (reuses category chroma; not a new palette) */
+  --status-ok: #81b482;
+  --status-stale: #bfa060;
+  --status-error: #d78d92;
+
+  /* §6.1 geometry + §6.4 motion */
+  --radius-max: 6px;
+  --motion-fast: 120ms;
+  --motion-slow: 160ms;
+  --motion-ease: cubic-bezier(0, 0, 0.2, 1);
+}
+
+@theme {
+  /* §6.2 — Instrument Sans display, IBM Plex Mono data. Nothing else. */
+  --font-*: initial;
+  --font-display: "Instrument Sans Variable", "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+  /* §6.2 — type scale 12/13/15/18/24 only. */
+  --text-*: initial;
+  --text-12: 12px;
+  --text-12--line-height: 16px;
+  --text-13: 13px;
+  --text-13--line-height: 18px;
+  --text-15: 15px;
+  --text-15--line-height: 20px;
+  --text-18: 18px;
+  --text-18--line-height: 24px;
+  --text-18--letter-spacing: -0.01em;
+  --text-24: 24px;
+  --text-24--line-height: 30px;
+  --text-24--letter-spacing: -0.02em;
+
+  /* §6.1 — radius hard-capped at 6px: rounded-2 / rounded-4 / rounded-6. */
+  --radius-*: initial;
+  --radius-2: 2px;
+  --radius-4: 4px;
+  --radius-6: 6px;
+}
+
+@theme inline {
+  /* Only token colors exist; the stock Tailwind palette is deleted. */
+  --color-*: initial;
+  --color-bg-base: var(--bg-base);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-overlay: var(--bg-overlay);
+  --color-line: var(--line);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-map-road: var(--map-road);
+  --color-map-water: var(--map-water);
+  --color-map-green: var(--map-green);
+  --color-status-ok: var(--status-ok);
+  --color-status-stale: var(--status-stale);
+  --color-status-error: var(--status-error);
+  --color-cat-academic: var(--cat-academic);
+  --color-cat-class: var(--cat-class);
+  --color-cat-club: var(--cat-club);
+  --color-cat-arts: var(--cat-arts);
+  --color-cat-athletics: var(--cat-athletics);
+  --color-cat-food: var(--cat-food);
+  --color-cat-social: var(--cat-social);
+  --color-cat-career: var(--cat-career);
+  --color-cat-wellness: var(--cat-wellness);
+  --color-cat-admin: var(--cat-admin);
+}
+
+@layer base {
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-size: var(--text-13);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 28%, transparent);
+    color: var(--text-primary);
+  }
+}
+
+@layer components {
+  /* Panel carries the ONLY shadow in the app (§6.1). */
+  .bs-panel {
+    box-shadow: -24px 0 48px -12px rgb(0 0 0 / 0.55);
+  }
+  .bs-panel[data-state="open"] {
+    animation: bs-panel-in var(--motion-slow) var(--motion-ease);
+  }
+  .bs-panel[data-state="closed"] {
+    animation: bs-panel-out var(--motion-fast) var(--motion-ease);
+  }
+
+  /* Skeleton: shimmerless opacity pulse (§6.4). */
+  .bs-skeleton {
+    animation: bs-skeleton-pulse 1.4s ease-in-out infinite alternate;
+  }
+
+  /* The one ambient animation: the ≤30-min "starting soon" pulse (§6.4). */
+  .bs-live-dot {
+    position: relative;
+  }
+  .bs-live-dot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    border: 1px solid var(--accent);
+    animation: bs-live-pulse 2s var(--motion-ease) infinite;
+  }
+}
+
+@keyframes bs-panel-in {
+  from {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bs-panel-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+}
+
+@keyframes bs-skeleton-pulse {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+
+@keyframes bs-live-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.8);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-panel[data-state="open"],
+  .bs-panel[data-state="closed"],
+  .bs-skeleton,
+  .bs-live-dot::after {
+    animation: none;
+  }
+}
