@@ -10,3 +10,6 @@ Task 1: complete (no commits, review clean; controller verification: 70 passed i
 Task 2B: complete (Postgres upserts, guarded cancellation, source-run lifecycle SQL+NDJSON+recorder; offline suite 162 passed, RED/GREEN captured in task-2b-report.md)
 Task 2B: postgres-marked integration suite (7 tests) pending — supabase status showed no running local DB and was not started; suite skips cleanly without TEST_DATABASE_URL
 Task 2B: committed explicit brief paths in one conventional commit on codex/ingestion (not pushed)
+Task 3: complete with explicit gaps (capture harness + fixture manifest + integrity gate; LiveWhale events/groups + Overpass geometry recorded through CachedHttpClient; offline suite 169 passed + 8 skipped)
+Task 3: cab.brown.edu answers every route with an AWS WAF bot challenge and studentactivities/dining.brown.edu answer Pantheon edge 403 for the mandated UA — recorded as explicit manifest gaps; bot-detection was not bypassed and no synthetic fixtures were fabricated; closing these gaps needs an OIT allowlist or user-driven capture (blocking input for Tasks 6-8)
+Task 3: committed explicit brief paths in one conventional commit on codex/ingestion (not pushed)

@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T21:50:53.049590Z",
+  "recorded_user_agent": "BrownSync/1.0 (+noah_finkelstein@brown.edu)",
+  "notes": [
+    "livewhale_events: contact_info values are blanked at capture — they hold staff names/titles and no contract field consumes them",
+    "livewhale_events: the '?max=200' parameter was not honored — the endpoint returned 1000 events",
+    "overpass_buildings: OpenStreetMap data, ODbL licence — attribute OpenStreetMap contributors"
+  ],
+  "gaps": [
+    {
+      "source": "cab_home",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "cab_bootstrap",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "cab_search",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "cab_details",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "clubs_undergraduate",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://studentactivities.brown.edu/student-groups/undergraduate-student-groups'"
+    },
+    {
+      "source": "clubs_graduate",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://studentactivities.brown.edu/student-groups/undergraduate-student-groups'"
+    },
+    {
+      "source": "dining_landing",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://dining.brown.edu/'"
+    },
+    {
+      "source": "dining_bundle",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://dining.brown.edu/'"
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "recorded/livewhale/events.json",
+      "source": "livewhale_events",
+      "route": "GET https://events.brown.edu/live/json/events?max=200",
+      "request_body": null,
+      "request_fingerprint": "8e1a81df79db2c9b5901e4c6dcd8e5a7f1a7a6eeaeb0c5948f3d56654625a079",
+      "retrieved_at": "2026-07-28T21:50:52.944724Z",
+      "status": 200,
+      "content_type": "application/json; charset=UTF-8",
+      "sha256": "436d994044759d566f3dd1b64a567c0bb9c09bbe6e377a8c4f34d9c3bc77f23b",
+      "bytes": 3119877,
+      "scrubbed": true,
+      "expected": {
+        "strict_json": true,
+        "body_contains": [
+          "\"title\"",
+          "2026 Computational Modeling Workshop + Challenge"
+        ],
+        "event_count": 1000,
+        "sample_title": "2026 Computational Modeling Workshop + Challenge",
+        "first_event_fields": [
+          "event_types",
+          "group",
+          "is_canceled",
+          "location_latitude",
+          "location_longitude",
+          "repeats",
+          "title"
+        ]
+      }
+    },
+    {
+      "path": "recorded/livewhale/groups.json",
+      "source": "livewhale_groups",
+      "route": "GET https://events.brown.edu/live/json/groups",
+      "request_body": null,
+      "request_fingerprint": "4bb7c05510d4e21acc8a27ae81923eca3366e1a6857caf7c4de22a0fd082cbb7",
+      "retrieved_at": "2026-07-28T21:50:52.957074Z",
+      "status": 200,
+      "content_type": "application/json; charset=UTF-8",
+      "sha256": "361c1798914e5fc6f9254e3e2faee81f1a693d49a6f93fcbed46740b24a08f1e",
+      "bytes": 39217,
+      "scrubbed": false,
+      "expected": {
+        "strict_json": true,
+        "body_contains": [
+          "\"title\"",
+          "Academic Calendar"
+        ],
+        "group_count": 218,
+        "sample_group": "Academic Calendar",
+        "first_group_fields": [
+          "fullname",
+          "id",
+          "timezone",
+          "title",
+          "web_address"
+        ]
+      }
+    },
+    {
+      "path": "recorded/overpass/college-hill-buildings.json",
+      "source": "overpass_buildings",
+      "route": "POST https://overpass-api.de/api/interpreter",
+      "request_body": "[out:json][timeout:60]; ( way[\"building\"](41.820,-71.410,41.834,-71.393); relation[\"building\"](41.820,-71.410,41.834,-71.393); ); out body geom;",
+      "request_fingerprint": "b75eb8fd5229cc9fbcfff952f8c4980c80bf386679990e4f26600620f0abdfa0",
+      "retrieved_at": "2026-07-28T21:50:52.992088Z",
+      "status": 200,
+      "content_type": "application/json",
+      "sha256": "b72aa2f77672991887b91136e505205414f072e7befd656318e587505deb2687",
+      "bytes": 1937642,
+      "scrubbed": false,
+      "expected": {
+        "element_count": 2155,
+        "way_count": 2150,
+        "relation_count": 5,
+        "body_contains": [
+          "\"elements\"",
+          "Sayles Hall",
+          "Barus"
+        ],
+        "sample_building_name": "Penner Field House"
+      }
+    }
+  ]
+}
