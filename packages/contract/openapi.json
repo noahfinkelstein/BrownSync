@@ -1,0 +1,1937 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BrownSync Read API",
+    "version": "0.1.0",
+    "description": "Read-only API over the BrownSync canonical schema (DATA_CONTRACT.md §3). Consumed by apps/web and, later, the SwiftUI client via codegen."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8787",
+      "description": "local dev"
+    }
+  ],
+  "components": {
+    "schemas": {},
+    "parameters": {}
+  },
+  "paths": {
+    "/api/events": {
+      "get": {
+        "summary": "Canonical events, filterable by time window, bbox, category, and text",
+        "description": "Time filtering is overlap semantics. Defaults: from=now, to=from+7 days. bbox is 'w,s,e,n' (lng/lat). q ranks substring hits above trigram-fuzzy hits.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$"
+            },
+            "required": false,
+            "name": "bbox",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "academic",
+                "class",
+                "club",
+                "arts",
+                "athletics",
+                "food",
+                "social",
+                "career",
+                "wellness",
+                "admin"
+              ]
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching canonical events (max 500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": ["string", "null"]
+                          },
+                          "allDay": {
+                            "type": "boolean"
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "orgId": {
+                            "type": ["string", "null"]
+                          },
+                          "orgName": {
+                            "type": ["string", "null"]
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "academic",
+                              "class",
+                              "club",
+                              "arts",
+                              "athletics",
+                              "food",
+                              "social",
+                              "career",
+                              "wellness",
+                              "admin"
+                            ]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "url": {
+                            "type": ["string", "null"]
+                          },
+                          "cost": {
+                            "type": ["string", "null"]
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "confidence": {
+                            "type": "number"
+                          },
+                          "isCanceled": {
+                            "type": "boolean"
+                          },
+                          "mergedSources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "start",
+                          "end",
+                          "allDay",
+                          "lat",
+                          "lng",
+                          "placeId",
+                          "placeName",
+                          "locationRaw",
+                          "orgId",
+                          "orgName",
+                          "category",
+                          "tags",
+                          "url",
+                          "cost",
+                          "source",
+                          "confidence",
+                          "isCanceled"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["events"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed query/path parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "summary": "One event with org and place expanded",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": ["string", "null"]
+                    },
+                    "start": {
+                      "type": "string"
+                    },
+                    "end": {
+                      "type": ["string", "null"]
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "lat": {
+                      "type": ["number", "null"]
+                    },
+                    "lng": {
+                      "type": ["number", "null"]
+                    },
+                    "placeId": {
+                      "type": ["string", "null"]
+                    },
+                    "placeName": {
+                      "type": ["string", "null"]
+                    },
+                    "locationRaw": {
+                      "type": ["string", "null"]
+                    },
+                    "orgId": {
+                      "type": ["string", "null"]
+                    },
+                    "orgName": {
+                      "type": ["string", "null"]
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "academic",
+                        "class",
+                        "club",
+                        "arts",
+                        "athletics",
+                        "food",
+                        "social",
+                        "career",
+                        "wellness",
+                        "admin"
+                      ]
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "url": {
+                      "type": ["string", "null"]
+                    },
+                    "cost": {
+                      "type": ["string", "null"]
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "confidence": {
+                      "type": "number"
+                    },
+                    "isCanceled": {
+                      "type": "boolean"
+                    },
+                    "mergedSources": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "org": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": ["club", "department", "office", "athletics", "external"]
+                        },
+                        "category": {
+                          "type": ["string", "null"],
+                          "enum": [
+                            "academic",
+                            "class",
+                            "club",
+                            "arts",
+                            "athletics",
+                            "food",
+                            "social",
+                            "career",
+                            "wellness",
+                            "admin",
+                            null
+                          ]
+                        },
+                        "description": {
+                          "type": ["string", "null"]
+                        },
+                        "url": {
+                          "type": ["string", "null"]
+                        },
+                        "instagram": {
+                          "type": ["string", "null"]
+                        },
+                        "defaultPlaceId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "kind",
+                        "category",
+                        "description",
+                        "url",
+                        "instagram",
+                        "defaultPlaceId"
+                      ]
+                    },
+                    "place": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "aliases": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "academic",
+                            "residence",
+                            "dining",
+                            "athletic",
+                            "library",
+                            "admin",
+                            "outdoor",
+                            "other"
+                          ]
+                        },
+                        "lat": {
+                          "type": "number"
+                        },
+                        "lng": {
+                          "type": "number"
+                        },
+                        "address": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "name", "aliases", "kind", "lat", "lng", "address"]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "description",
+                    "start",
+                    "end",
+                    "allDay",
+                    "lat",
+                    "lng",
+                    "placeId",
+                    "placeName",
+                    "locationRaw",
+                    "orgId",
+                    "orgName",
+                    "category",
+                    "tags",
+                    "url",
+                    "cost",
+                    "source",
+                    "confidence",
+                    "isCanceled",
+                    "org",
+                    "place"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed query/path parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/places": {
+      "get": {
+        "summary": "The campus gazetteer",
+        "responses": {
+          "200": {
+            "description": "All places, name-sorted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "places": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "aliases": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "academic",
+                              "residence",
+                              "dining",
+                              "athletic",
+                              "library",
+                              "admin",
+                              "outdoor",
+                              "other"
+                            ]
+                          },
+                          "lat": {
+                            "type": "number"
+                          },
+                          "lng": {
+                            "type": "number"
+                          },
+                          "address": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["id", "name", "aliases", "kind", "lat", "lng", "address"]
+                      }
+                    }
+                  },
+                  "required": ["places"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/places/{id}/activity": {
+      "get": {
+        "summary": "A place plus everything happening there around instant `at`",
+        "description": "Events overlapping [at, at+24h] and course meetings in session at `at`. Default at=now.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "at",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Place, events, meetings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "place": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "aliases": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "academic",
+                            "residence",
+                            "dining",
+                            "athletic",
+                            "library",
+                            "admin",
+                            "outdoor",
+                            "other"
+                          ]
+                        },
+                        "lat": {
+                          "type": "number"
+                        },
+                        "lng": {
+                          "type": "number"
+                        },
+                        "address": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["id", "name", "aliases", "kind", "lat", "lng", "address"]
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": ["string", "null"]
+                          },
+                          "allDay": {
+                            "type": "boolean"
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "orgId": {
+                            "type": ["string", "null"]
+                          },
+                          "orgName": {
+                            "type": ["string", "null"]
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "academic",
+                              "class",
+                              "club",
+                              "arts",
+                              "athletics",
+                              "food",
+                              "social",
+                              "career",
+                              "wellness",
+                              "admin"
+                            ]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "url": {
+                            "type": ["string", "null"]
+                          },
+                          "cost": {
+                            "type": ["string", "null"]
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "confidence": {
+                            "type": "number"
+                          },
+                          "isCanceled": {
+                            "type": "boolean"
+                          },
+                          "mergedSources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "start",
+                          "end",
+                          "allDay",
+                          "lat",
+                          "lng",
+                          "placeId",
+                          "placeName",
+                          "locationRaw",
+                          "orgId",
+                          "orgName",
+                          "category",
+                          "tags",
+                          "url",
+                          "cost",
+                          "source",
+                          "confidence",
+                          "isCanceled"
+                        ]
+                      }
+                    },
+                    "meetings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "courseCode": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "instructor": {
+                            "type": ["string", "null"]
+                          },
+                          "days": {
+                            "type": "string"
+                          },
+                          "startTime": {
+                            "type": "string"
+                          },
+                          "endTime": {
+                            "type": "string"
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "room": {
+                            "type": ["string", "null"]
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "courseCode",
+                          "title",
+                          "instructor",
+                          "days",
+                          "startTime",
+                          "endTime",
+                          "locationRaw",
+                          "placeId",
+                          "placeName",
+                          "room",
+                          "lat",
+                          "lng"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["place", "events", "meetings"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed query/path parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orgs": {
+      "get": {
+        "summary": "All organizations",
+        "responses": {
+          "200": {
+            "description": "All organizations, name-sorted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["club", "department", "office", "athletics", "external"]
+                          },
+                          "category": {
+                            "type": ["string", "null"],
+                            "enum": [
+                              "academic",
+                              "class",
+                              "club",
+                              "arts",
+                              "athletics",
+                              "food",
+                              "social",
+                              "career",
+                              "wellness",
+                              "admin",
+                              null
+                            ]
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "url": {
+                            "type": ["string", "null"]
+                          },
+                          "instagram": {
+                            "type": ["string", "null"]
+                          },
+                          "defaultPlaceId": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "kind",
+                          "category",
+                          "description",
+                          "url",
+                          "instagram",
+                          "defaultPlaceId"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["orgs"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orgs/{id}": {
+      "get": {
+        "summary": "One organization with upcoming and past events",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Org detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": ["club", "department", "office", "athletics", "external"]
+                    },
+                    "category": {
+                      "type": ["string", "null"],
+                      "enum": [
+                        "academic",
+                        "class",
+                        "club",
+                        "arts",
+                        "athletics",
+                        "food",
+                        "social",
+                        "career",
+                        "wellness",
+                        "admin",
+                        null
+                      ]
+                    },
+                    "description": {
+                      "type": ["string", "null"]
+                    },
+                    "url": {
+                      "type": ["string", "null"]
+                    },
+                    "instagram": {
+                      "type": ["string", "null"]
+                    },
+                    "defaultPlaceId": {
+                      "type": ["string", "null"]
+                    },
+                    "upcoming": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": ["string", "null"]
+                          },
+                          "allDay": {
+                            "type": "boolean"
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "orgId": {
+                            "type": ["string", "null"]
+                          },
+                          "orgName": {
+                            "type": ["string", "null"]
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "academic",
+                              "class",
+                              "club",
+                              "arts",
+                              "athletics",
+                              "food",
+                              "social",
+                              "career",
+                              "wellness",
+                              "admin"
+                            ]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "url": {
+                            "type": ["string", "null"]
+                          },
+                          "cost": {
+                            "type": ["string", "null"]
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "confidence": {
+                            "type": "number"
+                          },
+                          "isCanceled": {
+                            "type": "boolean"
+                          },
+                          "mergedSources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "start",
+                          "end",
+                          "allDay",
+                          "lat",
+                          "lng",
+                          "placeId",
+                          "placeName",
+                          "locationRaw",
+                          "orgId",
+                          "orgName",
+                          "category",
+                          "tags",
+                          "url",
+                          "cost",
+                          "source",
+                          "confidence",
+                          "isCanceled"
+                        ]
+                      }
+                    },
+                    "past": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": ["string", "null"]
+                          },
+                          "allDay": {
+                            "type": "boolean"
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "orgId": {
+                            "type": ["string", "null"]
+                          },
+                          "orgName": {
+                            "type": ["string", "null"]
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "academic",
+                              "class",
+                              "club",
+                              "arts",
+                              "athletics",
+                              "food",
+                              "social",
+                              "career",
+                              "wellness",
+                              "admin"
+                            ]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "url": {
+                            "type": ["string", "null"]
+                          },
+                          "cost": {
+                            "type": ["string", "null"]
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "confidence": {
+                            "type": "number"
+                          },
+                          "isCanceled": {
+                            "type": "boolean"
+                          },
+                          "mergedSources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "start",
+                          "end",
+                          "allDay",
+                          "lat",
+                          "lng",
+                          "placeId",
+                          "placeName",
+                          "locationRaw",
+                          "orgId",
+                          "orgName",
+                          "category",
+                          "tags",
+                          "url",
+                          "cost",
+                          "source",
+                          "confidence",
+                          "isCanceled"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "category",
+                    "description",
+                    "url",
+                    "instagram",
+                    "defaultPlaceId",
+                    "upcoming",
+                    "past"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed query/path parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meetings": {
+      "get": {
+        "summary": "Course meetings in session at instant `at`",
+        "description": "Server expands weekly day patterns + America/New_York times against the term calendar. Default at=now.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "at",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meetings in session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meetings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "courseCode": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "instructor": {
+                            "type": ["string", "null"]
+                          },
+                          "days": {
+                            "type": "string"
+                          },
+                          "startTime": {
+                            "type": "string"
+                          },
+                          "endTime": {
+                            "type": "string"
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "room": {
+                            "type": ["string", "null"]
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "courseCode",
+                          "title",
+                          "instructor",
+                          "days",
+                          "startTime",
+                          "endTime",
+                          "locationRaw",
+                          "placeId",
+                          "placeName",
+                          "room",
+                          "lat",
+                          "lng"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["meetings"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed query/path parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/now": {
+      "get": {
+        "summary": "Default live view: events in progress or starting within 2h, meetings, counts",
+        "responses": {
+          "200": {
+            "description": "Events, meetings, countsByCategory (all 10 keys)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": ["string", "null"]
+                          },
+                          "allDay": {
+                            "type": "boolean"
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "orgId": {
+                            "type": ["string", "null"]
+                          },
+                          "orgName": {
+                            "type": ["string", "null"]
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "academic",
+                              "class",
+                              "club",
+                              "arts",
+                              "athletics",
+                              "food",
+                              "social",
+                              "career",
+                              "wellness",
+                              "admin"
+                            ]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "url": {
+                            "type": ["string", "null"]
+                          },
+                          "cost": {
+                            "type": ["string", "null"]
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "confidence": {
+                            "type": "number"
+                          },
+                          "isCanceled": {
+                            "type": "boolean"
+                          },
+                          "mergedSources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "start",
+                          "end",
+                          "allDay",
+                          "lat",
+                          "lng",
+                          "placeId",
+                          "placeName",
+                          "locationRaw",
+                          "orgId",
+                          "orgName",
+                          "category",
+                          "tags",
+                          "url",
+                          "cost",
+                          "source",
+                          "confidence",
+                          "isCanceled"
+                        ]
+                      }
+                    },
+                    "meetings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "courseCode": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "instructor": {
+                            "type": ["string", "null"]
+                          },
+                          "days": {
+                            "type": "string"
+                          },
+                          "startTime": {
+                            "type": "string"
+                          },
+                          "endTime": {
+                            "type": "string"
+                          },
+                          "locationRaw": {
+                            "type": ["string", "null"]
+                          },
+                          "placeId": {
+                            "type": ["string", "null"]
+                          },
+                          "placeName": {
+                            "type": ["string", "null"]
+                          },
+                          "room": {
+                            "type": ["string", "null"]
+                          },
+                          "lat": {
+                            "type": ["number", "null"]
+                          },
+                          "lng": {
+                            "type": ["number", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "courseCode",
+                          "title",
+                          "instructor",
+                          "days",
+                          "startTime",
+                          "endTime",
+                          "locationRaw",
+                          "placeId",
+                          "placeName",
+                          "room",
+                          "lat",
+                          "lng"
+                        ]
+                      }
+                    },
+                    "countsByCategory": {
+                      "type": "object",
+                      "properties": {
+                        "academic": {
+                          "type": "number"
+                        },
+                        "class": {
+                          "type": "number"
+                        },
+                        "club": {
+                          "type": "number"
+                        },
+                        "arts": {
+                          "type": "number"
+                        },
+                        "athletics": {
+                          "type": "number"
+                        },
+                        "food": {
+                          "type": "number"
+                        },
+                        "social": {
+                          "type": "number"
+                        },
+                        "career": {
+                          "type": "number"
+                        },
+                        "wellness": {
+                          "type": "number"
+                        },
+                        "admin": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  },
+                  "required": ["events", "meetings", "countsByCategory"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Per-source ingestion health from source_runs",
+        "responses": {
+          "200": {
+            "description": "Latest run + latest ok per source; 'never' if no runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["ok", "error", "partial", "never"]
+                          },
+                          "lastRunAt": {
+                            "type": ["string", "null"]
+                          },
+                          "lastOkAt": {
+                            "type": ["string", "null"]
+                          },
+                          "itemsUpserted": {
+                            "type": ["number", "null"]
+                          },
+                          "error": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "status",
+                          "lastRunAt",
+                          "lastOkAt",
+                          "itemsUpserted",
+                          "error"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["sources"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}
