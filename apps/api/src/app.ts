@@ -1,13 +1,230 @@
-import { type HealthOut, HealthOutSchema } from "@brownsync/contract";
+import {
+  EventDetailOutSchema,
+  HealthOutSchema,
+  NowOutSchema,
+  OrgDetailOutSchema,
+  PlaceActivityOutSchema,
+} from "@brownsync/contract";
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { cors } from "hono/cors";
+import { errorEnvelope, isDbUnavailable } from "./errors";
+import {
+  aggregateHealth,
+  buildCountsByCategory,
+  mapEvent,
+  mapMeeting,
+  mapOrg,
+  mapPlace,
+} from "./mappers";
+import type { Queries } from "./queries";
+import {
+  EventsResponseSchema,
+  eventByIdRoute,
+  eventsRoute,
+  healthRoute,
+  MeetingsResponseSchema,
+  meetingsRoute,
+  nowRoute,
+  OrgsResponseSchema,
+  orgByIdRoute,
+  orgsRoute,
+  PlacesResponseSchema,
+  placeActivityRoute,
+  placesRoute,
+} from "./routes";
+
+/** /api/events default window when `to` is omitted: from + 7 days. */
+const EVENTS_DEFAULT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/** /api/now looks ahead 2 h: "in progress or starting soon". */
+const NOW_LOOKAHEAD_MS = 2 * 60 * 60 * 1000;
+/** /api/places/:id/activity event window: [at, at + 24 h]. */
+const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 /**
- * Read API per DATA_CONTRACT.md §3. Phase 0 ships /api/health only (static);
- * Phase 1 agent C adds the SQL-backed routes and OpenAPI emission.
+ * Contract Out-schema validation of response bodies — on everywhere except
+ * production, so a mapper/SQL drift fails loudly in dev/test instead of
+ * shipping a malformed payload.
  */
-export const app = new OpenAPIHono();
+function validated<T>(schema: { parse: (input: unknown) => T }, body: T): T {
+  if (process.env.NODE_ENV === "production") return body;
+  return schema.parse(body);
+}
 
-app.get("/api/health", (c) => {
-  const body: HealthOut = HealthOutSchema.parse({ sources: [] });
-  return c.json(body);
-});
+/**
+ * Thin route layer over an injected `Queries` implementation (src/queries.ts
+ * in production, fakes in tests). All handlers are pure orchestration:
+ * validate → query → map → validate response.
+ */
+export function createApp(queries: Queries) {
+  const app = new OpenAPIHono({
+    defaultHook: (result, c) => {
+      if (!result.success) {
+        const detail = result.error.issues
+          .map((issue) => {
+            const path = issue.path.join(".");
+            return path === "" ? issue.message : `${path}: ${issue.message}`;
+          })
+          .join("; ");
+        return c.json(errorEnvelope("bad_request", detail), 400);
+      }
+    },
+  });
+
+  // CORS for local dev (web app on any localhost port); extra origins via
+  // env CORS_ORIGINS="https://brownsync.example,https://…" for deploys.
+  const extraOrigins = new Set(
+    (process.env.CORS_ORIGINS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
+  );
+  app.use(
+    "/api/*",
+    cors({
+      origin: (origin) =>
+        LOCALHOST_ORIGIN.test(origin) || extraOrigins.has(origin) ? origin : null,
+    }),
+  );
+
+  app.onError((err, c) => {
+    if (isDbUnavailable(err)) {
+      return c.json(
+        errorEnvelope("db_unavailable", "Database unreachable — try again shortly."),
+        503,
+      );
+    }
+    console.error("[api] unhandled error:", err);
+    return c.json(errorEnvelope("internal", "Unexpected server error."), 500);
+  });
+
+  app.notFound((c) => c.json(errorEnvelope("not_found", "No such route."), 404));
+
+  app.openapi(eventsRoute, async (c) => {
+    const query = c.req.valid("query");
+    const from = query.from !== undefined ? new Date(query.from) : new Date();
+    const to =
+      query.to !== undefined
+        ? new Date(query.to)
+        : new Date(from.getTime() + EVENTS_DEFAULT_WINDOW_MS);
+    const rows = await queries.events({
+      from,
+      to,
+      bbox: query.bbox,
+      category: query.category,
+      q: query.q,
+    });
+    return c.json(validated(EventsResponseSchema, { events: rows.map(mapEvent) }), 200);
+  });
+
+  app.openapi(eventByIdRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const row = await queries.eventById(id);
+    if (row === null) {
+      return c.json(errorEnvelope("not_found", `No event ${id}.`), 404);
+    }
+    const [place, org] = await Promise.all([
+      row.place_id !== null ? queries.placeById(row.place_id) : null,
+      row.org_id !== null ? queries.orgById(row.org_id) : null,
+    ]);
+    const body = {
+      ...mapEvent(row),
+      org: org === null ? null : mapOrg(org),
+      place: place === null ? null : mapPlace(place),
+    };
+    return c.json(validated(EventDetailOutSchema, body), 200);
+  });
+
+  app.openapi(placesRoute, async (c) => {
+    const rows = await queries.places();
+    return c.json(validated(PlacesResponseSchema, { places: rows.map(mapPlace) }), 200);
+  });
+
+  app.openapi(placeActivityRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const { at } = c.req.valid("query");
+    const placeRow = await queries.placeById(id);
+    if (placeRow === null) {
+      return c.json(errorEnvelope("not_found", `No place ${id}.`), 404);
+    }
+    const atDate = at !== undefined ? new Date(at) : new Date();
+    const [events, meetings] = await Promise.all([
+      queries.eventsByPlace(id, atDate, new Date(atDate.getTime() + ACTIVITY_WINDOW_MS)),
+      queries.meetingsAtByPlace(atDate, id),
+    ]);
+    const body = {
+      place: mapPlace(placeRow),
+      events: events.map(mapEvent),
+      meetings: meetings.map(mapMeeting),
+    };
+    return c.json(validated(PlaceActivityOutSchema, body), 200);
+  });
+
+  app.openapi(orgsRoute, async (c) => {
+    const rows = await queries.orgs();
+    return c.json(validated(OrgsResponseSchema, { orgs: rows.map(mapOrg) }), 200);
+  });
+
+  app.openapi(orgByIdRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const orgRow = await queries.orgById(id);
+    if (orgRow === null) {
+      return c.json(errorEnvelope("not_found", `No org ${id}.`), 404);
+    }
+    const { upcoming, past } = await queries.eventsByOrg(id, new Date());
+    const body = {
+      ...mapOrg(orgRow),
+      upcoming: upcoming.map(mapEvent),
+      past: past.map(mapEvent),
+    };
+    return c.json(validated(OrgDetailOutSchema, body), 200);
+  });
+
+  app.openapi(meetingsRoute, async (c) => {
+    const { at } = c.req.valid("query");
+    const rows = await queries.meetingsAt(at !== undefined ? new Date(at) : new Date());
+    return c.json(validated(MeetingsResponseSchema, { meetings: rows.map(mapMeeting) }), 200);
+  });
+
+  app.openapi(nowRoute, async (c) => {
+    const now = new Date();
+    const [eventRows, meetingRows] = await Promise.all([
+      queries.events({ from: now, to: new Date(now.getTime() + NOW_LOOKAHEAD_MS) }),
+      queries.meetingsAt(now),
+    ]);
+    const events = eventRows.map(mapEvent);
+    const meetings = meetingRows.map(mapMeeting);
+    const body = {
+      events,
+      meetings,
+      countsByCategory: buildCountsByCategory(events, meetings.length),
+    };
+    return c.json(validated(NowOutSchema, body), 200);
+  });
+
+  app.openapi(healthRoute, async (c) => {
+    const rows = await queries.health();
+    return c.json(validated(HealthOutSchema, aggregateHealth(rows)), 200);
+  });
+
+  // The document the `openapi` script writes to packages/contract/openapi.json,
+  // also served for humans/tools poking at a running instance.
+  app.get("/api/openapi.json", (c) => c.json(buildOpenApiDocument(app)));
+
+  return app;
+}
+
+export function buildOpenApiDocument(app: ReturnType<typeof createApp>) {
+  return app.getOpenAPI31Document({
+    openapi: "3.1.0",
+    info: {
+      title: "BrownSync Read API",
+      version: "0.1.0",
+      description:
+        "Read-only API over the BrownSync canonical schema (DATA_CONTRACT.md §3). " +
+        "Consumed by apps/web and, later, the SwiftUI client via codegen.",
+    },
+    servers: [{ url: "http://localhost:8787", description: "local dev" }],
+  });
+}
