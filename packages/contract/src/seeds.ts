@@ -99,18 +99,25 @@ export type SeedSourceRun = z.infer<typeof SeedSourceRunSchema>;
  * under (contract v1 has no organizations.raw column). The file may not exist
  * yet — consumers must tolerate its absence. `schema_version` is a literal so
  * a future v2 fails loudly instead of being half-read.
+ *
+ * Shape is sidecar schema v1, coordinated with the ingestion lane's execution
+ * plan — field-for-field:
+ * `{"schema_version": 1, "generated_at": "<UTC ISO>", "mappings":
+ *   [{"organization_id": "<slug>", "livewhale_group": "<source name>",
+ *     "match_method": "exact|fuzzy", "score": <0..100>}]}`
  */
 export const OrgLivewhaleGroupsSchema = z.object({
   schema_version: z.literal(1),
-  generated_at: z.string(),
+  /** UTC ISO timestamp of when ingestion generated the file. */
+  generated_at: isoTs,
   mappings: z.array(
     z.object({
       organization_id: z.string().min(1),
       livewhale_group: z.string().min(1),
-      /** How ingestion matched the org to the group (e.g. 'exact', 'alias', 'fuzzy'). */
-      match_method: z.string().min(1),
-      /** Match confidence; higher wins when two orgs claim the same group. */
-      score: z.number().min(0),
+      /** How ingestion matched the org name to the LiveWhale group. */
+      match_method: z.enum(["exact", "fuzzy"]),
+      /** Match confidence 0..100; higher wins when two orgs claim the same group. */
+      score: z.number().min(0).max(100),
     }),
   ),
 });
