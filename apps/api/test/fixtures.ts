@@ -1,0 +1,111 @@
+import type {
+  EventApiRow,
+  MeetingRow,
+  OrgRow,
+  PlaceRow,
+  Queries,
+  SourceHealthRow,
+} from "../src/queries";
+
+/**
+ * Realistic rows matching what 0002_api.sql's view/functions return (columns
+ * per contract §1). Injected into createApp via fakeQueries() — tests never
+ * touch a live database.
+ */
+
+export const eventRow: EventApiRow = {
+  id: "a3c1b7f2-4d5e-4f60-8a9b-1c2d3e4f5a6b",
+  title: "Provost's Lecture: Mapping College Hill",
+  description: "A talk on campus cartography and the 3D building model.",
+  start_ts: new Date("2026-09-15T22:00:00Z"), // 18:00 America/New_York
+  end_ts: new Date("2026-09-15T23:30:00Z"),
+  is_all_day: false,
+  lat: 41.8268,
+  lng: -71.4025,
+  place_id: "salomon-center",
+  place_name: "Salomon Center",
+  location_raw: "Salomon Center 101",
+  org_id: "brown-lecture-board",
+  org_name: "Brown Lecture Board",
+  category: "academic",
+  tags: ["lecture", "maps"],
+  url: "https://events.brown.edu/event/12345",
+  cost: null,
+  source: "livewhale",
+  confidence: 1,
+  is_canceled: false,
+  merged_sources: ["cab"],
+};
+
+export const placeRow: PlaceRow = {
+  id: "salomon-center",
+  name: "Salomon Center",
+  aliases: ["Salomon", "Salomon Center for Teaching"],
+  kind: "academic",
+  lat: 41.8268,
+  lng: -71.4025,
+  address: "79 Waterman St, Providence, RI 02912",
+};
+
+export const orgRow: OrgRow = {
+  id: "brown-lecture-board",
+  name: "Brown Lecture Board",
+  kind: "club",
+  category: "academic",
+  description: "Brings speakers to campus.",
+  url: "https://brownlectureboard.org",
+  instagram: "brownlectureboard",
+  default_place_id: "salomon-center",
+};
+
+export const meetingRow: MeetingRow = {
+  id: "202710-17538-0",
+  course_code: "CSCI 0150",
+  title: "Introduction to Object-Oriented Programming",
+  instructor: "A. van Dam",
+  days: "TTh",
+  start_time: "14:00:00",
+  end_time: "15:20:00",
+  location_raw: "Salomon Center 101",
+  place_id: "salomon-center",
+  place_name: "Salomon Center",
+  room: "101",
+  lat: 41.8268,
+  lng: -71.4025,
+};
+
+export const healthRows: SourceHealthRow[] = [
+  {
+    source: "livewhale",
+    status: "ok",
+    last_run_at: new Date("2026-07-28T12:00:00Z"),
+    last_ok_at: new Date("2026-07-28T12:00:00Z"),
+    items_upserted: 321,
+    error: null,
+  },
+  {
+    source: "cab",
+    status: "error",
+    last_run_at: new Date("2026-07-28T11:00:00Z"),
+    last_ok_at: new Date("2026-07-27T11:00:00Z"),
+    items_upserted: null,
+    error: "HTTP 500 from cab.brown.edu",
+  },
+];
+
+export function fakeQueries(overrides: Partial<Queries> = {}): Queries {
+  const base: Queries = {
+    events: async () => [eventRow],
+    eventById: async (id) => (id === eventRow.id ? eventRow : null),
+    places: async () => [placeRow],
+    placeById: async (id) => (id === placeRow.id ? placeRow : null),
+    eventsByPlace: async () => [eventRow],
+    orgs: async () => [orgRow],
+    orgById: async (id) => (id === orgRow.id ? orgRow : null),
+    eventsByOrg: async () => ({ upcoming: [eventRow], past: [] }),
+    meetingsAt: async () => [meetingRow],
+    meetingsAtByPlace: async () => [meetingRow],
+    health: async () => healthRows,
+  };
+  return { ...base, ...overrides };
+}
