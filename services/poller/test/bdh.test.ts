@@ -18,14 +18,15 @@ describe("normalizeBdh (recorded fixture)", () => {
     }
   });
 
-  it("is a buzz layer: no coords, no place, category admin, tags [news]", () => {
+  it("is a buzz layer: no coords, no place, null category, tags [news]", () => {
     for (const row of rows) {
       expect(row.lat).toBeNull();
       expect(row.lng).toBeNull();
       expect(row.place_id).toBeNull();
       expect(row.location_raw).toBeNull();
       expect(row.org_id).toBeNull();
-      expect(row.category).toBe("admin");
+      // No taxonomy slot fits news; the layer is identified by source="bdh".
+      expect(row.category).toBeNull();
       expect(row.tags).toEqual(["news"]);
       expect(row.end_ts).toBeNull();
       expect(row.is_all_day).toBe(false);

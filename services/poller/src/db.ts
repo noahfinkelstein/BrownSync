@@ -8,8 +8,12 @@ import { type SweepWindow, selectCancellations, sweepWindow } from "./sweep";
  * - never delete — cancellation sweep only flips is_canceled
  * - one source_runs row per run ALWAYS, including failures (runner.ts)
  *
- * There is no local database in dev; this module is exercised in CI against
- * the postgis service container and via `--dry-run` locally.
+ * There is no local database in dev; locally this module is only reached via
+ * `--dry-run` (which never connects). Its SQL is executed for real by CI's
+ * `migrate` job against the migrated postgis service container, two ways:
+ * `pnpm poll all --fixture` (non-dry-run, twice) with psql assertions in
+ * .github/workflows/ci.yml, and the DATABASE_URL-gated tests in
+ * test/db.integration.test.ts.
  */
 
 export type Sql = ReturnType<typeof postgres>;

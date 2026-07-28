@@ -72,6 +72,7 @@ for (const source of sources) {
 }
 
 for (const r of results) {
-  console.error(`${r.status === "ok" ? "ok " : "ERR"} ${r.source}: ${r.items} items`);
+  const tag = r.status === "error" ? "ERR " : r.status === "partial" ? "PART" : "ok  ";
+  console.error(`${tag} ${r.source}: ${r.items} items`);
 }
 process.exit(results.some((r) => r.status === "error") ? 1 : 0);

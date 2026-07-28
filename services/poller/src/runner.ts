@@ -6,7 +6,7 @@ import { cancelUnseen, connect, recordSourceRun, type Sql, upsertEvents } from "
 import { createHttpClient, type HttpClient } from "./http";
 import { livewhaleModule } from "./livewhale";
 import type { Source } from "./sources";
-import { type SweepWindow, sweepWindow } from "./sweep";
+import { isLikelyTruncated, type SweepWindow, sweepWindow } from "./sweep";
 import type { SourceModule } from "./types";
 
 export const MODULES: Readonly<Record<Source, SourceModule>> = {
@@ -24,7 +24,8 @@ export type RunOptions = {
 
 export type RunResult = {
   source: string;
-  status: "ok" | "error";
+  /** "partial" = the fetch looked truncated (row cap) — see sweep.ts. */
+  status: "ok" | "partial" | "error";
   items: number;
   canceled: number;
   error: string | null;
@@ -97,6 +98,18 @@ export async function runSource(
   }
 
   const window = sweepWindow(rows);
+  // A fetch at the requested max / server row cap is incomplete: the tail of
+  // the window was cut off, so an absent event at the window's end boundary
+  // proves nothing. Clamp the sweep to [start, end) and record the run as
+  // partial instead of ok. Only meaningful for full-window feeds (mod.sweep).
+  const truncated = mod.sweep && isLikelyTruncated(rows.length, mod.requestedMax ?? null);
+  const status = truncated ? "partial" : "ok";
+  if (truncated) {
+    console.error(
+      `[${mod.cliName}] fetch looks truncated (${rows.length} rows >= cap) — ` +
+        "sweep clamped before the window end, run recorded as partial",
+    );
+  }
 
   if (opts.dryRun) {
     for (const row of rows) {
@@ -104,7 +117,7 @@ export async function runSource(
       console.log(JSON.stringify(printable));
     }
     printSummary(mod, rows, window, null);
-    return { source: mod.source, status: "ok", items: rows.length, canceled: 0, error: null };
+    return { source: mod.source, status, items: rows.length, canceled: 0, error: null };
   }
 
   let sql: Sql | null = null;
@@ -116,7 +129,7 @@ export async function runSource(
       canceled = await cancelUnseen(
         sql,
         mod.source,
-        window,
+        truncated ? { ...window, endExclusive: true } : window,
         rows.map((r) => r.source_id),
       );
     }
@@ -124,12 +137,12 @@ export async function runSource(
       source: mod.source,
       started_at: startedAt,
       finished_at: new Date().toISOString(),
-      status: "ok",
+      status,
       items_upserted: upserted,
       error: null,
     });
     printSummary(mod, rows, window, canceled);
-    return { source: mod.source, status: "ok", items: upserted, canceled, error: null };
+    return { source: mod.source, status, items: upserted, canceled, error: null };
   } catch (err) {
     const error = message(err);
     console.error(`[${mod.cliName}] error: ${error}`);

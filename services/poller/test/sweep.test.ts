@@ -1,5 +1,16 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { isInWindow, selectCancellations, sweepWindow } from "../src/sweep";
+import { LIVEWHALE_MAX } from "../src/livewhale";
+import { normalizeLivewhaleFeed } from "../src/livewhale/normalize";
+import { FIXTURES_DIR } from "../src/paths";
+import {
+  isInWindow,
+  isLikelyTruncated,
+  SERVER_ROW_CAP,
+  selectCancellations,
+  sweepWindow,
+} from "../src/sweep";
 
 describe("sweepWindow", () => {
   it("is the [min, max] start_ts of the fetched rows", () => {
@@ -33,6 +44,26 @@ describe("isInWindow", () => {
     expect(isInWindow("2026-07-31T23:59:59Z", window)).toBe(false);
     expect(isInWindow("2026-08-31T00:00:01Z", window)).toBe(false);
   });
+
+  it("excludes the end boundary when the window is clamped for truncation", () => {
+    const clamped = { ...window, endExclusive: true };
+    expect(isInWindow("2026-08-31T00:00:00Z", clamped)).toBe(false);
+    expect(isInWindow("2026-08-30T23:59:59Z", clamped)).toBe(true);
+    expect(isInWindow("2026-08-01T00:00:00Z", clamped)).toBe(true);
+  });
+});
+
+describe("isLikelyTruncated", () => {
+  it("flags fetches at or over the requested max", () => {
+    expect(isLikelyTruncated(500, 500)).toBe(true);
+    expect(isLikelyTruncated(1000, 500)).toBe(true);
+    expect(isLikelyTruncated(499, 500)).toBe(false);
+  });
+
+  it("flags fetches at the observed server cap even without a requested max", () => {
+    expect(isLikelyTruncated(SERVER_ROW_CAP, null)).toBe(true);
+    expect(isLikelyTruncated(SERVER_ROW_CAP - 1, null)).toBe(false);
+  });
 });
 
 describe("selectCancellations (contract §2)", () => {
@@ -60,5 +91,36 @@ describe("selectCancellations (contract §2)", () => {
   it("cancels nothing when everything fetched is still present", () => {
     const seen = new Set(existing.map((e) => e.source_id));
     expect(selectCancellations(existing, seen, window)).toEqual([]);
+  });
+});
+
+describe("truncation guard with the recorded fixture at the cap", () => {
+  // The recorded response to ?max=500 is exactly 1000 rows — the server
+  // ignored the requested max and capped the feed, cutting the window's tail.
+  const fixtureText = readFileSync(path.join(FIXTURES_DIR, "livewhale-events.json"), "utf8");
+  const rows = normalizeLivewhaleFeed(fixtureText, new Map());
+  const seen = new Set(rows.map((r) => r.source_id));
+  const window = sweepWindow(rows);
+  if (!window) throw new Error("fixture produced no sweep window");
+
+  it("detects the capped fetch as truncated", () => {
+    expect(rows.length).toBe(SERVER_ROW_CAP);
+    expect(isLikelyTruncated(rows.length, LIVEWHALE_MAX)).toBe(true);
+  });
+
+  it("never cancels an event tied at the window's end boundary", () => {
+    // A stored event starting exactly at the last fetched start_ts, absent
+    // from this run — plausibly cut off by the cap, NOT canceled.
+    const boundary = { source_id: "boundary-event:1", start_ts: window.end };
+    const clamped = { ...window, endExclusive: true };
+    expect(selectCancellations([boundary], seen, clamped)).toEqual([]);
+    // Without the guard the same event WOULD have been falsely canceled.
+    expect(selectCancellations([boundary], seen, window)).toEqual(["boundary-event:1"]);
+  });
+
+  it("cancels nothing at all when every fetched row is still present", () => {
+    const existing = rows.map((r) => ({ source_id: r.source_id, start_ts: r.start_ts }));
+    const clamped = { ...window, endExclusive: true };
+    expect(selectCancellations(existing, seen, clamped)).toEqual([]);
   });
 });

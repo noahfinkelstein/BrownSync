@@ -58,3 +58,44 @@ jobs:
         run: pnpm db:seed
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Poller DB integration tests (upsertEvents, cancelUnseen, recordSourceRun)
+        run: pnpm --filter @brownsync/poller exec vitest run test/db.integration.test.ts
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Poller one-shot from recorded fixtures (non-dry-run)
+        run: |
+          pnpm poll all --fixture
+          # Second pass exercises the on-conflict update + all-seen sweep path.
+          pnpm poll all --fixture
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Assert poller rows actually landed
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          check() {
+            local desc="$1" query="$2" got
+            got=$(psql -h localhost -U postgres -d postgres -tAc "$query")
+            if [ "$got" != "t" ]; then
+              echo "FAIL: $desc — ($query) returned '$got'"
+              exit 1
+            fi
+            echo "ok: $desc"
+          }
+          check "livewhale events landed" \
+            "select count(*) > 0 from events where source = 'livewhale'"
+          check "athletics events landed" \
+            "select count(*) > 0 from events where source = 'athletics_ics'"
+          check "bdh events landed" \
+            "select count(*) > 0 from events where source = 'bdh'"
+          check "upsert key held — no duplicate (source, source_id)" \
+            "select count(*) = count(distinct (source, source_id)) from events"
+          check "second pass refreshed last_seen_at" \
+            "select count(*) > 0 from events where source = 'livewhale' and last_seen_at > first_seen_at"
+          check "capped livewhale fixture recorded partial, not ok" \
+            "select count(*) = 2 from source_runs where source = 'livewhale' and status = 'partial'"
+          check "athletics + bdh runs recorded ok" \
+            "select count(*) = 4 from source_runs where source in ('athletics_ics', 'bdh') and status = 'ok'"
+          check "no error runs recorded" \
+            "select count(*) = 0 from source_runs where source in ('livewhale', 'athletics_ics', 'bdh') and status = 'error'"

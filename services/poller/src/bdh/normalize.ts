@@ -5,7 +5,9 @@ import { stripHtml, toIsoUtc, truncate } from "../util";
 
 /**
  * Brown Daily Herald RSS 2.0 — the "buzz" layer (contract §5): article rows
- * with no coords, category `admin`, tags `["news"]`, start_ts = pubDate.
+ * with no coords, tags `["news"]`, start_ts = pubDate. Category stays null —
+ * the fixed §4 taxonomy has no news slot and `admin` means deadlines /
+ * university ops; the buzz layer is identified by `source = "bdh"` instead.
  */
 
 const FeedSchema = z.looseObject({
@@ -68,7 +70,9 @@ export function normalizeBdh(xmlText: string): SeedEvent[] {
         lat: null,
         lng: null,
         org_id: null,
-        category: "admin",
+        // Null, not "admin": no taxonomy slot fits news, and "admin" would
+        // surface articles under the deadlines/university-ops filter chip.
+        category: null,
         tags: ["news"],
         url: link,
         cost: null,

@@ -16,6 +16,12 @@ export type SourceModule = {
    * top-N of articles, not a full window, so absence never means cancellation.
    */
   sweep: boolean;
+  /**
+   * Row count requested from the source (`?max=N`), when the endpoint takes
+   * one. A fetch returning >= this many rows is treated as truncated (see
+   * sweep.ts): the sweep is clamped and the run recorded as partial.
+   */
+  requestedMax?: number;
   /** Raw response text → validated contract seed-event rows. Throws on malformed feeds. */
   normalize: (rawText: string) => SeedEvent[];
 };

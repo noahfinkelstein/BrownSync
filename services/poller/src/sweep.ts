@@ -9,9 +9,33 @@
  * feed returned this run. Events of the same source that start inside that
  * window but were not seen this run get canceled; events outside the window
  * were never re-fetched, so absence proves nothing and they are left alone.
+ *
+ * Truncated fetches: when the feed hits a row cap (see isLikelyTruncated) the
+ * "full fetch" premise breaks at the window's END — the feed is sorted
+ * ascending by start and the tail was cut off mid-stream, so an event tied at
+ * max(start_ts) may be absent only because it fell past the cap. The sweep is
+ * then clamped to [start, end) via `endExclusive` and the run marked partial.
  */
 
-export type SweepWindow = { start: string; end: string };
+export type SweepWindow = {
+  start: string;
+  end: string;
+  /** Clamp for truncated fetches: events starting exactly at `end` are NOT swept. */
+  endExclusive?: boolean;
+};
+
+/**
+ * LiveWhale's server ignores small `?max=` values and caps the feed at 1000
+ * rows: the recorded fixture is exactly 1000 rows (sorted ascending by
+ * date_ts) despite requesting max=500. At or beyond either limit we cannot
+ * tell "everything fetched" from "cut off at the cap".
+ */
+export const SERVER_ROW_CAP = 1000;
+
+/** A fetch at/over the requested max — or at the observed server cap — is incomplete. */
+export function isLikelyTruncated(rowCount: number, requestedMax: number | null = null): boolean {
+  return (requestedMax !== null && rowCount >= requestedMax) || rowCount >= SERVER_ROW_CAP;
+}
 
 /** Window covered by this run's full fetch; null when the feed came back empty. */
 export function sweepWindow(rows: ReadonlyArray<{ start_ts: string }>): SweepWindow | null {
@@ -28,7 +52,9 @@ export function sweepWindow(rows: ReadonlyArray<{ start_ts: string }>): SweepWin
 
 export function isInWindow(startTs: string, window: SweepWindow): boolean {
   const t = Date.parse(startTs);
-  return t >= Date.parse(window.start) && t <= Date.parse(window.end);
+  if (t < Date.parse(window.start)) return false;
+  const end = Date.parse(window.end);
+  return window.endExclusive ? t < end : t <= end;
 }
 
 /**
