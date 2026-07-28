@@ -1,0 +1,26 @@
+{
+  "name": "@brownsync/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read API per DATA_CONTRACT.md §3 — Hono + zod-openapi over Postgres views. Frontend and future Swift client consume ONLY these routes.",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@brownsync/contract": "workspace:*",
+    "@hono/node-server": "^2.0.12",
+    "@hono/zod-openapi": "^1.5.1",
+    "hono": "^4.12.32",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

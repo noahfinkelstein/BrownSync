@@ -1,0 +1,28 @@
+{
+  "name": "brownsync",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "dev": "turbo run dev",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:seed": "pnpm --filter @brownsync/db seed",
+    "poll": "pnpm --filter @brownsync/poller poll"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.5",
+    "supabase": "^2.110.0",
+    "turbo": "^2.10.7",
+    "typescript": "^7.0.2"
+  }
+}

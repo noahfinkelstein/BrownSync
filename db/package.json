@@ -1,0 +1,21 @@
+{
+  "name": "@brownsync/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical schema (migrations mirror DATA_CONTRACT.md §1 verbatim) and the NDJSON seed loader (§6). Seeds themselves (db/seeds/) are produced by the Codex ingestion workstream.",
+  "scripts": {
+    "seed": "tsx seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@brownsync/contract": "workspace:*",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  }
+}
