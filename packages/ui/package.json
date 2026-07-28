@@ -1,0 +1,30 @@
+{
+  "name": "@brownsync/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BrownSync design system: tokens as CSS, re-themed primitives, category icon sprites (DOM + MapLibre variants). Filled in by Phase 1 agent D per handoff §6.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-popover": "^1.1.23",
+    "@radix-ui/react-scroll-area": "^1.2.18",
+    "@radix-ui/react-slider": "^1.4.7",
+    "@radix-ui/react-tabs": "^1.1.21",
+    "@radix-ui/react-tooltip": "^1.2.16",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "react": "^19.2.8",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "typescript": "^7.0.2"
+  }
+}

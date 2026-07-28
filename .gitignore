@@ -1,0 +1,25 @@
+# deps / build
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*.local
+*.local
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# supabase local state
+supabase/.temp/
+supabase/.branches/
+
+# scraper caches (Codex side; belt-and-suspenders)
+.cache/
+
+# os
+.DS_Store

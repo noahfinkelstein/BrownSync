@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "services/*"
+  - "db"
+
+allowBuilds:
+  esbuild: true
+  supabase: true
+  "@tailwindcss/oxide": true
+  "@biomejs/biome": true
