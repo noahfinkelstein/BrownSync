@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isSource, SOURCES, USER_AGENT } from "../src/sources";
+import { DEFAULT_USER_AGENT } from "../src/http";
+import { isSource, SOURCES } from "../src/sources";
 
 describe("poller sources", () => {
   it("owns exactly the structured feeds", () => {
@@ -11,7 +12,7 @@ describe("poller sources", () => {
     expect(isSource("cab")).toBe(false);
   });
 
-  it("always identifies as BrownSync", () => {
-    expect(USER_AGENT).toMatch(/^BrownSync\/1\.0 \(\+.+\)$/);
+  it("always identifies as BrownSync (lane requirement: exact UA)", () => {
+    expect(DEFAULT_USER_AGENT).toBe("BrownSync/1.0 (+noah_finkelstein@brown.edu)");
   });
 });

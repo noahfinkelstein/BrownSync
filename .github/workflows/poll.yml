@@ -1,0 +1,43 @@
+name: Poll
+
+# Phase 1: manual trigger only. The cron schedule below is written but stays
+# commented until Phase 3 flips it on (handoff §2 / §3 ops hardening).
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Source to poll"
+        type: choice
+        options:
+          - all
+          - livewhale
+          - athletics
+          - bdh
+        default: all
+  # schedule:
+  #   # LiveWhale: poll <= every 10 min (contract §5). Athletics/BDH ride along;
+  #   # their ETag cache makes the extra requests cheap 304s.
+  #   - cron: "*/10 * * * *"
+
+concurrency:
+  group: poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @brownsync/contract build
+      - name: Poll ${{ inputs.source || 'all' }}
+        run: pnpm poll ${{ inputs.source || 'all' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POLLER_USER_AGENT: "BrownSync/1.0 (+noah_finkelstein@brown.edu)"

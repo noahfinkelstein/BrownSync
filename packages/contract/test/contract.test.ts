@@ -4,6 +4,7 @@ import {
   CATEGORY_IDS,
   EventOutSchema,
   HealthOutSchema,
+  OrgLivewhaleGroupsSchema,
   SeedCourseMeetingSchema,
   SeedEventSchema,
   SeedPlaceSchema,
@@ -133,6 +134,61 @@ describe("seed rows (contract §6)", () => {
     };
     expect(SeedCourseMeetingSchema.parse(base).days).toBe("TTh");
     expect(SeedCourseMeetingSchema.safeParse({ ...base, days: "TR" }).success).toBe(false);
+  });
+});
+
+describe("OrgLivewhaleGroups sidecar (schema v1, coordinated with the ingestion lane)", () => {
+  const valid = {
+    schema_version: 1,
+    generated_at: "2026-07-28T12:00:00Z",
+    mappings: [
+      {
+        organization_id: "brown-outing-club",
+        livewhale_group: "Brown Outing Club",
+        match_method: "exact",
+        score: 100,
+      },
+    ],
+  };
+
+  it("accepts the ingestion-lane v1 envelope", () => {
+    const parsed = OrgLivewhaleGroupsSchema.parse(valid);
+    expect(parsed.mappings[0]?.match_method).toBe("exact");
+  });
+
+  it("accepts fuzzy matches with fractional scores in 0..100", () => {
+    const mapping = { ...valid.mappings[0], match_method: "fuzzy", score: 87.5 };
+    expect(OrgLivewhaleGroupsSchema.safeParse({ ...valid, mappings: [mapping] }).success).toBe(
+      true,
+    );
+  });
+
+  it("rejects match_method outside exact|fuzzy", () => {
+    const mapping = { ...valid.mappings[0], match_method: "alias" };
+    expect(OrgLivewhaleGroupsSchema.safeParse({ ...valid, mappings: [mapping] }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects scores outside 0..100", () => {
+    for (const score of [-1, 101]) {
+      const mapping = { ...valid.mappings[0], score };
+      expect(OrgLivewhaleGroupsSchema.safeParse({ ...valid, mappings: [mapping] }).success).toBe(
+        false,
+      );
+    }
+  });
+
+  it("requires generated_at as an ISO timestamp", () => {
+    const { generated_at: _generatedAt, ...missing } = valid;
+    expect(OrgLivewhaleGroupsSchema.safeParse(missing).success).toBe(false);
+    expect(
+      OrgLivewhaleGroupsSchema.safeParse({ ...valid, generated_at: "yesterday" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects any schema_version other than 1 — a future v2 must fail loudly", () => {
+    expect(OrgLivewhaleGroupsSchema.safeParse({ ...valid, schema_version: 2 }).success).toBe(false);
   });
 });
 

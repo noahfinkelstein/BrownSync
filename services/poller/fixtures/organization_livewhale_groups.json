@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T12:00:00Z",
+  "mappings": [
+    {
+      "organization_id": "alumni-and-friends",
+      "livewhale_group": "Alumni &amp; Friends",
+      "match_method": "exact",
+      "score": 100
+    },
+    {
+      "organization_id": "brown-athletics",
+      "livewhale_group": "Athletics",
+      "match_method": "fuzzy",
+      "score": 92
+    },
+    {
+      "organization_id": "brown-club-sports",
+      "livewhale_group": "Athletics",
+      "match_method": "fuzzy",
+      "score": 61
+    }
+  ]
+}
