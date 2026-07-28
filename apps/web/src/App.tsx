@@ -1,7 +1,13 @@
+import { Outlet } from "@tanstack/react-router";
+
+/**
+ * Root layout: dark page chrome only — the map owns the viewport. Phase 2
+ * builds the header (wordmark, search, time scrubber, chips) on top of this.
+ */
 export function App() {
   return (
-    <main className="grid min-h-dvh place-items-center bg-[#0B0E12] text-[#8B94A3]">
-      <p className="font-mono text-[13px]">BrownSync — map shell lands in Phase 1</p>
-    </main>
+    <div className="h-dvh w-full overflow-hidden bg-[#0B0E12] text-[#E8ECF1]">
+      <Outlet />
+    </div>
   );
 }

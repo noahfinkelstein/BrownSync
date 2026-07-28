@@ -8,3 +8,28 @@ body {
   margin: 0;
   background: #0b0e12;
 }
+
+/*
+ * Map chrome (§6.3): attribution small, dark, bottom-right. MapLibre ships a
+ * light default; re-skin to the token palette.
+ */
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background: rgb(11 14 18 / 0.78);
+  border-radius: 4px;
+  color: #566070;
+  font-size: 12px;
+  padding: 1px 6px;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #8b94a3;
+  text-decoration: none;
+}
+
+.maplibregl-ctrl-attrib a:hover {
+  color: #e8ecf1;
+}
+
+.maplibregl-ctrl-attrib-button {
+  filter: invert(0.65);
+}
