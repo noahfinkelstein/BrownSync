@@ -8,7 +8,3 @@ export type Source = (typeof SOURCES)[number];
 export function isSource(v: string): v is Source {
   return (SOURCES as readonly string[]).includes(v);
 }
-
-/** Contract §5: every request to Brown servers identifies itself. */
-export const USER_AGENT =
-  process.env.POLLER_USER_AGENT ?? "BrownSync/1.0 (+noah_finkelstein@brown.edu)";
