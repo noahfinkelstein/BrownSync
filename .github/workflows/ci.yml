@@ -49,6 +49,8 @@ jobs:
           done
       - name: Read-API SQL semantic checks (rollback-safe)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0002_api_checks.sql
+      - name: Term-reconciliation SQL checks (rollback-safe, re-applies 0003 for idempotency)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0003_term_checks.sql
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

@@ -18,10 +18,11 @@ begin;
 -- Fixtures
 -- ---------------------------------------------------------------------------
 
--- Pin the Fall 2026 term window the assertions below assume (0002 seeds this
--- row, but a live DB may have updated it; the pin rolls back with the rest).
+-- Pin the Fall 2026 term window the assertions below assume (0002 seeded a
+-- 202710 guess; 0003 reconciled it to the authoritative CAB code 202610 — a
+-- live DB may have updated the dates since; the pin rolls back with the rest).
 insert into term_calendar (srcdb, start_date, end_date)
-values ('202710', date '2026-09-09', date '2026-12-22')
+values ('202610', date '2026-09-09', date '2026-12-22')
 on conflict (srcdb) do update
   set start_date = excluded.start_date, end_date = excluded.end_date;
 
@@ -79,12 +80,12 @@ insert into events (id, source, source_id, canonical_id, title, start_ts, end_ts
 
 insert into course_meetings (id, srcdb, crn, course_code, title, days,
                              start_time, end_time, place_id) values
-  ('chk-tth',  '202710', 'c1', 'CHK 0001', 'Chk TTh',        'TTh', '14:00', '14:50', 'chk-salomon'),
-  ('chk-th',   '202710', 'c2', 'CHK 0002', 'Chk Th only',    'Th',  '14:00', '14:50', null),
-  ('chk-t',    '202710', 'c3', 'CHK 0003', 'Chk T only',     'T',   '14:00', '14:50', null),
-  ('chk-mwf',  '202710', 'c4', 'CHK 0004', 'Chk MWF',        'MWF', '14:00', '14:50', null),
-  ('chk-su',   '202710', 'c5', 'CHK 0005', 'Chk Su only',    'Su',  '14:00', '14:50', null),
-  ('chk-s',    '202710', 'c6', 'CHK 0006', 'Chk S only',     'S',   '14:00', '14:50', null),
+  ('chk-tth',  '202610', 'c1', 'CHK 0001', 'Chk TTh',        'TTh', '14:00', '14:50', 'chk-salomon'),
+  ('chk-th',   '202610', 'c2', 'CHK 0002', 'Chk Th only',    'Th',  '14:00', '14:50', null),
+  ('chk-t',    '202610', 'c3', 'CHK 0003', 'Chk T only',     'T',   '14:00', '14:50', null),
+  ('chk-mwf',  '202610', 'c4', 'CHK 0004', 'Chk MWF',        'MWF', '14:00', '14:50', null),
+  ('chk-su',   '202610', 'c5', 'CHK 0005', 'Chk Su only',    'Su',  '14:00', '14:50', null),
+  ('chk-s',    '202610', 'c6', 'CHK 0006', 'Chk S only',     'S',   '14:00', '14:50', null),
   -- srcdb with no term_calendar row -> wide Fall 2026 fallback window
   ('chk-nosrc', 'chk999', 'c7', 'CHK 0007', 'Chk unknown srcdb', 'MWF', '14:00', '14:50', null);
 
@@ -257,12 +258,12 @@ begin
     raise exception 'meetings: end_time not exclusive';
   end if;
 
-  -- term windows: Wed 2026-09-02 is before 202710 classes start (Sep 9) but
+  -- term windows: Wed 2026-09-02 is before 202610 classes start (Sep 9) but
   -- inside the wide fallback window for an unknown srcdb
   select coalesce(array_agg(id), '{}') into ids
   from api_meetings_at('2026-09-02T18:00:00Z') where id like 'chk-%';
   if 'chk-mwf' = any (ids) then
-    raise exception 'meetings term: 202710 meeting active before term start_date';
+    raise exception 'meetings term: 202610 meeting active before term start_date';
   end if;
   if not ('chk-nosrc' = any (ids)) then
     raise exception 'meetings term: unknown-srcdb meeting not covered by fallback window';
