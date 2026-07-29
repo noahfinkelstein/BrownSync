@@ -57,7 +57,7 @@
 | clubs/default_place | collection error | `12 passed` |
 | clubs/job | collection error | `13 passed` |
 | CLI + integration | `3 failed, 23 passed` (registry order, clubs runner) | `93 passed`; integration `20 passed` |
-| full suite | — | `942 passed, 34 skipped` (Task 10 baseline was 738+34; 35 of the new tests belong to a concurrent session's WIP, all passing) |
+| full suite | — | committed tree (pristine checkout of this commit): `833 passed, 34 skipped` — Task 10 baseline was 738+34, so this task adds 95 tests; the shared working tree additionally carried 109 passing WIP tests from a concurrent session (942+34 there) |
 
 ## Real-run numbers (all gates PASS)
 
