@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-29T04:40:47.356629Z",
+  "recorded_user_agent": "BrownSync/1.0 (+noah_finkelstein@brown.edu)",
+  "notes": [
+    "user_provided entries are inputs handed over by the user (kind \"user_provided\"): hash-pinned with provenance, never recorded HTTP evidence; they stand in for the capture gaps they name in fills_gaps",
+    "livewhale_events: contact_info values are blanked at capture — they hold staff names/titles and no contract field consumes them",
+    "livewhale_events: the '?max=200' parameter was not honored — the endpoint returned 1000 events",
+    "overpass_buildings: OpenStreetMap data, ODbL licence — attribute OpenStreetMap contributors",
+    "athletics_ics: robots.txt asks Crawl-delay 30 and the feed advertises X-PUBLISHED-TTL PT120M — poll no more often than every 2 hours (probe: reports/sdd/brownsync-ingestion/athletics-probe.md)"
+  ],
+  "gaps": [
+    {
+      "source": "cab_home",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "cab_bootstrap",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "cab_search",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "cab_details",
+      "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+    },
+    {
+      "source": "clubs_undergraduate",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://studentactivities.brown.edu/student-groups/undergraduate-student-groups'"
+    },
+    {
+      "source": "clubs_graduate",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://studentactivities.brown.edu/student-groups/undergraduate-student-groups'"
+    },
+    {
+      "source": "dining_landing",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://dining.brown.edu/'"
+    },
+    {
+      "source": "dining_bundle",
+      "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://dining.brown.edu/'"
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "recorded/athletics/calendar.ics",
+      "source": "athletics_ics",
+      "route": "GET https://brownbears.com/calendar.ashx/calendar.ics",
+      "request_body": null,
+      "request_fingerprint": "8b818bd84201b48bb674fbf91f30c4720ec47162f5847e86cd0c605425963b0d",
+      "retrieved_at": "2026-07-29T04:40:47.353474Z",
+      "status": 200,
+      "content_type": "text/calendar",
+      "sha256": "ded454a16176876a2b2d95ae2ad85c6ab055caf99ac273363f5aae0a53da8620",
+      "bytes": 71149,
+      "scrubbed": false,
+      "expected": {
+        "vevent_count": 170,
+        "distinct_location_count": 50,
+        "body_contains": [
+          "BEGIN:VCALENDAR",
+          "X-WR-CALNAME:Brown University Athletics",
+          "X-PUBLISHED-TTL:PT120M",
+          "Brown University Women's Soccer vs New Haven"
+        ],
+        "calendar_name": "Brown University Athletics",
+        "published_ttl": "PT120M",
+        "sample_summary": "Brown University Women's Soccer vs New Haven"
+      }
+    },
+    {
+      "path": "recorded/livewhale/events.json",
+      "source": "livewhale_events",
+      "route": "GET https://events.brown.edu/live/json/events?max=200",
+      "request_body": null,
+      "request_fingerprint": "8e1a81df79db2c9b5901e4c6dcd8e5a7f1a7a6eeaeb0c5948f3d56654625a079",
+      "retrieved_at": "2026-07-28T21:50:52.944724Z",
+      "status": 200,
+      "content_type": "application/json; charset=UTF-8",
+      "sha256": "436d994044759d566f3dd1b64a567c0bb9c09bbe6e377a8c4f34d9c3bc77f23b",
+      "bytes": 3119877,
+      "scrubbed": true,
+      "expected": {
+        "strict_json": true,
+        "body_contains": [
+          "\"title\"",
+          "2026 Computational Modeling Workshop + Challenge"
+        ],
+        "event_count": 1000,
+        "sample_title": "2026 Computational Modeling Workshop + Challenge",
+        "first_event_fields": [
+          "event_types",
+          "group",
+          "is_canceled",
+          "location_latitude",
+          "location_longitude",
+          "repeats",
+          "title"
+        ]
+      }
+    },
+    {
+      "path": "recorded/livewhale/groups.json",
+      "source": "livewhale_groups",
+      "route": "GET https://events.brown.edu/live/json/groups",
+      "request_body": null,
+      "request_fingerprint": "4bb7c05510d4e21acc8a27ae81923eca3366e1a6857caf7c4de22a0fd082cbb7",
+      "retrieved_at": "2026-07-28T21:50:52.957074Z",
+      "status": 200,
+      "content_type": "application/json; charset=UTF-8",
+      "sha256": "361c1798914e5fc6f9254e3e2faee81f1a693d49a6f93fcbed46740b24a08f1e",
+      "bytes": 39217,
+      "scrubbed": false,
+      "expected": {
+        "strict_json": true,
+        "body_contains": [
+          "\"title\"",
+          "Academic Calendar"
+        ],
+        "group_count": 218,
+        "sample_group": "Academic Calendar",
+        "first_group_fields": [
+          "fullname",
+          "id",
+          "timezone",
+          "title",
+          "web_address"
+        ]
+      }
+    },
+    {
+      "path": "recorded/overpass/college-hill-buildings.json",
+      "source": "overpass_buildings",
+      "route": "POST https://overpass-api.de/api/interpreter",
+      "request_body": "[out:json][timeout:60]; ( way[\"building\"](41.820,-71.410,41.834,-71.393); relation[\"building\"](41.820,-71.410,41.834,-71.393); ); out body geom;",
+      "request_fingerprint": "b75eb8fd5229cc9fbcfff952f8c4980c80bf386679990e4f26600620f0abdfa0",
+      "retrieved_at": "2026-07-28T21:50:52.992088Z",
+      "status": 200,
+      "content_type": "application/json",
+      "sha256": "b72aa2f77672991887b91136e505205414f072e7befd656318e587505deb2687",
+      "bytes": 1937642,
+      "scrubbed": false,
+      "expected": {
+        "element_count": 2155,
+        "way_count": 2150,
+        "relation_count": 5,
+        "body_contains": [
+          "\"elements\"",
+          "Sayles Hall",
+          "Barus"
+        ],
+        "sample_building_name": "Penner Field House"
+      }
+    },
+    {
+      "path": "user_provided/brown_fall_2026_classes_and_locations.csv",
+      "kind": "user_provided",
+      "source": "cab_fall_2026_csv",
+      "provided_by": "user",
+      "provided_at": "2026-07-28T00:00:00Z",
+      "provenance": "Authoritative Fall 2026 CAB course/location export supplied by the user on 2026-07-28 because cab.brown.edu answers every route with an AWS WAF bot challenge (status 202) for the mandated UA; bypassing bot detection is not permitted, so live capture stays a declared gap and this export is the Task 6 source of record.",
+      "fills_gaps": [
+        "cab_home",
+        "cab_bootstrap",
+        "cab_search",
+        "cab_details"
+      ],
+      "sha256": "50a20adb13d64f061ff11239a32e9a51b6d33dfc00f86003f1fdec4af975204c",
+      "bytes": 1016538,
+      "content_type": "text/csv; charset=utf-8 (with BOM)",
+      "expected": {
+        "body_contains": [
+          "term,term_code,course_code,course_title,section,crn,meeting_schedule,location,location_status,instructor",
+          "AFRI 0090",
+          "TTh 10:30am-11:50am",
+          "CIT Center (Thomas Watson CIT) 227"
+        ],
+        "data_rows": 5275,
+        "raw_data_lines": 5281,
+        "term_code": "202610",
+        "distinct_crns": 5275,
+        "location_status_counts": {
+          "Physical location published": 1501,
+          "TBA": 3328,
+          "Physical location not yet published": 274,
+          "Cross-listed reference": 100,
+          "Online": 72
+        }
+      }
+    }
+  ]
+}

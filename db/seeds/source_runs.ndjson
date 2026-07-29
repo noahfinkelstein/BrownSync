@@ -1,0 +1,6 @@
+{"id":1,"source":"places","started_at":"2026-07-29T05:19:11.687410Z","finished_at":"2026-07-29T05:19:11.824924Z","status":"ok","items_upserted":164}
+{"id":2,"source":"cab","started_at":"2026-07-29T05:19:11.825430Z","finished_at":"2026-07-29T05:19:12.042566Z","status":"ok","items_upserted":1828}
+{"id":3,"source":"athletics","started_at":"2026-07-29T05:19:12.042985Z","finished_at":"2026-07-29T05:19:12.065311Z","status":"ok","items_upserted":11}
+{"id":4,"source":"places","started_at":"2026-07-29T06:23:22.117953Z","finished_at":"2026-07-29T06:23:22.257376Z","status":"ok","items_upserted":166}
+{"id":5,"source":"cab","started_at":"2026-07-29T06:23:22.257742Z","finished_at":"2026-07-29T06:23:22.456684Z","status":"ok","items_upserted":1755}
+{"id":6,"source":"athletics","started_at":"2026-07-29T06:23:22.457128Z","finished_at":"2026-07-29T06:23:22.480265Z","status":"ok","items_upserted":11}

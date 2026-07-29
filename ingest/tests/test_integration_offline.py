@@ -1,0 +1,232 @@
+"""Offline integration: the real CLI, real fixtures, one full bundle run.
+
+``ingest run all --out ndjson`` is driven through :func:`execute_run` with the
+default registry against the recorded Overpass/athletics fixtures and the
+user-provided Fall 2026 CAB export, into a temporary seeds directory. The
+published bundle is then validated end to end: contract rows, unique sorted
+identities, place-id foreign keys, sidecar schema v1, gate minima (including
+the signed-off 1,500-row CAB revision), WKT for every non-null polygon,
+manifest generation/hashes, exactly one finalized ``ok`` source run per job,
+and no staged leftovers beyond the run-log lock.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+
+from brownsync_ingest.cli import JobContext, execute_run
+from brownsync_ingest.contract import CourseMeetingRow, PlaceRow
+from brownsync_ingest.gazetteer.geometry import parse_multipolygon_wkt
+from brownsync_ingest.output import model_identity
+from brownsync_ingest.seeds_manifest import MANIFEST_NAME, validate_seeds_manifest
+
+INGEST_ROOT = Path(__file__).resolve().parents[1]
+REAL_CSV = (
+    INGEST_ROOT / "fixtures" / "user_provided" / "brown_fall_2026_classes_and_locations.csv"
+)
+REAL_ICS = INGEST_ROOT / "fixtures" / "recorded" / "athletics" / "calendar.ics"
+
+SEED_ARTIFACTS = ("places.ndjson", "course_meetings.ndjson", "athletics_venues.json")
+DINING_IDS = {
+    "sharpe-refectory",  # Ratty
+    "andrews-commons",
+    "verney-woolley-dining-hall",  # V-Dub
+    "blue-room",
+    "ivy-room",
+    "josiahs",  # Jo's
+}
+
+
+@dataclass(frozen=True)
+class BundleRun:
+    code: int
+    out: tuple[str, ...]
+    err: tuple[str, ...]
+    seeds_dir: Path
+    staging_root: Path
+
+
+@pytest.fixture(scope="module")
+def bundle(tmp_path_factory: pytest.TempPathFactory) -> BundleRun:
+    """One real `run all --out ndjson` shared by every assertion below."""
+    root = tmp_path_factory.mktemp("offline-bundle")
+    context = JobContext(
+        out="ndjson",
+        seeds_dir=root / "seeds",
+        staging_root=root / "staging",
+        cab_csv_path=REAL_CSV,
+        cab_report_path=root / "reports" / "cab_fall_2026_place_resolution.md",
+        athletics_ics_path=REAL_ICS,
+    )
+    out: list[str] = []
+    err: list[str] = []
+    code = execute_run("all", context, echo=out.append, error=err.append)
+    return BundleRun(
+        code=code,
+        out=tuple(out),
+        err=tuple(err),
+        seeds_dir=context.seeds_dir,
+        staging_root=context.staging_root,
+    )
+
+
+def read_ndjson(path: Path) -> list[dict[str, object]]:
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+    ]
+
+
+@pytest.fixture(scope="module")
+def places(bundle: BundleRun) -> list[PlaceRow]:
+    return [
+        PlaceRow.model_validate(payload)
+        for payload in read_ndjson(bundle.seeds_dir / "places.ndjson")
+    ]
+
+
+@pytest.fixture(scope="module")
+def meetings(bundle: BundleRun) -> list[CourseMeetingRow]:
+    return [
+        CourseMeetingRow.model_validate(payload)
+        for payload in read_ndjson(bundle.seeds_dir / "course_meetings.ndjson")
+    ]
+
+
+@pytest.fixture(scope="module")
+def sidecar(bundle: BundleRun) -> dict[str, object]:
+    return json.loads(
+        (bundle.seeds_dir / "athletics_venues.json").read_text(encoding="utf-8")
+    )
+
+
+class TestBundleRun:
+    def test_run_all_succeeds_and_reports_the_declared_gaps(
+        self, bundle: BundleRun
+    ) -> None:
+        assert bundle.code == 0, bundle.err
+        gap_lines = [line for line in bundle.out if "GAP" in line]
+        assert any("clubs" in line and "403" in line for line in gap_lines)
+        assert any("dining" in line and "403" in line for line in gap_lines)
+
+    def test_every_seed_artifact_is_published(self, bundle: BundleRun) -> None:
+        for name in SEED_ARTIFACTS:
+            assert (bundle.seeds_dir / name).is_file(), name
+
+    def test_srcdb_is_logged_loudly(self, bundle: BundleRun) -> None:
+        assert any("SRCDB discovered: 202610" in line for line in bundle.out)
+
+    def test_osm_attribution_is_loud(self, bundle: BundleRun) -> None:
+        assert any("OpenStreetMap" in line for line in bundle.out)
+
+
+class TestContractRows:
+    def test_places_meet_the_gate_minimum_with_six_dining_places(
+        self, places: list[PlaceRow]
+    ) -> None:
+        assert len(places) >= 120
+        dining = {row.id for row in places if row.kind == "dining"}
+        assert dining == DINING_IDS
+
+    def test_course_meetings_meet_the_revised_minima(
+        self, meetings: list[CourseMeetingRow]
+    ) -> None:
+        # 1,500-row revision signed off in Task 6B (export maximum is 1,828
+        # physically-scheduled rows); >=50 subjects unchanged from the plan.
+        assert len(meetings) >= 1500
+        subjects = {row.course_code.split()[0] for row in meetings}
+        assert len(subjects) >= 50
+
+    @pytest.mark.parametrize("artifact", ["places.ndjson", "course_meetings.ndjson"])
+    def test_identities_are_unique_and_sorted(
+        self, bundle: BundleRun, artifact: str
+    ) -> None:
+        model = PlaceRow if artifact == "places.ndjson" else CourseMeetingRow
+        rows = [
+            model.model_validate(payload)
+            for payload in read_ndjson(bundle.seeds_dir / artifact)
+        ]
+        identities = [model_identity(row) for row in rows]
+        assert len(set(identities)) == len(identities)
+        assert identities == sorted(identities)
+
+    def test_every_meeting_place_id_is_a_published_place(
+        self, places: list[PlaceRow], meetings: list[CourseMeetingRow]
+    ) -> None:
+        place_ids = {row.id for row in places}
+        placed = [row for row in meetings if row.place_id is not None]
+        assert placed, "expected resolved meetings"
+        missing = {row.place_id for row in placed} - place_ids
+        assert missing == set()
+
+    def test_every_nonnull_polygon_is_plain_multipolygon_wkt(
+        self, places: list[PlaceRow]
+    ) -> None:
+        with_polygon = [row for row in places if row.polygon is not None]
+        assert with_polygon, "expected OSM-backed footprints"
+        for row in with_polygon:
+            polygons = parse_multipolygon_wkt(row.polygon)
+            assert polygons, row.id
+
+
+class TestSidecar:
+    def test_schema_v1_shape(self, sidecar: dict[str, object]) -> None:
+        assert set(sidecar) == {"schema_version", "generated_at", "mappings"}
+        assert sidecar["schema_version"] == 1
+        assert isinstance(sidecar["generated_at"], str) and sidecar["generated_at"]
+        assert isinstance(sidecar["mappings"], list) and sidecar["mappings"]
+        for mapping in sidecar["mappings"]:
+            assert set(mapping) == {"source_name", "place_id"}
+
+    def test_every_mapping_place_id_is_a_published_place(
+        self, sidecar: dict[str, object], places: list[PlaceRow]
+    ) -> None:
+        place_ids = {row.id for row in places}
+        missing = {m["place_id"] for m in sidecar["mappings"]} - place_ids
+        assert missing == set()
+
+
+class TestManifestAndRuns:
+    def test_manifest_covers_exactly_the_seed_artifacts_with_true_hashes(
+        self, bundle: BundleRun
+    ) -> None:
+        validation = validate_seeds_manifest(
+            bundle.seeds_dir, expected_artifacts=SEED_ARTIFACTS
+        )
+        assert validation.ok, validation.errors
+        assert validation.generation
+        # independent recomputation, not through the validator
+        document = json.loads(
+            (bundle.seeds_dir / MANIFEST_NAME).read_text(encoding="utf-8")
+        )
+        for name in SEED_ARTIFACTS:
+            path = bundle.seeds_dir / name
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            assert document["artifacts"][name]["sha256"] == digest
+            assert document["artifacts"][name]["bytes"] == path.stat().st_size
+
+    def test_source_runs_stay_outside_the_manifest(self, bundle: BundleRun) -> None:
+        document = json.loads(
+            (bundle.seeds_dir / MANIFEST_NAME).read_text(encoding="utf-8")
+        )
+        assert "source_runs.ndjson" not in document["artifacts"]
+
+    def test_exactly_one_finalized_ok_run_per_job(self, bundle: BundleRun) -> None:
+        runs = read_ndjson(bundle.seeds_dir / "source_runs.ndjson")
+        assert [run["source"] for run in runs] == ["places", "cab", "athletics"]
+        for run in runs:
+            assert run["status"] == "ok"
+            assert run["finished_at"]
+            assert run["items_upserted"] > 0
+            assert run.get("error") is None
+
+    def test_no_staged_leftovers_beyond_the_run_log_lock(
+        self, bundle: BundleRun
+    ) -> None:
+        leftovers = sorted(path.name for path in bundle.staging_root.iterdir())
+        assert leftovers == [".source_runs.ndjson.lock"]
