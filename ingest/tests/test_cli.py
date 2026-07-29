@@ -97,18 +97,36 @@ class TestDefaultRegistry:
         registry = default_registry()
         # clubs became a real job in Task 7 (user-provided CSV); dining stays
         # the sole documented blocked gap.
-        assert list(registry) == ["places", "cab", "clubs", "athletics", "dining"]
+        assert list(registry) == [
+            "places",
+            "cab",
+            "clubs",
+            "athletics",
+            "buildings",
+            "events",
+            "dining",
+        ]
         assert isinstance(registry["places"], JobSpec)
         assert isinstance(registry["cab"], JobSpec)
         assert isinstance(registry["clubs"], JobSpec)
         assert isinstance(registry["athletics"], JobSpec)
+        assert isinstance(registry["buildings"], JobSpec)
+        assert isinstance(registry["events"], JobSpec)
         assert isinstance(registry["dining"], BlockedJob)
 
-    def test_athletics_has_no_postgres_target(self) -> None:
+    def test_events_runs_after_clubs_which_publishes_its_org_sidecar(
+        self,
+    ) -> None:
+        names = list(default_registry())
+        assert names.index("events") > names.index("clubs")
+
+    def test_file_only_sidecar_jobs_have_no_postgres_target(self) -> None:
         registry = default_registry()
         assert registry["athletics"].postgres_target is False
+        assert registry["buildings"].postgres_target is False
         assert registry["places"].postgres_target is True
         assert registry["cab"].postgres_target is True
+        assert registry["events"].postgres_target is True
         # organizations upsert to Postgres; the sidecar stays a file (hybrid)
         assert registry["clubs"].postgres_target is True
 

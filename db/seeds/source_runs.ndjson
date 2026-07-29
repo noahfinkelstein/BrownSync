@@ -12,3 +12,9 @@
 {"id":12,"source":"cab","started_at":"2026-07-29T14:28:07.618973Z","finished_at":"2026-07-29T14:28:07.825619Z","status":"ok","items_upserted":1755}
 {"id":13,"source":"clubs","started_at":"2026-07-29T14:28:07.826224Z","finished_at":"2026-07-29T14:28:08.400518Z","status":"ok","items_upserted":457}
 {"id":14,"source":"athletics","started_at":"2026-07-29T14:28:08.401030Z","finished_at":"2026-07-29T14:28:08.425053Z","status":"ok","items_upserted":11}
+{"id":15,"source":"places","started_at":"2026-07-29T14:59:21.676705Z","finished_at":"2026-07-29T14:59:21.825907Z","status":"ok","items_upserted":174}
+{"id":16,"source":"cab","started_at":"2026-07-29T14:59:21.826422Z","finished_at":"2026-07-29T14:59:22.047571Z","status":"ok","items_upserted":1755}
+{"id":17,"source":"clubs","started_at":"2026-07-29T14:59:22.048167Z","finished_at":"2026-07-29T14:59:22.621830Z","status":"ok","items_upserted":457}
+{"id":18,"source":"athletics","started_at":"2026-07-29T14:59:22.622367Z","finished_at":"2026-07-29T14:59:22.650384Z","status":"ok","items_upserted":11}
+{"id":19,"source":"buildings","started_at":"2026-07-29T14:59:22.650955Z","finished_at":"2026-07-29T14:59:22.805097Z","status":"ok","items_upserted":140}
+{"id":20,"source":"events","started_at":"2026-07-29T14:59:22.805702Z","finished_at":"2026-07-29T14:59:22.968377Z","status":"ok","items_upserted":1106}

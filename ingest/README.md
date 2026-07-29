@@ -18,8 +18,10 @@ ingest/
     gazetteer/           # catalog, aliases.yaml, geometry, resolver, places job
     cab/                 # Fall 2026 course meetings job (user-provided CSV)
     clubs/               # organizations + LiveWhale sidecar job (user-provided CSV)
+    events/              # LiveWhale + registrar events bootstrap (user-provided CSVs)
     mappings/            # source-native vocabularies -> contract §4 taxonomy
     athletics_venues.py  # SIDEARM venue -> place sidecar job
+    brown_owned_buildings.py  # Brown-owned buildings map-tint sidecar job
     dining/              # NOTES.md: documented discovery block (no job)
     seeds_manifest.py    # db/seeds/manifest.json publisher + validator
     cli.py               # `ingest run <job> --out ndjson|postgres`
@@ -40,10 +42,13 @@ uv run ingest run all --out ndjson
 ## Running and rerunning jobs
 
 `uv run ingest run <job> --out ndjson|postgres` where `<job>` is `places`,
-`cab`, `clubs`, `athletics`, or `all`. The registry also carries `dining` as
-a **declared blocked gap**: naming it exits 2 with the documented reason
-(never a silent skip), and `run all` runs the existing jobs in bundle order
-(places → cab → clubs → athletics) after loudly reporting that gap.
+`cab`, `clubs`, `athletics`, `buildings`, `events`, or `all`. The registry
+also carries `dining` as a **declared blocked gap**: naming it exits 2 with
+the documented reason (never a silent skip), and `run all` runs the
+existing jobs in bundle order (places → cab → clubs → athletics →
+buildings → events) after loudly reporting that gap. `events` runs after
+`clubs` deliberately: its organization lookup reads the freshly published
+`organization_livewhale_groups.json` sidecar.
 
 - Exit 0: every invoked job published (or upserted).
 - Exit 1: a gate failed closed (source run `partial`) or a job raised
@@ -85,6 +90,11 @@ fixture integrity test rejects any silent synthetic substitution.
 | clubs | distinct validated organizations | >= 400 |
 | clubs | unknown source vocabulary values | 0 (drift fails loudly) |
 | athletics | home venues mapped / place ids known | every one (no threshold) |
+| buildings | export rows / classification / operator conflicts / catalog drift | >= 2,000 / non-empty / 0 / 0 |
+| events | non-canceled LiveWhale rows with coords | >= 300 (app handoff §4 DoD) |
+| events | LiveWhale rows | >= 900 (0.9 × the 1,000-row pinned export) |
+| events | registrar admin rows | >= 100 |
+| events | unknown `online_type` values | 0 (drift fails loudly; unknown `event_types` are *reported* but categorized by poller fall-through — see below) |
 
 **1,500-row revision (Task 6B, signed off):** the plan's 2,000-row gate was
 calibrated for a live CAB scrape; the user-provided Fall 2026 export
@@ -99,7 +109,8 @@ the `cab/job.py` docstring. The 90% resolution gate is unchanged.
 publishes `db/seeds/manifest.json` **last** with a generation ID, UTC
 timestamp, and SHA-256 + byte size per artifact (`places.ndjson`,
 `course_meetings.ndjson`, `organizations.ndjson`,
-`organization_livewhale_groups.json`, `athletics_venues.json`). The
+`organization_livewhale_groups.json`, `athletics_venues.json`,
+`brown_owned_buildings.json`, `events.ndjson`). The
 validator rejects a
 mixed set — any artifact whose on-disk hash disagrees with the manifest —
 so an interrupted bundle run is detectable and the previous manifest stays
@@ -134,6 +145,34 @@ offices, and no student group is a publisher, so the file existing with
 consumption of both sidecars is a blocking cross-workstream dependency in
 `reports/app_side_dependencies.md`; ingestion does not claim the TS poller
 consumes them until a consumer test passes in the app lane.
+`db/seeds/brown_owned_buildings.json` (schema v1: ODbL attribution +
+`osm_way_ids` + `place_ids`, enrichment round) tints Brown-owned OSM
+footprints; its `buildings` CLI registration and manifest entry landed in
+the events-bootstrap round, closing the register §5 follow-up.
+
+## Events bootstrap and poller parity
+
+`events` publishes `db/seeds/events.ndjson` from two hash-pinned
+user-provided exports: `brown_upcoming_events.csv` (1,000 LiveWhale event
+instances, 2026-07-29 → 2026-11-03, `source="livewhale"`) and
+`brown_academic_calendar_2026_2027.csv` (registrar entries,
+`source="registrar"`, `category="admin"`, weekday-validated year
+derivation). This is a BOOTSTRAP snapshot: post-deploy the app lane's TS
+poller (`services/poller/src/livewhale/`) refreshes live and upserts on
+`(source, source_id)`, so the seed derivation is poller-IDENTICAL —
+`source_id = "{id}:{epoch of start}"` (the feed's `date_ts`), the same
+entity decoding, the same category tables (`mappings/categories.py`, a
+verbatim port of the poller's `categories.ts` including its
+fall-through-on-unknown behavior), and the same org-sidecar lookup
+(measured truth: zero attributions). Ten sampled ids are pinned against
+the poller's recorded-fixture derivation in
+`tests/events/test_livewhale.py` — do not "fix" those pins without
+re-deriving them from the poller. Ingestion-side extras that the poller
+does not compute: `place_id` via the gazetteer resolver where coordinates
+are absent (never for `online_type="Online only"` rows), and `raw`
+carrying the CSV row minus the published-contact columns
+(`contact`/`contact_emails` are dropped with counts — no contract field
+consumes them).
 
 ## Blocked source: dining
 
