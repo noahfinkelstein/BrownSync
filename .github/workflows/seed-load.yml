@@ -52,10 +52,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Seed QA check
-        # `seed:check` lands with lane P3A; --if-present keeps this green (with
-        # the note below) until that script exists in @brownsync/db.
-        run: |
-          pnpm --filter @brownsync/db run --if-present seed:check
-          echo "note: if @brownsync/db has no seed:check script yet, the step above was a no-op."
+        # No --if-present: the script exists (db/package.json `seed-check`),
+        # and a future rename must fail this step loudly, not no-op it.
+        run: pnpm --filter @brownsync/db run seed-check
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
