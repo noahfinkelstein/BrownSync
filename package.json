@@ -24,6 +24,7 @@
     "@biomejs/biome": "^2.5.5",
     "supabase": "^2.110.0",
     "turbo": "^2.10.7",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "wrangler": "^4.115.0"
   }
 }

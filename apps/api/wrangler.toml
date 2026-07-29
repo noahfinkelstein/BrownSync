@@ -22,7 +22,7 @@ enabled = true
 # then replace `id` below with the returned id.
 [[hyperdrive]]
 binding = "HYPERDRIVE"
-id = "00000000000000000000000000000000" # placeholder — replace after `hyperdrive create`
+id = "0548aab052da48ada0056c1522bad8e0"
 # `wrangler dev` ignores `id` and connects here instead (local `pnpm db:start`).
 localConnectionString = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 
@@ -30,5 +30,4 @@ localConnectionString = "postgresql://postgres:postgres@127.0.0.1:54322/postgres
 # ("production" on deploy), which disables app.ts's dev-only response
 # re-validation exactly as intended.
 [vars]
-# Uncomment with the deployed web origin(s), comma-separated (DEPLOY.md step 6):
-# CORS_ORIGINS = "https://brownsync.pages.dev"
+CORS_ORIGINS = "https://brownsync.pages.dev"
