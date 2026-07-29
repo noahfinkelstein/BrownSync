@@ -1,0 +1,42 @@
+{
+  "id": "0b8f2c4e-9d31-4c6a-8b4e-1f2a3d4c5e6f",
+  "title": "CS Colloquium: Mapping Living Campuses",
+  "description": "How live spatial data changes the way a campus understands itself.",
+  "start": "@now+30m",
+  "end": "@now+90m",
+  "allDay": false,
+  "lat": 41.8262,
+  "lng": -71.4032,
+  "placeId": "salomon-center",
+  "placeName": "Salomon Center",
+  "locationRaw": "Salomon Center 101",
+  "orgId": "computer-science",
+  "orgName": "Department of Computer Science",
+  "category": "academic",
+  "tags": ["colloquium"],
+  "url": "https://events.brown.edu/event/cs-colloquium-mapping-living-campuses",
+  "cost": null,
+  "source": "livewhale",
+  "confidence": 1,
+  "isCanceled": false,
+  "mergedSources": ["livewhale"],
+  "org": {
+    "id": "computer-science",
+    "name": "Department of Computer Science",
+    "kind": "department",
+    "category": "academic",
+    "description": "Brown CS.",
+    "url": "https://cs.brown.edu",
+    "instagram": null,
+    "defaultPlaceId": "cit"
+  },
+  "place": {
+    "id": "salomon-center",
+    "name": "Salomon Center",
+    "aliases": ["Salomon", "Salomon Center for Teaching"],
+    "kind": "academic",
+    "lat": 41.8262,
+    "lng": -71.4032,
+    "address": "79 Waterman St, Providence, RI"
+  }
+}

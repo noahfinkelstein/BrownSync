@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="dark" />
+    <title>HealthStrip harness</title>
+  </head>
+  <body>
+    <!-- Dev-server-only page: mounts the lane's components standalone so the
+         in-lane e2e suite can exercise them before the header slot exists.
+         Never part of the production build (vite only builds index.html). -->
+    <div id="root" style="padding: 24px"></div>
+    <script type="module" src="/e2e/harness/health-strip-entry.tsx"></script>
+  </body>
+</html>

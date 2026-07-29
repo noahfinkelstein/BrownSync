@@ -1,0 +1,34 @@
+{
+  "meetings": [
+    {
+      "id": "202610-17654-0",
+      "courseCode": "CSCI 0150",
+      "title": "Introduction to Object-Oriented Programming",
+      "instructor": "A. van Dam",
+      "days": "MWF",
+      "startTime": "14:00",
+      "endTime": "14:50",
+      "locationRaw": "Salomon Center 101",
+      "placeId": "salomon-center",
+      "placeName": "Salomon Center",
+      "room": "101",
+      "lat": 41.8262,
+      "lng": -71.4032
+    },
+    {
+      "id": "202610-18321-0",
+      "courseCode": "MATH 0100",
+      "title": "Single Variable Calculus, Part II",
+      "instructor": "L. Chen",
+      "days": "TTh",
+      "startTime": "13:00",
+      "endTime": "14:20",
+      "locationRaw": "Kassar House Foxboro Aud",
+      "placeId": "kassar-house",
+      "placeName": "Kassar House",
+      "room": "Foxboro Aud",
+      "lat": 41.8244,
+      "lng": -71.4012
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "brown-outing-club",
+  "name": "Brown Outing Club",
+  "kind": "club",
+  "category": "club",
+  "description": "Hiking, climbing, and paddling trips for all experience levels.",
+  "url": "https://brownoutingclub.com",
+  "instagram": "brownoutingclub",
+  "defaultPlaceId": "faunce-house",
+  "upcoming": [
+    {
+      "id": "2daf4e60-1f53-4e8c-8d60-3b4c5d6e7f80",
+      "title": "Brown Outing Club — Weekly Meeting",
+      "description": "Trip planning for the Long Trail weekend.",
+      "start": "@now+45m",
+      "end": "@now+105m",
+      "allDay": false,
+      "lat": 41.8268,
+      "lng": -71.4025,
+      "placeId": "faunce-house",
+      "placeName": "Faunce House",
+      "locationRaw": "Faunce House 229",
+      "orgId": "brown-outing-club",
+      "orgName": "Brown Outing Club",
+      "category": "club",
+      "tags": [],
+      "url": "https://events.brown.edu/event/boc-weekly-meeting",
+      "cost": null,
+      "source": "livewhale",
+      "confidence": 1,
+      "isCanceled": false
+    }
+  ],
+  "past": []
+}
