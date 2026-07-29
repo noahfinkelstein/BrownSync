@@ -13,13 +13,20 @@ registerPmtilesProtocol();
 configureMaplibreWorker();
 
 /**
- * deck.gl seam (handoff Phase 1 A -> Phase 2 F): a MapboxOverlay interleaved
- * into the MapLibre render loop, fed reactively from `./overlay`. Phase 2
- * never touches this component — it calls `setOverlayLayers(layers)`.
+ * deck.gl seam (handoff Phase 1 A -> Phase 2 F): a MapboxOverlay fed
+ * reactively from `./overlay`. Phase 2 never touches this component — it
+ * calls `setOverlayLayers(layers)`.
+ *
+ * NOT interleaved (integration): maplibre-gl 6 moved `map.transform` behind
+ * `_camera`, and @deck.gl/mapbox <= 9.3.7 still reads `map.transform.height`
+ * on the interleaved custom-layer path — the first frame with any deck layer
+ * (the pulse) threw every rAF and killed the map. Overlaid mode sticks to
+ * official map APIs. Revisit when deck.gl ships maplibre-6 support; the only
+ * visual cost is pulse rings not being occluded by 3D building extrusions.
  */
 function DeckOverlay() {
   const overlay = useControl<MapboxOverlay>(
-    () => new MapboxOverlay({ interleaved: true, layers: getOverlayLayers() }),
+    () => new MapboxOverlay({ interleaved: false, layers: getOverlayLayers() }),
   );
   const layers = useSyncExternalStore(subscribeOverlayLayers, getOverlayLayers);
   overlay.setProps({ layers });
