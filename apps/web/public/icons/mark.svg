@@ -1,0 +1,19 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>BrownSync</title>
+  <!-- BrownSync mark: one extruded 2.5D building from the map, with the
+       accent live-pulse pinned to its corner. Same drawing rules as the
+       category glyph set: geometric, miter joins, squared terminals. The
+       corner overshoot ticks are the faces' miters meeting — kept, they
+       read as survey marks. -->
+  <!-- top face -->
+  <path d="M30 20 L46 28 L30 36 L14 28 Z" fill="#242D3B" stroke="#6B7686" stroke-width="1.6" stroke-linejoin="miter"/>
+  <!-- left face -->
+  <path d="M14 28 L30 36 L30 52 L14 44 Z" fill="#19202A" stroke="#6B7686" stroke-width="1.6" stroke-linejoin="miter"/>
+  <!-- right face -->
+  <path d="M30 36 L46 28 L46 44 L30 52 Z" fill="#101720" stroke="#6B7686" stroke-width="1.6" stroke-linejoin="miter"/>
+  <!-- live pin anchor -->
+  <path d="M46 26.5 L46 19" stroke="#D96C3D" stroke-width="1.2" opacity="0.55"/>
+  <!-- live dot + pulse ring -->
+  <circle cx="46" cy="14" r="3.2" fill="#D96C3D"/>
+  <circle cx="46" cy="14" r="7.5" stroke="#D96C3D" stroke-width="1.3" opacity="0.4"/>
+</svg>
