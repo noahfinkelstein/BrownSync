@@ -1,48 +1,42 @@
-import { cn } from "@brownsync/ui";
-import { useCursorDate } from "../data/cursor";
-import { fmtTime } from "../data/format";
+import { SearchTrigger } from "../browse/SearchTrigger";
+import { HealthStrip } from "../ops/HealthStrip";
+import { TimeMachineBar } from "../time/TimeMachineBar";
 
 /**
- * Shell header (§3.1): wordmark + reserved slots for the other Phase 2
- * lanes. The SLOT comments are the mount points — the flex containers around
- * them are sized so the bar reads correctly before AND after the slots fill
- * (§6 litmus): search docks left of center, the scrubber owns the center,
- * chips + health dock right.
+ * Shell header (§3.1) with the Phase 2 lane slots filled at integration:
+ * ⌘K search (H) docks left of center, the time machine (G) owns the center,
+ * source health (I) docks right. The standalone cursor clock this header
+ * carried pre-integration is gone — the scrubber's mono readout and NOW
+ * button supersede it (lane F integration note). The SLOT:chips plan moved:
+ * ten taxonomy chips plus the full time machine cannot share one 1280px row
+ * without starving the scrubber, so the chips mount atop the list pane they
+ * filter (IndexPage) — same URL state (?cats=), same map effect.
  */
 export function AppHeader() {
-  const { cursor, isLive } = useCursorDate();
-
   return (
     <header className="relative z-30 flex h-12 shrink-0 items-center gap-4 border-b border-line bg-bg-base px-4">
       <div className="flex shrink-0 items-baseline gap-2.5">
         <span className="text-15 font-semibold tracking-[-0.02em] text-text-primary">
           BrownSync
         </span>
-        <span className="hidden font-mono text-12 text-text-faint md:inline">
+        <span className="hidden font-mono text-12 text-text-faint 2xl:inline">
           COLLEGE HILL · 41.827°N 71.403°W
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-start">
-        {/* SLOT:search — lane H mounts the ⌘K search input here (fixed ~w-64). */}
+      <div className="flex min-w-0 shrink-0 items-center justify-start">
+        {/* SLOT:search — lane H's ⌘K trigger (opens the palette, owns the hotkey). */}
+        <SearchTrigger />
       </div>
 
       <div className="flex min-w-0 flex-1 items-center justify-center">
-        {/* SLOT:scrubber — lane G mounts the time scrubber here (grows, max-w-xl). */}
+        {/* SLOT:scrubber — lane G's time machine: NOW ● + scrubber + readout + presets. */}
+        <TimeMachineBar className="w-full max-w-xl" />
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
-        {/* SLOT:chips — lane H mounts category filter chips here. */}
-        <span className="flex items-center gap-1.5" aria-live="off">
-          <span
-            aria-hidden
-            className={cn("h-1.5 w-1.5 rounded-full", isLive ? "bg-accent" : "bg-text-faint")}
-          />
-          <span className="font-mono text-12 text-text-secondary">
-            {isLive ? "LIVE" : "CURSOR"} · {fmtTime(cursor)} ET
-          </span>
-        </span>
-        {/* SLOT:health — lane I mounts the source-health strip here. */}
+      <div className="flex shrink-0 items-center">
+        {/* SLOT:health — lane I's source-health aggregate; popover has the per-source detail. */}
+        <HealthStrip compact />
       </div>
     </header>
   );
