@@ -1,0 +1,44 @@
+{
+  "sources": [
+    {
+      "source": "livewhale",
+      "status": "ok",
+      "lastRunAt": "@now-4m",
+      "lastOkAt": "@now-4m",
+      "itemsUpserted": 312,
+      "error": null
+    },
+    {
+      "source": "athletics_ics",
+      "status": "ok",
+      "lastRunAt": "@now-9m",
+      "lastOkAt": "@now-9m",
+      "itemsUpserted": 58,
+      "error": null
+    },
+    {
+      "source": "cab",
+      "status": "ok",
+      "lastRunAt": "@now-2h",
+      "lastOkAt": "@now-2h",
+      "itemsUpserted": 1642,
+      "error": null
+    },
+    {
+      "source": "clubs",
+      "status": "partial",
+      "lastRunAt": "@now-31m",
+      "lastOkAt": "@now-1d",
+      "itemsUpserted": 401,
+      "error": "12 org pages failed to parse"
+    },
+    {
+      "source": "bdh",
+      "status": "ok",
+      "lastRunAt": "@now-7m",
+      "lastOkAt": "@now-7m",
+      "itemsUpserted": 24,
+      "error": null
+    }
+  ]
+}

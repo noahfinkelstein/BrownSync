@@ -1,0 +1,34 @@
+{
+  "orgs": [
+    {
+      "id": "brown-outing-club",
+      "name": "Brown Outing Club",
+      "kind": "club",
+      "category": "club",
+      "description": "Hiking, climbing, and paddling trips for all experience levels.",
+      "url": "https://brownoutingclub.com",
+      "instagram": "brownoutingclub",
+      "defaultPlaceId": "faunce-house"
+    },
+    {
+      "id": "computer-science",
+      "name": "Department of Computer Science",
+      "kind": "department",
+      "category": "academic",
+      "description": "Brown CS.",
+      "url": "https://cs.brown.edu",
+      "instagram": null,
+      "defaultPlaceId": "cit"
+    },
+    {
+      "id": "brown-athletics",
+      "name": "Brown Athletics",
+      "kind": "athletics",
+      "category": "athletics",
+      "description": "Varsity athletics.",
+      "url": "https://brownbears.com",
+      "instagram": "brownu_bears",
+      "defaultPlaceId": null
+    }
+  ]
+}

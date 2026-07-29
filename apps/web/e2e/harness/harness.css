@@ -1,0 +1,5 @@
+/* Harness stylesheet: the ui token sheet plus a source scan over src/ops so
+   the lane's component classes compile. The integrated app stylesheet needs
+   the same two lines (see src/ops/states/README.md). */
+@import "@brownsync/ui/styles.css";
+@source "../../src/ops/";

@@ -1,0 +1,58 @@
+{
+  "places": [
+    {
+      "id": "salomon-center",
+      "name": "Salomon Center",
+      "aliases": ["Salomon", "Salomon Center for Teaching"],
+      "kind": "academic",
+      "lat": 41.8262,
+      "lng": -71.4032,
+      "address": "79 Waterman St, Providence, RI"
+    },
+    {
+      "id": "sayles-hall",
+      "name": "Sayles Hall",
+      "aliases": ["Sayles"],
+      "kind": "academic",
+      "lat": 41.8259,
+      "lng": -71.4023,
+      "address": "81 Waterman St, Providence, RI"
+    },
+    {
+      "id": "faunce-house",
+      "name": "Faunce House",
+      "aliases": ["Faunce", "Stephen Robert '62 Campus Center"],
+      "kind": "admin",
+      "lat": 41.8268,
+      "lng": -71.4025,
+      "address": "75 Waterman St, Providence, RI"
+    },
+    {
+      "id": "cit",
+      "name": "Watson CIT",
+      "aliases": ["CIT", "Center for Information Technology"],
+      "kind": "academic",
+      "lat": 41.8272,
+      "lng": -71.4004,
+      "address": "115 Waterman St, Providence, RI"
+    },
+    {
+      "id": "main-green",
+      "name": "Main Green",
+      "aliases": ["College Green", "Quiet Green"],
+      "kind": "outdoor",
+      "lat": 41.8264,
+      "lng": -71.4029,
+      "address": null
+    },
+    {
+      "id": "stevenson-pincince",
+      "name": "Stevenson-Pincince Field",
+      "aliases": ["Stevenson Field"],
+      "kind": "athletic",
+      "lat": 41.8305,
+      "lng": -71.3982,
+      "address": "400 Elmgrove Ave, Providence, RI"
+    }
+  ]
+}
