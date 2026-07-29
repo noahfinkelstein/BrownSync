@@ -17,3 +17,7 @@ Task 4: complete (gazetteer geometry/overpass/aliases/catalog + common/identifie
 Task 4: pre-fix landed — CachedHttpClient caches HTTP 200 exactly and ignores cached non-200 metadata (Task 3's WAF 202 challenge bodies can no longer poison the cache); RED/GREEN in task-4-report.md
 Task 4: inherited baseline failed 1 test from the user-dropped ingest/fixtures/user_provided/ CSV (Fall 2026 CAB data, arrived after Task 3); fixture integrity gate now permits exactly that directory name, recorded/ stays hash-gated, CSV left uncommitted for the task that consumes it
 Task 4: committed explicit brief paths in one conventional commit on codex/ingestion (not pushed)
+Task 5: complete (gazetteer resolver + place-resolution report; exact -> longest-alias-prefix room extraction -> portable pg_trgm trigram >=0.55 authoritative, RapidFuzz ranks/reports only, ties fail closed as ambiguous; offline suite 371 passed + 34 skipped)
+Task 5: 26 golden parity vectors pinned offline as exact fractions (11/20 boundary included) and replayed via postgres-marked test that skips without TEST_DATABASE_URL; Docker not started
+Task 5: read-only preview vs user_provided Fall 2026 CSV: 1253/1501 sections (83.5%) resolve pre-alias-growth, gate FAIL as expected; top unresolved are uncatalogued street addresses and same-street ambiguous ties — Task 10 alias-growth worklist
+Task 5: committed explicit brief paths in one conventional commit on codex/ingestion (not pushed)
