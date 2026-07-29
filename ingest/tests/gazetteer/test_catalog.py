@@ -183,11 +183,21 @@ class TestRealAcceptance:
             assert 41.80 < row.lat < 41.86, row.id
             assert -71.42 < row.lng < -71.37, row.id
 
-    def test_task_8_athletics_growth_keeps_the_catalog_at_164_places(
+    def test_curation_growth_keeps_the_catalog_at_166_places(
         self, build: CatalogBuild
     ) -> None:
         # 148 from Task 4 + 14 export-proven venues (6B) + 2 athletics (8)
-        assert len(build.rows) == 164
+        # + 2 Task 10 review address-trap buildings (70 Brown Street and
+        # The Packet Building, both grounded by the recorded fixture)
+        assert len(build.rows) == 166
+        by_id_task10 = {row.id: row for row in build.rows}
+        for place_id, osm_id in (
+            ("70-brown-street", "way/1073442221"),
+            ("packet-building", "way/141567737"),
+        ):
+            assert by_id_task10[place_id].source == "osm"
+            assert by_id_task10[place_id].osm_id == osm_id
+            assert by_id_task10[place_id].polygon is not None
         by_id_athletics = {row.id: row for row in build.rows}
         # Task 8: ICS-proven home venues — the aquatics center merges the
         # Nelson Fitness Center footprint it occupies; Goldberger Family

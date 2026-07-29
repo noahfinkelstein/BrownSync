@@ -4,7 +4,7 @@ from datetime import time
 
 import pytest
 
-from brownsync_ingest.contract import CourseMeetingRow, EventRow, PlaceRow
+from brownsync_ingest.contract import CourseMeetingRow, PlaceRow
 from brownsync_ingest.policy import (
     validate_cab_temporal_plausibility,
     validate_confidence,
@@ -15,19 +15,19 @@ from brownsync_ingest.policy import (
 
 
 def test_schema_accepts_values_reserved_for_ingestion_policy() -> None:
+    # The schema/policy split covers identity shape (slugs) and temporal
+    # plausibility: those are ingestion-side decisions the row codecs must
+    # not pre-empt. Numeric bounds (lat/lng/confidence) moved INTO the row
+    # models in the Task 10 review because the app-side seed loader pins
+    # them (packages/contract seeds.ts) — schema-accepting them would fail
+    # the whole seed generation at app load time instead of the producing
+    # job (see test_contract.py numeric-bounds tests).
     place = PlaceRow(
         id="Not a database slug",
         name="Unverified Place",
         kind="other",
-        lat=91,
-        lng=181,
-    )
-    event = EventRow(
-        source="manual",
-        source_id="unverified",
-        title="Unverified",
-        start_ts="2026-09-01T09:00:00Z",
-        confidence=1.1,
+        lat=41.8,
+        lng=-71.4,
     )
     meeting = CourseMeetingRow(
         id="meeting",
@@ -41,7 +41,6 @@ def test_schema_accepts_values_reserved_for_ingestion_policy() -> None:
     )
 
     assert place.id == "Not a database slug"
-    assert event.confidence == 1.1
     assert meeting.start_time >= meeting.end_time
 
 

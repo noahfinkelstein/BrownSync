@@ -151,15 +151,17 @@ class TestRowConstruction:
     def test_raw_carries_the_verbatim_record_pattern_and_cancelled_flag(
         self, tmp_path: Path, resolver: PlaceResolver
     ) -> None:
+        # cancelled sections never emit rows (Task 10 review), so the raw
+        # carry is asserted on a live section whose flag is False
         csv_path = write_csv(
             tmp_path,
-            row(crn="10001", schedule="MW 10am-10:50am | TTh 9am-10:20am", cancelled="true"),
+            row(crn="10001", schedule="MW 10am-10:50am | TTh 9am-10:20am"),
         )
         result = run_job(tmp_path, resolver, csv_path, **LOW_GATES)
         raw = result.rows[1].raw
         assert raw["csv"]["crn"] == "10001"
-        assert raw["csv"]["cancelled"] == "true"
-        assert raw["cancelled"] is True
+        assert raw["csv"]["cancelled"] == "false"
+        assert raw["cancelled"] is False
         assert raw["pattern"] == "TTh 9am-10:20am"
         assert raw["pattern_index"] == 1
 
@@ -252,6 +254,79 @@ class TestLocationResolution:
         assert result.report.cab_section_rate == 0.5
 
 
+class TestPerPatternPipedLocations:
+    """Task 10 review: ``A | B`` location cells align 1:1 with the patterns.
+
+    The export's ``cab_schedule_and_location`` column proves the semantics
+    (e.g. crn 15392 ``MW 10am-10:50am in Sayles Hall 104 TTh 10:30am-11:50am
+    in Page-Robinson Hall 201``): each ``' | '``-separated location belongs
+    to the same-index ``' | '``-joined meeting pattern. Resolving the whole
+    piped cell once stamped the same (often wrong-building) place on every
+    pattern row.
+    """
+
+    def test_piped_locations_align_one_to_one_with_patterns(
+        self, tmp_path: Path, resolver: PlaceResolver
+    ) -> None:
+        csv_path = write_csv(
+            tmp_path,
+            row(
+                crn="10001",
+                schedule="MW 10am-10:50am | TTh 9am-10:20am",
+                location="Sayles Hall 104 | Salomon Center 001",
+            ),
+        )
+        result = run_job(tmp_path, resolver, csv_path, **LOW_GATES)
+        first, second = result.rows
+        assert first.location_raw == "Sayles Hall 104"
+        assert (first.place_id, first.room) == ("sayles-hall", "104")
+        assert second.location_raw == "Salomon Center 001"
+        assert (second.place_id, second.room) == ("salomon-center", "001")
+        # one sample per aligned location, one AND-ed section in the gate
+        assert result.report.by_source["cab"].total == 2
+        assert result.report.cab_sections_total == 1
+        assert result.report.cab_sections_resolved == 1
+
+    def test_partially_unresolved_piped_section_fails_the_section_gate(
+        self, tmp_path: Path, resolver: PlaceResolver
+    ) -> None:
+        csv_path = write_csv(
+            tmp_path,
+            row(
+                crn="10001",
+                schedule="MW 10am-10:50am | TTh 9am-10:20am",
+                location="Sayles Hall 104 | Building With No Alias Anywhere 999",
+            ),
+        )
+        result = run_job(tmp_path, resolver, csv_path, **LOW_GATES)
+        first, second = result.rows
+        assert (first.place_id, first.room) == ("sayles-hall", "104")
+        assert second.place_id is None
+        assert second.room is None
+        assert second.location_raw == "Building With No Alias Anywhere 999"
+        assert result.report.cab_sections_total == 1
+        assert result.report.cab_sections_resolved == 0
+
+    def test_mismatched_piped_location_count_falls_back_to_the_whole_cell(
+        self, tmp_path: Path, resolver: PlaceResolver
+    ) -> None:
+        # two locations against one pattern: the 1:1 alignment is unproven,
+        # so the job must not guess — the whole cell resolves once (and a
+        # piped string resolving nowhere fails closed to a null place)
+        csv_path = write_csv(
+            tmp_path,
+            row(
+                crn="10001",
+                schedule="MW 10am-10:50am",
+                location="Sayles Hall 104 | Salomon Center 001",
+            ),
+        )
+        result = run_job(tmp_path, resolver, csv_path, **LOW_GATES)
+        (only,) = result.rows
+        assert only.location_raw == "Sayles Hall 104 | Salomon Center 001"
+        assert result.report.by_source["cab"].total == 1
+
+
 class TestSkipsAndDedupe:
     def test_schedule_less_rows_become_structured_skips(
         self, tmp_path: Path, resolver: PlaceResolver
@@ -268,6 +343,24 @@ class TestSkipsAndDedupe:
         assert skips["10002"].reason == "arranged-tba"
         assert skips["10002"].term_code == "202610"
         assert skips["10003"].reason == "online-no-schedule"
+
+    def test_cancelled_sections_become_structured_skips(
+        self, tmp_path: Path, resolver: PlaceResolver
+    ) -> None:
+        # Task 10 review: contract §3 pins /api/meetings as meetings "in
+        # session" and the contract table has no cancellation column, so a
+        # cancelled section must never publish rows — it becomes a
+        # structured skip and stays out of the resolution denominator.
+        csv_path = write_csv(
+            tmp_path,
+            row(crn="10001", cancelled="true"),
+            row(crn="10002"),
+        )
+        result = run_job(tmp_path, resolver, csv_path, **LOW_GATES)
+        assert [meeting.crn for meeting in result.rows] == ["10002"]
+        skips = {skip.crn: skip for skip in result.skips}
+        assert skips["10001"].reason == "cancelled-section"
+        assert result.report.cab_sections_total == 1  # 10002 only
 
     def test_duplicate_crns_are_deduped_first_wins(
         self, tmp_path: Path, resolver: PlaceResolver
@@ -389,12 +482,14 @@ class TestRealExportRegression:
 
     def test_emission_identity_and_skip_totals(self, real_result) -> None:
         result, _ = real_result
-        assert len(result.rows) == 1828
-        assert len({meeting.id for meeting in result.rows}) == 1828
+        # Task 10 review: 1,828 physically-scheduled pattern rows minus the
+        # 73 rows of the 72 schedule-bearing cancelled sections
+        assert len(result.rows) == 1755
+        assert len({meeting.id for meeting in result.rows}) == 1755
         assert result.duplicates_dropped == 0
-        assert len(result.skips) == 3501
+        assert len(result.skips) == 3573
         emitting_sections = {meeting.crn for meeting in result.rows}
-        assert len(emitting_sections) == 1774
+        assert len(emitting_sections) == 1702
         # every record is accounted for: emitted or structured skip, never both
         assert len(emitting_sections) + len(result.skips) == 5275
         assert emitting_sections.isdisjoint({skip.crn for skip in result.skips})
@@ -404,20 +499,24 @@ class TestRealExportRegression:
         by_name = {check.name: check for check in result.gates.checks}
         assert by_name["subjects"].passed  # 81 subjects >= 50
         assert by_name["subjects"].actual == 81
-        assert by_name["meeting-rows"].passed  # 1828 >= 1500 (Task 6B revision)
-        assert by_name["meeting-rows"].actual == 1828
+        assert by_name["meeting-rows"].passed  # 1755 >= 1500 (Task 6B revision)
+        assert by_name["meeting-rows"].actual == 1755
         assert by_name["section-resolution"].passed  # 99.9% >= 90%
+        # Task 10 review: piped sections now sample one location per pattern
+        # (1,521 samples over the same 1,501 published sections); the former
+        # two-venue-pipe survivor resolves half by half, leaving only the
+        # opaque code unresolved
+        assert result.report.by_source["cab"].total == 1521
         assert result.report.cab_sections_total == 1501
-        assert result.report.cab_sections_resolved == 1499
-        # the survivors are pinned: an opaque code and a two-venue pipe row
+        assert result.report.cab_sections_resolved == 1500
         unresolved = {value for value, _ in result.report.top_unresolved}
         assert "SMN121 801" in unresolved
-        assert "Gerard House 101 | Sciences Library 604" in unresolved
+        assert "Gerard House 101 | Sciences Library 604" not in unresolved
         assert result.gates.passed
-        assert result.published_count == 1828
+        assert result.published_count == 1755
         seeds_path = tmp_path / "seeds" / "course_meetings.ndjson"
         lines = seeds_path.read_text(encoding="utf-8").splitlines()
-        assert len(lines) == 1828
+        assert len(lines) == 1755
         assert (tmp_path / "reports" / "cab_place_resolution.md").is_file()
 
     def test_every_emitted_row_is_contract_valid_with_cab_plausible_times(
@@ -432,10 +531,70 @@ class TestRealExportRegression:
                 meeting.days, meeting.start_time, meeting.end_time
             )
 
-    def test_cancelled_rows_are_carried_not_dropped(self, real_result) -> None:
+    def test_cancelled_sections_are_skipped_never_published(self, real_result) -> None:
+        # Task 10 review: a cancelled section is never "in session"
+        # (contract §3), and the contract table exposes no cancellation
+        # column an app could filter on — so all 83 cancelled sections
+        # (72 of them schedule-bearing) become structured skips.
         result, _ = real_result
-        cancelled = [meeting for meeting in result.rows if meeting.raw["cancelled"] is True]
-        # 83 cancelled sections; 72 have parseable schedules, one of which
-        # (ARAB 0100, crn 13436) meets in two weekly patterns -> 73 rows
-        assert len(cancelled) == 73
-        assert len({meeting.crn for meeting in cancelled}) == 72
+        assert not any(meeting.raw["cancelled"] is True for meeting in result.rows)
+        cancelled_skips = [skip for skip in result.skips if skip.reason == "cancelled-section"]
+        assert len(cancelled_skips) == 83
+        assert len({skip.crn for skip in cancelled_skips}) == 83
+
+    def test_piped_sections_publish_their_per_pattern_buildings(self, real_result) -> None:
+        # Task 10 review vectors, straight from cab_schedule_and_location
+        result, _ = real_result
+        by_id = {meeting.id: meeting for meeting in result.rows}
+        vectors = {
+            # crn 15392: 'MW ... in Sayles Hall 104 TTh ... in Page-Robinson Hall 201'
+            "202610-15392-0": ("MW", "Sayles Hall 104", "sayles-hall", "104"),
+            "202610-15392-1": ("TTh", "Page-Robinson Hall 201", "page-robinson-hall", "201"),
+            # crn 14107: the W pattern meets in Sayles Hall 012, not 190 Hope
+            "202610-14107-1": ("W", "Sayles Hall 012", "sayles-hall", "012"),
+            # crn 10136 fell below threshold as a combined string before
+            "202610-10136-0": ("MWF", "Gerard House 101", "gerard-house", "101"),
+            "202610-10136-1": ("TTh", "Sciences Library 604", "sciences-library", "604"),
+            # crn 10119: same building, different rooms per pattern
+            "202610-10119-0": ("MWF", "Sayles Hall 002", "sayles-hall", "002"),
+            "202610-10119-1": ("TTh", "Sayles Hall 005", "sayles-hall", "005"),
+            # crn 15572: the F pattern meets in Steinert Hall 105
+            "202610-15572-1": ("F", "Steinert Hall 105", "steinert-hall", "105"),
+        }
+        for meeting_id, (days, location_raw, place_id, room) in vectors.items():
+            meeting = by_id[meeting_id]
+            assert meeting.days == days, meeting_id
+            assert meeting.location_raw == location_raw, meeting_id
+            assert meeting.place_id == place_id, meeting_id
+            assert meeting.room == room, meeting_id
+
+    def test_address_trap_rows_bind_to_their_true_buildings(self, real_result) -> None:
+        # Task 10 review: the three trigram address-alias traps
+        result, _ = real_result
+        seventy_brown = [
+            meeting
+            for meeting in result.rows
+            if (meeting.location_raw or "").startswith("70 Brown Street")
+        ]
+        assert len(seventy_brown) == 26
+        for meeting in seventy_brown:
+            assert meeting.place_id == "70-brown-street", meeting.id
+            assert meeting.location_raw == f"70 Brown Street {meeting.room}", meeting.id
+        cssj = [
+            meeting
+            for meeting in result.rows
+            if meeting.location_raw == "94 Waterman Street- CSSJ 110"
+        ]
+        assert len(cssj) == 3
+        for meeting in cssj:
+            assert meeting.place_id == "center-for-the-study-of-slavery-and-justice", meeting.id
+            assert meeting.room == "110", meeting.id
+        packet = [
+            meeting
+            for meeting in result.rows
+            if meeting.location_raw == "155 South Main Street - Packet 151"
+        ]
+        assert len(packet) == 3
+        for meeting in packet:
+            assert meeting.place_id == "packet-building", meeting.id
+            assert meeting.room == "151", meeting.id

@@ -57,6 +57,17 @@ SOURCE = "cab"
 EMBEDDED_SOURCE = "cab-embedded"
 STATUS_PUBLISHED = "Physical location published"
 
+# Task 10 review: contract §3 pins /api/meetings as meetings "in session"
+# and the contract table has no cancellation column, so a cancelled section
+# must never publish rows — it becomes a structured skip instead.
+SKIP_CANCELLED = "cancelled-section"
+
+# The export's location cell joins one location per meeting pattern with the
+# same separator the meeting_schedule cell uses (proven row-by-row by the
+# cab_schedule_and_location column, e.g. crn 15392 "MW 10am-10:50am in
+# Sayles Hall 104 TTh 10:30am-11:50am in Page-Robinson Hall 201").
+_LOCATION_SEPARATOR = " | "
+
 _INSTRUCTOR_SEPARATOR = "/"
 _INSTRUCTOR_JOIN = "; "
 
@@ -90,20 +101,52 @@ def _subject(course_code: str) -> str:
     return course_code.split(maxsplit=1)[0]
 
 
+def _section_locations(
+    record: CabCsvRecord,
+    patterns: tuple[MeetingPattern, ...],
+    resolver: PlaceResolver,
+    samples: list[ResolutionSample],
+) -> tuple[tuple[str, Resolution], ...]:
+    """(location_raw, resolution) per pattern for a published section.
+
+    A ``' | '``-piped location cell aligned 1:1 with the patterns resolves
+    location by location — every part is sampled under the section's crn, so
+    the section-resolution gate ANDs them. Any other cell (single location,
+    or a pipe count that does not match the pattern count, where the
+    alignment is unproven) resolves once as a whole and is shared by every
+    pattern — never guessed apart.
+    """
+    parts = record.location.split(_LOCATION_SEPARATOR)
+    if len(parts) > 1 and len(parts) == len(patterns):
+        aligned: list[tuple[str, Resolution]] = []
+        for part in parts:
+            resolution = resolver.resolve(part)
+            samples.append(
+                ResolutionSample(
+                    source=SOURCE, resolution=resolution, section_id=record.crn
+                )
+            )
+            aligned.append((part, resolution))
+        return tuple(aligned)
+    resolution = resolver.resolve(record.location)
+    samples.append(
+        ResolutionSample(source=SOURCE, resolution=resolution, section_id=record.crn)
+    )
+    return tuple((record.location, resolution) for _ in patterns)
+
+
 def _pattern_location(
     record: CabCsvRecord,
     pattern: MeetingPattern,
-    section_resolution: Resolution | None,
+    index: int,
+    section_locations: tuple[tuple[str, Resolution], ...] | None,
     resolver: PlaceResolver,
     samples: list[ResolutionSample],
 ) -> tuple[str | None, str | None, str | None]:
     """(location_raw, place_id, room) for one emitted pattern."""
-    if section_resolution is not None:
-        return (
-            record.location,
-            section_resolution.place_id,
-            section_resolution.room,
-        )
+    if section_locations is not None:
+        location_raw, resolution = section_locations[index]
+        return (location_raw, resolution.place_id, resolution.room)
     if pattern.embedded_location is not None:
         resolution = resolver.resolve(pattern.embedded_location)
         samples.append(
@@ -202,20 +245,33 @@ def run_cab_csv_job(
     skips: list[SkippedSection] = []
     samples: list[ResolutionSample] = []
     for record in records:
-        section_resolution: Resolution | None = None
-        if record.location_status == STATUS_PUBLISHED:
-            # every published section enters the gate denominator, whether
-            # or not its schedule yields meeting rows
-            section_resolution = resolver.resolve(record.location)
-            samples.append(
-                ResolutionSample(
-                    source=SOURCE,
-                    resolution=section_resolution,
-                    section_id=record.crn,
+        if record.cancelled:
+            # a cancelled section is never "in session": no rows, and its
+            # location stays out of the resolution denominator
+            skips.append(
+                SkippedSection(
+                    term_code=record.term_code,
+                    crn=record.crn,
+                    course_code=record.course_code,
+                    reason=SKIP_CANCELLED,
+                    location_status=record.location_status,
+                    meeting_schedule=record.meeting_schedule,
                 )
             )
+            continue
+        published = record.location_status == STATUS_PUBLISHED
         parsed = parse_meeting_schedule(record.meeting_schedule, record.location_status)
         if parsed.skip_reason is not None:
+            if published:
+                # every published section enters the gate denominator,
+                # whether or not its schedule yields meeting rows
+                samples.append(
+                    ResolutionSample(
+                        source=SOURCE,
+                        resolution=resolver.resolve(record.location),
+                        section_id=record.crn,
+                    )
+                )
             skips.append(
                 SkippedSection(
                     term_code=record.term_code,
@@ -227,9 +283,14 @@ def run_cab_csv_job(
                 )
             )
             continue
+        section_locations = (
+            _section_locations(record, parsed.patterns, resolver, samples)
+            if published
+            else None
+        )
         for index, pattern in enumerate(parsed.patterns):
             location_raw, place_id, room = _pattern_location(
-                record, pattern, section_resolution, resolver, samples
+                record, pattern, index, section_locations, resolver, samples
             )
             rows.append(
                 _meeting_row(record, pattern, index, location_raw, place_id, room)

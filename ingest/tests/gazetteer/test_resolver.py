@@ -373,3 +373,50 @@ class TestTask6BAliasGrowthVectors:
         self, resolver: PlaceResolver, query: str
     ) -> None:
         assert resolver.resolve(query).place_id is None
+
+
+class TestTask10AddressAliasTraps:
+    """Task 10 review: address strings the trigram stage silently mis-bound.
+
+    Each vector is a verbatim published location from the Fall 2026 export
+    that used to resolve to the WRONG building at >= 0.55 trigram similarity
+    against a curated address alias of a nearby place:
+
+    - ``70 Brown Street NNN`` (26 rows) landed on Page-Robinson Hall via its
+      ``69 Brown Street`` alias (0.684), although 70 Brown Street is its own
+      OSM university building (way/1073442221) in the recorded fixture;
+    - ``94 Waterman Street- CSSJ NNN`` landed on 85 Waterman Street (0.727)
+      with the corrupted room ``CSSJ NNN``, although the CSSJ itself is
+      catalogued at 94 Waterman Street;
+    - ``155 South Main Street - Packet NNN`` landed on 121 South Main Street
+      (0.75, a different building ~150m away), although 155 South Main is
+      The Packet Building (OSM way/141567737) in the recorded fixture.
+
+    Curation makes each resolve exactly (with a clean room) to the building
+    the Overpass fixture grounds.
+    """
+
+    @pytest.mark.parametrize(
+        ("query", "place_id", "room"),
+        [
+            ("70 Brown Street 315", "70-brown-street", "315"),
+            ("70 Brown Street 130", "70-brown-street", "130"),
+            ("94 Waterman Street- CSSJ 110", "center-for-the-study-of-slavery-and-justice", "110"),
+            ("155 South Main Street - Packet 151", "packet-building", "151"),
+            ("155 South Main Street - Packet 003", "packet-building", "003"),
+        ],
+    )
+    def test_trap_string_resolves_exactly_to_the_fixture_grounded_building(
+        self, resolver: PlaceResolver, query: str, place_id: str, room: str
+    ) -> None:
+        resolution = resolver.resolve(query)
+        assert resolution.place_id == place_id
+        assert resolution.room == room
+        assert resolution.method == "exact-room"
+
+    def test_the_sixty_nine_brown_street_alias_still_binds_page_robinson(
+        self, resolver: PlaceResolver
+    ) -> None:
+        resolution = resolver.resolve("69 Brown Street 315")
+        assert resolution.place_id == "page-robinson-hall"
+        assert resolution.room == "315"

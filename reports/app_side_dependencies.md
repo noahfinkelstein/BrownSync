@@ -17,6 +17,19 @@ lane. This file is the register.
 - Required app-side action: the athletics ICS poller must resolve home-game
   `LOCATION` venue segments through this sidecar, and a consumer test must
   exist in the app lane before ingestion claims the integration done.
+- **Status (Task 10 review, 2026-07-29): consumer acceptance exists but is
+  unmerged.** The final review confirmed a schema divergence — the poller on
+  `origin/main` still parsed this file as the obsolete flat
+  `{"<venue>": "<place_id>"}` map and threw on the v1 envelope. The app lane
+  fixed it on branch `fix/athletics-sidecar-v1` (commit `60c349d`): pins
+  `AthleticsVenuesSchema` (v1 envelope, `z.literal(1)` version) in
+  `@brownsync/contract`, rewrites `loadAthleticsVenues()` over `mappings[]`,
+  mirrors the ingestion-emitted file as a poller fixture, and covers both
+  sidecar worlds (absent / present-with-v1) in consumer tests. The producer
+  shape is unchanged. This dependency stays BLOCKING until that branch
+  merges; root cause — DATA_CONTRACT.md never defines either sidecar file —
+  should be closed with a coordinated contract bump listing both sidecar
+  schemas.
 - Caution for the consumer: a `Providence, R.I.` LOCATION prefix does NOT
   imply a home game — "Chapey Field at Anderson Stadium" is Providence
   College's stadium. Home classification requires the SIDEARM "vs" summary

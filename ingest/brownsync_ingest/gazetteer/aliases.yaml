@@ -252,10 +252,15 @@ places:
   - name: T.F. Green Hall
     kind: academic
     aliases: [T.F. Green Hall, TF Green Hall]
+  # Task 10 review: the export writes this building as its street address
+  # ("94 Waterman Street- CSSJ 110"); without the address aliases the
+  # trigram stage mis-bound those rows to 85 Waterman Street (0.727) with a
+  # corrupted room. The OSM footprint already carries the address
+  # "94 Waterman Street, Providence, RI".
   - name: Center for the Study of Slavery and Justice
     kind: academic
     osm: The Center for the Study of Slavery and Justice (CSSJ)
-    aliases: [Center for the Study of Slavery and Justice, CSSJ]
+    aliases: [Center for the Study of Slavery and Justice, CSSJ, 94 Waterman Street, 94 Waterman Street - CSSJ]
   - name: Theatre Arts Building
     kind: academic
     aliases: [Theatre Arts Building, 50 John Street]
@@ -289,6 +294,22 @@ places:
     aliases: [85 Waterman Street, 85 Waterman]
     lat: 41.827200
     lng: -71.401300
+  # Task 10 review: 26 published ENGL/LITR rows read "70 Brown Street NNN".
+  # Without this entry the trigram stage bound them to Page-Robinson Hall
+  # via its "69 Brown Street" alias (0.684) — a different building across
+  # the street. 70 Brown Street is its own OSM university building
+  # (way/1073442221) in the recorded Overpass fixture.
+  - name: 70 Brown Street
+    kind: academic
+    aliases: [70 Brown Street, 70 Brown St]
+  # Task 10 review: "155 South Main Street - Packet NNN" rows mis-bound to
+  # 121 South Main Street (0.75), a different building ~150m away. The OSM
+  # fixture grounds The Packet Building at 155 South Main Street
+  # (way/141567737); Brown teaches in its leased "Packet" rooms.
+  - id: packet-building
+    name: The Packet Building
+    kind: academic
+    aliases: [The Packet Building, Packet Building, 155 South Main Street, 155 South Main Street - Packet]
 
   # ---- admin ----
   - name: University Hall

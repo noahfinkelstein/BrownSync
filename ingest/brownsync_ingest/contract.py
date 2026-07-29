@@ -59,8 +59,12 @@ class PlaceRow(ContractRow):
     name: str
     aliases: list[str] = Field(default_factory=list)
     kind: PlaceKind
-    lat: float
-    lng: float
+    # Task 10 review: the app-side seed loader pins these numeric bounds
+    # (packages/contract seeds.ts); the row models are the last validation
+    # gate before publish_ndjson, so they must reject the same values.
+    # Bounded floats also reject NaN/inf (comparison fails).
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
     polygon: str | None = None
     address: str | None = None
     osm_id: str | None = None
@@ -92,14 +96,16 @@ class EventRow(ContractRow):
     rrule: str | None = None
     location_raw: str | None = None
     place_id: str | None = None
-    lat: float | None = None
-    lng: float | None = None
+    # Task 10 review: same app-side bounds as PlaceRow; confidence is
+    # pinned to (0, 1] by the consumer (z.number().gt(0).lte(1))
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
     org_id: str | None = None
     category: Category | None = None
     tags: list[str] = Field(default_factory=list)
     url: str | None = None
     cost: str | None = None
-    confidence: float = 1.0
+    confidence: float = Field(default=1.0, gt=0, le=1)
     first_seen_at: datetime | None = None
     last_seen_at: datetime | None = None
     is_canceled: bool = False

@@ -286,3 +286,34 @@ def test_fixed_contract_literals_are_enforced(
 ) -> None:
     with pytest.raises(ValidationError, match=field):
         model(**payload)
+
+
+@pytest.mark.parametrize(
+    ("model", "payload", "field"),
+    [
+        # Task 10 review: the app side (packages/contract seeds.ts) pins
+        # lat in [-90, 90], lng in [-180, 180], and confidence in (0, 1];
+        # the last publish gate must reject what db/seed.ts would reject.
+        (PlaceRow, place_payload(lat=123.0), "lat"),
+        (PlaceRow, place_payload(lng=456.0), "lng"),
+        (PlaceRow, place_payload(lat=float("nan")), "lat"),
+        (EventRow, event_payload(lat=999.0), "lat"),
+        (EventRow, event_payload(lng=-999.0), "lng"),
+        (EventRow, event_payload(confidence=5.0), "confidence"),
+        (EventRow, event_payload(confidence=0.0), "confidence"),
+        (EventRow, event_payload(confidence=float("inf")), "confidence"),
+    ],
+)
+def test_numeric_contract_bounds_are_enforced_at_the_row_models(
+    model: type[PlaceRow | EventRow],
+    payload: dict[str, object],
+    field: str,
+) -> None:
+    with pytest.raises(ValidationError, match=field):
+        model(**payload)
+
+
+def test_numeric_contract_bounds_accept_the_documented_extremes() -> None:
+    PlaceRow(**place_payload(lat=-90.0, lng=180.0))
+    event = EventRow(**event_payload(lat=41.8268, lng=-71.4025, confidence=1.0))
+    assert event.confidence == 1.0
