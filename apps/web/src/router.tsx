@@ -1,18 +1,19 @@
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { App } from "./App";
-import { MapView } from "./map/MapView";
+import { IndexPage } from "./pages/IndexPage";
 import { OrgPage } from "./pages/OrgPage";
 import { PlacePage } from "./pages/PlacePage";
 
 /**
- * Routes: `/` full-bleed map (Phase 1), `/p/$id` place page and `/o/$id`
- * org page (Phase 2 H). `/dev/ui` and `/health` are still to come.
+ * Routes: `/` the composed live-map screen (map + list split pane, lanes
+ * F+H), `/p/$id` place page and `/o/$id` org page (Phase 2 H). `/dev/ui`
+ * and `/health` are still to come.
  */
 
 const rootRoute = createRootRoute({ component: App });
 
 function IndexScreen() {
-  return <MapView />;
+  return <IndexPage />;
 }
 
 const indexRoute = createRoute({
