@@ -16,16 +16,17 @@ import { isLive } from "../browse/grouping";
 import { usePlaceActivity, usePlaceWeekEvents } from "../data/places";
 import { ApiError } from "../data/search";
 import { PageShell, SectionHeading } from "./PageShell";
+import { PlaceMiniMap } from "./PlaceMiniMap";
 
 /**
  * Place page /p/:id — handoff §3.3: name/kind/aliases header, "everything
  * happening here" timeline (today via /places/:id/activity, rest of the week
- * via the campus week feed), mini-map placeholder seam.
+ * via the campus week feed), real basemap mini-map (Phase 3).
  */
 
 export type PlacePageProps = {
   id: string;
-  /** Integration seam: the real minimap mounts here; default shows coords. */
+  /** Integration seam; default is the real basemap mini-map (PlaceMiniMap). */
   renderMiniMap?: (place: PlaceOut) => ReactNode;
   /** Row click override — integrator opens the detail panel. */
   onSelectEvent?: (event: EventOut) => void;
@@ -103,11 +104,11 @@ export function PlacePage({ id, renderMiniMap, onSelectEvent }: PlacePageProps) 
         <div className="pt-1 font-mono text-12 text-text-secondary">
           {place.aliases.length > 0 ? place.aliases.join(" · ") : place.id}
         </div>
-        {place.address && <div className="pt-0.5 text-13 text-text-faint">{place.address}</div>}
+        {place.address && <div className="pt-0.5 text-13 text-text-secondary">{place.address}</div>}
       </header>
 
       <div className="mt-4">
-        {renderMiniMap ? renderMiniMap(place) : <MiniMapPlaceholder place={place} />}
+        {renderMiniMap ? renderMiniMap(place) : <PlaceMiniMap place={place} />}
       </div>
 
       <SectionHeading count={meetings.length + todayEvents.length}>Today</SectionHeading>
@@ -171,7 +172,7 @@ function WeekTimeline({
     <div className="mt-1">
       {[...byDay.entries()].map(([label, dayEvents]) => (
         <section key={label} aria-label={label}>
-          <h3 className="px-2 pb-0.5 pt-2 font-mono text-12 text-text-faint">{label}</h3>
+          <h3 className="px-2 pb-0.5 pt-2 font-mono text-12 text-text-secondary">{label}</h3>
           {dayEvents.map((event) => (
             <PlaceEventRow key={event.id} event={event} now={now} onSelect={onSelect} />
           ))}
@@ -197,7 +198,7 @@ function PlaceEventRow({
       sub={event.allDay ? undefined : formatRelative(now, start)}
       title={
         event.isCanceled ? (
-          <span className="text-text-faint line-through">{event.title}</span>
+          <span className="text-text-secondary line-through">{event.title}</span>
         ) : (
           event.title
         )
@@ -214,18 +215,5 @@ function PlaceEventRow({
       }
       onClick={onSelect ? () => onSelect(event) : undefined}
     />
-  );
-}
-
-/** Default mini-map seam: hairline frame, crosshair, mono coords (§6.2). */
-function MiniMapPlaceholder({ place }: { place: PlaceOut }) {
-  return (
-    <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-6 border border-line bg-bg-overlay">
-      <span aria-hidden className="absolute inset-x-0 top-1/2 h-px bg-line" />
-      <span aria-hidden className="absolute inset-y-0 left-1/2 w-px bg-line" />
-      <span className="relative bg-bg-overlay px-2 font-mono text-12 text-text-faint">
-        {place.lat.toFixed(4)} · {place.lng.toFixed(4)}
-      </span>
-    </div>
   );
 }
