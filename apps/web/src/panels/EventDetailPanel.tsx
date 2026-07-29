@@ -16,7 +16,11 @@ import { useEventDetail } from "../data/queries";
 import { DEFAULT_DURATION_MS, isStartingSoon } from "../map/eventsLayer";
 import { ErrorState } from "../ops/states/error";
 import { PanelSkeleton } from "../ops/states/skeletons";
-import { downloadIcs } from "./ics";
+
+/** ICS builder loads on demand (Phase 3 perf) — never in the boot bundle. */
+function addToCalendar(event: EventOut): void {
+  void import("./ics").then(({ downloadIcs }) => downloadIcs(event));
+}
 
 export type EventDetailPanelProps = {
   open: boolean;
@@ -114,7 +118,7 @@ export function EventDetailPanel({
                 open source ↗
               </a>
             )}
-            <Button variant="primary" onClick={() => downloadIcs(event)}>
+            <Button variant="primary" onClick={() => addToCalendar(event)}>
               Add to calendar
             </Button>
           </div>

@@ -1,14 +1,24 @@
-import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+} from "@tanstack/react-router";
 import { App } from "./App";
 import { IndexPage } from "./pages/IndexPage";
-import { OrgPage } from "./pages/OrgPage";
-import { PlacePage } from "./pages/PlacePage";
 
 /**
  * Routes: `/` the composed live-map screen (map + list split pane, lanes
  * F+H), `/p/$id` place page and `/o/$id` org page (Phase 2 H). `/dev/ui`
  * and `/health` are still to come.
+ *
+ * Perf (Phase 3 P3B): the profile pages are route-level lazy chunks so the
+ * default screen never downloads them; the index route stays eager — it IS
+ * the app.
  */
+
+const PlacePage = lazyRouteComponent(() => import("./pages/PlacePage"), "PlacePage");
+const OrgPage = lazyRouteComponent(() => import("./pages/OrgPage"), "OrgPage");
 
 const rootRoute = createRootRoute({ component: App });
 

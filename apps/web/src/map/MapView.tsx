@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { type ReactNode, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AttributionControl, Map as MapGL, type MapRef, useControl } from "react-map-gl/maplibre";
 import { INITIAL_VIEW, MAX_BOUNDS, MAX_PITCH, MAX_ZOOM, MIN_ZOOM } from "./camera";
+import { bridgeCameraSeam } from "./cameraBridge";
 import { getOverlayLayers, subscribeOverlayLayers } from "./overlay";
 import { registerPmtilesProtocol } from "./pmtiles";
 import { buildMapStyle, pmtilesUrl } from "./style";
@@ -55,7 +56,16 @@ export function MapView({ onMapLoad, children }: MapViewProps) {
   const markReady = (map: MaplibreMap): void => {
     if (announcedRef.current) return;
     announcedRef.current = true;
+    // Belt-and-braces: the bridge normally lands in watchReadiness (the ref
+    // callback fires before `load`), but markReady can also be reached via
+    // the `onLoad`/`onIdle` event target. Idempotent either way.
+    bridgeCameraSeam(map);
     setStatus("ready");
+    // Dev/e2e-only camera handle: the perf spec (e2e/perf.e2e.ts) drives
+    // easeTo/jumpTo through it. Statically stripped from prod builds.
+    if (import.meta.env.DEV) {
+      (window as unknown as { __brownsyncMap?: MaplibreMap }).__brownsyncMap = map;
+    }
     onMapLoad?.(map);
   };
 
@@ -70,16 +80,30 @@ export function MapView({ onMapLoad, children }: MapViewProps) {
     watchStopRef.current = null;
     if (!ref) return;
     const map = ref.getMap();
-    const check = (): void => {
-      if (map.loaded()) markReady(map);
-    };
-    check();
-    map.on("render", check);
-    const poll = setInterval(check, 250);
-    watchStopRef.current = () => {
+    // Repair the maplibre-6/react-map-gl camera seam BEFORE any camera event
+    // can fire (the handler manager emits them during boot renders, ahead of
+    // `load`) — see cameraBridge.ts.
+    bridgeCameraSeam(map);
+    let poll: ReturnType<typeof setInterval> | null = null;
+    // Perf: the watcher exists only to catch the parked-map boot race — once
+    // ready it detaches itself, so no per-frame `loaded()` checks (or the
+    // 250 ms poll) outlive the boot.
+    const stop = (): void => {
       map.off("render", check);
-      clearInterval(poll);
+      if (poll !== null) clearInterval(poll);
+      if (watchStopRef.current === stop) watchStopRef.current = null;
     };
+    function check(): void {
+      if (map.loaded()) {
+        markReady(map);
+        stop();
+      }
+    }
+    check();
+    if (announcedRef.current) return;
+    map.on("render", check);
+    poll = setInterval(check, 250);
+    watchStopRef.current = stop;
   };
 
   return (
