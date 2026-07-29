@@ -45,7 +45,7 @@ export function TimeScrubber({ store = timeCursor, className }: TimeScrubberProp
   }
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-3", className)}>
+    <div data-testid="time-scrubber" className={cn("flex min-w-0 items-center gap-3", className)}>
       <Button
         variant={cursor.isLive ? "primary" : "ghost"}
         aria-pressed={cursor.isLive}

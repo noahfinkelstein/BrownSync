@@ -16,6 +16,8 @@ export type PanelProps = {
   width?: number;
   /** Non-modal by default so the map behind stays interactive. */
   modal?: boolean;
+  /** `data-testid` on the panel content — e2e hook (integration). */
+  testId?: string;
   className?: string;
 };
 
@@ -32,6 +34,7 @@ export function Panel({
   footer,
   width = 380,
   modal = false,
+  testId,
   className,
 }: PanelProps) {
   return (
@@ -40,6 +43,7 @@ export function Panel({
         {modal && <Dialog.Overlay className="fixed inset-0 z-40 bg-bg-base/60" />}
         <Dialog.Content
           aria-describedby={undefined}
+          data-testid={testId}
           style={{ width, maxWidth: "94vw" }}
           className={cn(
             "bs-panel fixed inset-y-0 right-0 z-50 flex flex-col border-l border-line bg-bg-raised",

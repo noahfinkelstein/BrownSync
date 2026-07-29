@@ -97,6 +97,7 @@ export function SearchPalette({ open, onOpenChange, onSelectEvent }: SearchPalet
       <div className="flex items-center gap-2 border-b border-line px-3">
         <SearchGlyph className="h-3.5 w-3.5 shrink-0 text-text-faint" />
         <Command.Input
+          data-testid="search-input"
           value={query}
           onValueChange={setQuery}
           placeholder="Search events, places, clubs, courses…"
