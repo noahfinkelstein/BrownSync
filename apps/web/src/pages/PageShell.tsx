@@ -13,7 +13,7 @@ export function PageShell({ children }: { children: ReactNode }) {
         <Link
           to="/"
           className={cn(
-            "inline-block font-mono text-12 text-text-faint transition-colors duration-150 ease-out hover:text-text-primary",
+            "inline-block font-mono text-12 text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary",
             FOCUS_RING,
           )}
         >
@@ -28,7 +28,7 @@ export function PageShell({ children }: { children: ReactNode }) {
 /** Mono section heading — table-style, §6.4 density. */
 export function SectionHeading({ children, count }: { children: ReactNode; count?: number }) {
   return (
-    <h2 className="mt-6 flex items-baseline justify-between border-b border-line pb-1 font-mono text-12 uppercase tracking-[0.08em] text-text-faint">
+    <h2 className="mt-6 flex items-baseline justify-between border-b border-line pb-1 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
       <span>{children}</span>
       {count != null && <span>{count}</span>}
     </h2>

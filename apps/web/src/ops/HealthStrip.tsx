@@ -127,7 +127,7 @@ export function HealthStrip({ className, compact = false, refreshMs }: HealthStr
             </p>
           )}
           <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2">
-            <span className="font-mono text-12 text-text-faint">
+            <span className="font-mono text-12 text-text-secondary">
               checked {checkedAt ? formatAgo(new Date(checkedAt).toISOString(), nowMs) : "—"} · auto{" "}
               {Math.round(cadence / 1000)}s
             </span>
@@ -149,11 +149,11 @@ function HealthRow({ source, nowMs }: { source: SourceHealth; nowMs: number }) {
         <span className="font-mono text-12 text-text-secondary">{statusWord(source, nowMs)}</span>
       </div>
       <div className="flex items-baseline justify-between gap-3 pl-3">
-        <span className="font-mono text-12 text-text-faint">
+        <span className="font-mono text-12 text-text-secondary">
           {source.itemsUpserted != null ? `${source.itemsUpserted} items · ` : ""}
           ok {formatAgo(source.lastOkAt, nowMs)}
         </span>
-        <span className="font-mono text-12 text-text-faint">
+        <span className="font-mono text-12 text-text-secondary">
           run {formatAgo(source.lastRunAt, nowMs)}
         </span>
       </div>
