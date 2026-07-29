@@ -9,3 +9,5 @@ allowBuilds:
   supabase: true
   "@tailwindcss/oxide": true
   "@biomejs/biome": true
+  # posthog-js pulls core-js, whose postinstall only prints a funding banner — skip it.
+  core-js: false
