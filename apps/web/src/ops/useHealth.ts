@@ -1,5 +1,6 @@
 import { HealthOutSchema } from "@brownsync/contract";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getDefaultFixtureData, healthSnapshot } from "../mocks/fixtureApi";
 import type { SourceHealth } from "./health-model";
 
 /** Matches the poller cadence ceiling — fresher than this is wasted requests. */
@@ -8,6 +9,11 @@ export const HEALTH_REFRESH_MS = 60_000;
 export function healthUrl(): string {
   const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
   return `${base.replace(/\/+$/, "")}/api/health`;
+}
+
+/** Zero-backend mode (README): serve the fixture snapshot, touch no network. */
+function fixturesEnabled(): boolean {
+  return import.meta.env.VITE_USE_FIXTURES === "1";
 }
 
 export type HealthPhase = "loading" | "ready" | "error";
@@ -35,9 +41,15 @@ export function useHealth(refreshMs: number = HEALTH_REFRESH_MS): HealthState {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(healthUrl(), { headers: { accept: "application/json" } });
-      if (!res.ok) throw new Error(`GET /api/health ${res.status}`);
-      const parsed = HealthOutSchema.parse(await res.json());
+      let payload: unknown;
+      if (fixturesEnabled()) {
+        payload = healthSnapshot(getDefaultFixtureData());
+      } else {
+        const res = await fetch(healthUrl(), { headers: { accept: "application/json" } });
+        if (!res.ok) throw new Error(`GET /api/health ${res.status}`);
+        payload = await res.json();
+      }
+      const parsed = HealthOutSchema.parse(payload);
       if (!alive.current) return;
       setSources(parsed.sources);
       setPhase("ready");

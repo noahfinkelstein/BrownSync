@@ -11,6 +11,8 @@ import {
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { z } from "zod";
+import { getDefaultFixtureData } from "../mocks/fixtureApi";
+import { fixtureRoute } from "../mocks/fixtureRoutes";
 
 /**
  * Palette search — handoff §2 H. The contract has NO dedicated /search route,
@@ -21,7 +23,11 @@ import { z } from "zod";
  *   courses → GET /api/meetings         (in-session at `now` — the only
  *                                        course surface the read API exposes)
  * This file also hosts the lane's shared fetch helper (`getJson`), reused by
- * ./places and ./orgs.
+ * ./places, ./orgs, and ../browse/useBrowseEvents.
+ *
+ * `VITE_USE_FIXTURES=1` resolves every request against the in-memory fixture
+ * router instead of fetching (README "Zero-backend (fixture mode)") — same
+ * statically-false-in-normal-builds tree-shake as src/data/api.ts.
  */
 
 export class ApiError extends Error {
@@ -44,12 +50,21 @@ export function apiUrl(path: string, params?: Record<string, string | undefined>
   return url.toString();
 }
 
+function fixturesEnabled(): boolean {
+  return import.meta.env.VITE_USE_FIXTURES === "1";
+}
+
 /** fetch + status check + Zod parse at the boundary (handoff §1). */
 export async function getJson<T>(
   path: string,
   schema: z.ZodType<T>,
   params?: Record<string, string | undefined>,
 ): Promise<T> {
+  if (fixturesEnabled()) {
+    const res = fixtureRoute(getDefaultFixtureData(), path, params);
+    if (res.status !== 200) throw new ApiError(res.status);
+    return schema.parse(res.body);
+  }
   const res = await fetch(apiUrl(path, params));
   if (!res.ok) throw new ApiError(res.status);
   return schema.parse(await res.json());
