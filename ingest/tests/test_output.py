@@ -189,3 +189,29 @@ def test_publisher_cleans_staging_and_preserves_existing_seed_when_replacement_f
 
     assert destination.read_bytes() == b"published\n"
     assert list(staging_root.iterdir()) == []
+
+
+class TestPublishJsonDocument:
+    """Shared atomic JSON sidecar publication (promoted in Task 7)."""
+
+    def test_writes_pretty_json_and_cleans_staging(self, tmp_path):
+        from brownsync_ingest.output import publish_json_document
+
+        destination = tmp_path / "db" / "seeds" / "sidecar.json"
+        staging_root = tmp_path / "reports" / "tmp"
+        publish_json_document({"schema_version": 1, "mappings": []}, destination, staging_root)
+        loaded = json.loads(destination.read_text(encoding="utf-8"))
+        assert loaded == {"schema_version": 1, "mappings": []}
+        assert destination.read_text(encoding="utf-8").endswith("\n")
+        assert list(staging_root.iterdir()) == []
+
+    def test_failure_leaves_existing_output_untouched(self, tmp_path):
+        from brownsync_ingest.output import publish_json_document
+
+        destination = tmp_path / "sidecar.json"
+        staging_root = tmp_path / "staging"
+        destination.write_text("{\"previous\": true}", encoding="utf-8")
+        with pytest.raises(ValueError):
+            publish_json_document({"bad": float("nan")}, destination, staging_root)
+        assert json.loads(destination.read_text(encoding="utf-8")) == {"previous": True}
+        assert list(staging_root.iterdir()) == []

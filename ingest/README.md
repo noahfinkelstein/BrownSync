@@ -17,13 +17,18 @@ ingest/
     run_log.py           # NDJSON source-run log + SourceRunRecorder
     gazetteer/           # catalog, aliases.yaml, geometry, resolver, places job
     cab/                 # Fall 2026 course meetings job (user-provided CSV)
+    clubs/               # organizations + LiveWhale sidecar job (user-provided CSV)
+    events/              # LiveWhale + registrar events bootstrap (user-provided CSVs)
+    mappings/            # source-native vocabularies -> contract §4 taxonomy
     athletics_venues.py  # SIDEARM venue -> place sidecar job
+    brown_owned_buildings.py  # Brown-owned buildings map-tint sidecar job
     dining/              # NOTES.md: documented discovery block (no job)
     seeds_manifest.py    # db/seeds/manifest.json publisher + validator
     cli.py               # `ingest run <job> --out ndjson|postgres`
   fixtures/
     recorded/            # captured through CachedHttpClient, hash-pinned
-    user_provided/       # Fall 2026 CAB export (hash-pinned, kind user_provided)
+    user_provided/       # user-delivered CSVs (hash-pinned, kind user_provided):
+                         #   Fall 2026 CAB export + the 2026-07-29 Codex pack
     manifest.json        # fixture integrity manifest (gates the suite)
   tests/                 # offline; `postgres`-marked tests need TEST_DATABASE_URL
 ```
@@ -37,10 +42,13 @@ uv run ingest run all --out ndjson
 ## Running and rerunning jobs
 
 `uv run ingest run <job> --out ndjson|postgres` where `<job>` is `places`,
-`cab`, `athletics`, or `all`. The registry also carries `clubs` and `dining`
-as **declared blocked gaps**: naming one exits 2 with the documented reason
-(never a silent skip), and `run all` runs the existing jobs in bundle order
-(places → cab → athletics) after loudly reporting those gaps.
+`cab`, `clubs`, `athletics`, `buildings`, `events`, or `all`. The registry
+also carries `dining` as a **declared blocked gap**: naming it exits 2 with
+the documented reason (never a silent skip), and `run all` runs the
+existing jobs in bundle order (places → cab → clubs → athletics →
+buildings → events) after loudly reporting that gap. `events` runs after
+`clubs` deliberately: its organization lookup reads the freshly published
+`organization_livewhale_groups.json` sidecar.
 
 - Exit 0: every invoked job published (or upserted).
 - Exit 1: a gate failed closed (source run `partial`) or a job raised
@@ -79,7 +87,14 @@ fixture integrity test rejects any silent synthetic substitution.
 | cab | distinct subjects | >= 50 |
 | cab | meeting rows | >= 1,500 (revised from 2,000; see below) |
 | cab | section-level place resolution | >= 90% |
+| clubs | distinct validated organizations | >= 400 |
+| clubs | unknown source vocabulary values | 0 (drift fails loudly) |
 | athletics | home venues mapped / place ids known | every one (no threshold) |
+| buildings | export rows / classification / operator conflicts / catalog drift | >= 2,000 / non-empty / 0 / 0 |
+| events | non-canceled LiveWhale rows with coords | >= 300 (app handoff §4 DoD) |
+| events | LiveWhale rows | >= 900 (0.9 × the 1,000-row pinned export) |
+| events | registrar admin rows | >= 100 |
+| events | unknown `online_type` values | 0 (drift fails loudly; unknown `event_types` are *reported* but categorized by poller fall-through — see below) |
 
 **1,500-row revision (Task 6B, signed off):** the plan's 2,000-row gate was
 calibrated for a live CAB scrape; the user-provided Fall 2026 export
@@ -93,7 +108,10 @@ the `cab/job.py` docstring. The 90% resolution gate is unchanged.
 `run all --out ndjson` replaces each artifact individually-atomically, then
 publishes `db/seeds/manifest.json` **last** with a generation ID, UTC
 timestamp, and SHA-256 + byte size per artifact (`places.ndjson`,
-`course_meetings.ndjson`, `athletics_venues.json`). The validator rejects a
+`course_meetings.ndjson`, `organizations.ndjson`,
+`organization_livewhale_groups.json`, `athletics_venues.json`,
+`brown_owned_buildings.json`, `events.ndjson`). The
+validator rejects a
 mixed set — any artifact whose on-disk hash disagrees with the manifest —
 so an interrupted bundle run is detectable and the previous manifest stays
 authoritative until a full rerun repairs every artifact. Single-job runs
@@ -117,31 +135,67 @@ app-side loader accepts it. In postgres mode the lifecycle writes to the
 `db/seeds/athletics_venues.json` (schema v1:
 `{schema_version, generated_at, mappings: [{source_name, place_id}]}`) maps
 SIDEARM venue strings to canonical place ids because contract v1 has no
-database target for them. App-side consumption of the athletics (and
-future organization) sidecars is a blocking cross-workstream dependency in
+database target for them. `db/seeds/organization_livewhale_groups.json`
+(schema v1: `{schema_version, generated_at, mappings: [{organization_id,
+livewhale_group, match_method, score}]}`) links organization slugs to
+LiveWhale publisher-group names; the Task 7 measured outcome is an EMPTY
+`mappings` list — the 218 recorded LiveWhale groups are departments and
+offices, and no student group is a publisher, so the file existing with
+`[]` is the explicit statement that no link is claimed. App-side
+consumption of both sidecars is a blocking cross-workstream dependency in
 `reports/app_side_dependencies.md`; ingestion does not claim the TS poller
 consumes them until a consumer test passes in the app lane.
+`db/seeds/brown_owned_buildings.json` (schema v1: ODbL attribution +
+`osm_way_ids` + `place_ids`, enrichment round) tints Brown-owned OSM
+footprints; its `buildings` CLI registration and manifest entry landed in
+the events-bootstrap round, closing the register §5 follow-up.
 
-## Blocked sources: clubs and dining
+## Events bootstrap and poller parity
 
-`studentactivities.brown.edu` and `dining.brown.edu` both answer a
-Pantheon-edge HTTP 403 to the declared UA; bypassing bot detection is
-forbidden, so no discovery requests were sent. Clubs (Task 7) has no job on
-this branch; dining discovery is documented in `dining/NOTES.md` (contract
-v1 has no dining-hours row, and the six fixed dining places are already
-seeded). Unblock paths: an OIT allowlist for the declared UA, or
-user-exported pages.
+`events` publishes `db/seeds/events.ndjson` from two hash-pinned
+user-provided exports: `brown_upcoming_events.csv` (1,000 LiveWhale event
+instances, 2026-07-29 → 2026-11-03, `source="livewhale"`) and
+`brown_academic_calendar_2026_2027.csv` (registrar entries,
+`source="registrar"`, `category="admin"`, weekday-validated year
+derivation). This is a BOOTSTRAP snapshot: post-deploy the app lane's TS
+poller (`services/poller/src/livewhale/`) refreshes live and upserts on
+`(source, source_id)`, so the seed derivation is poller-IDENTICAL —
+`source_id = "{id}:{epoch of start}"` (the feed's `date_ts`), the same
+entity decoding, the same category tables (`mappings/categories.py`, a
+verbatim port of the poller's `categories.ts` including its
+fall-through-on-unknown behavior), and the same org-sidecar lookup
+(measured truth: zero attributions). Ten sampled ids are pinned against
+the poller's recorded-fixture derivation in
+`tests/events/test_livewhale.py` — do not "fix" those pins without
+re-deriving them from the poller. Ingestion-side extras that the poller
+does not compute: `place_id` via the gazetteer resolver where coordinates
+are absent (never for `online_type="Online only"` rows), and `raw`
+carrying the CSV row minus the published-contact columns
+(`contact`/`contact_emails` are dropped with counts — no contract field
+consumes them).
+
+## Blocked source: dining
+
+`dining.brown.edu` answers a Pantheon-edge HTTP 403 to the declared UA;
+bypassing bot detection is forbidden, so no discovery requests were sent.
+Dining discovery is documented in `dining/NOTES.md` (contract v1 has no
+dining-hours row, and the six fixed dining places are already seeded).
+Unblock paths: an OIT allowlist for the declared UA, or user-exported
+pages. (`studentactivities.brown.edu` answers the same 403; the clubs job
+runs from the user-provided 2026-07-29 export instead of a scrape.)
 
 ## Postgres prerequisites
 
 `--out postgres` requires the `DATABASE_URL` environment variable and is
 fail-closed: absent credentials exit 2 and are reported, never treated as a
 successful database verification. `run all --out postgres` is the
-documented **hybrid**: contract rows (`places`, `course_meetings`) and
-source runs upsert via psycopg 3 (WKT through
-`ST_Multi(ST_GeomFromText(%s, 4326))`); the athletics sidecar and dining
-notes still publish as files, and the NDJSON manifest is not advanced.
-Explicit `run athletics --out postgres` is rejected as unsupported.
+documented **hybrid**: contract rows (`places`, `course_meetings`,
+`organizations`) and source runs upsert via psycopg 3 (WKT through
+`ST_Multi(ST_GeomFromText(%s, 4326))`); the athletics and organization
+sidecars and dining notes still publish as files, and the NDJSON manifest
+is not advanced. Explicit `run athletics --out postgres` is rejected as
+unsupported (its only artifact is a file); `run clubs --out postgres`
+upserts the organization rows and still publishes the sidecar file.
 `postgres`-marked integration tests (PostgreSQL 15 + PostGIS + pg_trgm) run
 only when `TEST_DATABASE_URL` is set.
 

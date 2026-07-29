@@ -34,16 +34,14 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import json
-import os
 from pathlib import Path
-import tempfile
 
 from brownsync_ingest.gazetteer.aliases import (
     DEFAULT_ALIASES_PATH,
     load_curated_catalog,
     normalize_alias,
 )
+from brownsync_ingest.output import publish_json_document
 
 
 HOME_CITY_NORMALIZED = normalize_alias("Providence, R.I.")
@@ -224,31 +222,6 @@ class AthleticsVenuesJobResult:
     published_count: int | None  # None: gates failed or dry run; file untouched
 
 
-def _atomic_write_json(document: dict[str, object], destination: Path, staging_root: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    staging_root.mkdir(parents=True, exist_ok=True)
-    staging_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="\n",
-            dir=staging_root,
-            prefix=f".{destination.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as staging_file:
-            staging_path = Path(staging_file.name)
-            json.dump(document, staging_file, indent=2, ensure_ascii=False, allow_nan=False)
-            staging_file.write("\n")
-            staging_file.flush()
-            os.fsync(staging_file.fileno())
-        os.replace(staging_path, destination)
-    finally:
-        if staging_path is not None:
-            staging_path.unlink(missing_ok=True)
-
-
 def run_athletics_venues_job(
     *,
     ics_path: Path | str,
@@ -291,7 +264,7 @@ def run_athletics_venues_job(
         if staging_root is None:
             raise ValueError("staging_root is required to publish the sidecar")
         document = build_sidecar()
-        _atomic_write_json(document, Path(sidecar_path), Path(staging_root))
+        publish_json_document(document, Path(sidecar_path), Path(staging_root))
         published_count = len(document["mappings"])  # type: ignore[arg-type]
 
     return AthleticsVenuesJobResult(

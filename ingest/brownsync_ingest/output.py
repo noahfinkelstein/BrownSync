@@ -26,6 +26,46 @@ def model_identity(row: BaseModel) -> tuple[str, ...]:
     raise ValueError("row has no publishable identity")
 
 
+def publish_json_document(
+    document: dict[str, object],
+    destination: Path,
+    staging_root: Path,
+) -> None:
+    """Atomically replace one pretty-printed JSON sidecar file.
+
+    Same staging/fsync/replace discipline as :func:`publish_ndjson`;
+    promoted from ``athletics_venues.py`` in Task 7 so every sidecar
+    publisher shares one implementation. A serialization failure leaves any
+    existing destination untouched and the staging root clean.
+    """
+    destination = Path(destination)
+    staging_root = Path(staging_root)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staging_root.mkdir(parents=True, exist_ok=True)
+    staging_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="\n",
+            dir=staging_root,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as staging_file:
+            staging_path = Path(staging_file.name)
+            json.dump(
+                document, staging_file, indent=2, ensure_ascii=False, allow_nan=False
+            )
+            staging_file.write("\n")
+            staging_file.flush()
+            os.fsync(staging_file.fileno())
+        os.replace(staging_path, destination)
+    finally:
+        if staging_path is not None:
+            staging_path.unlink(missing_ok=True)
+
+
 def publish_ndjson(
     rows: Iterable[Row | object],
     model_type: type[Row],

@@ -56,9 +56,12 @@ places:
   - name: Penner Field House
     kind: athletic
     aliases: [Penner Field House]
+  # Enrichment (Codex drop): LiveWhale publishes Brown Stadium home games as
+  # "Providence, R.I., Richard Gouse Field at Brown Stadium" — the same venue
+  # string the athletics sidecar (Task 8) already maps to brown-stadium.
   - name: Brown Stadium
     kind: athletic
-    aliases: [Brown Stadium, Richard Gouse Field]
+    aliases: [Brown Stadium, Richard Gouse Field, Richard Gouse Field at Brown Stadium, "Providence, R.I., Richard Gouse Field at Brown Stadium"]
     lat: 41.839800
     lng: -71.390500
   - name: Stevenson-Pincince Field
@@ -98,9 +101,14 @@ places:
   - name: John Hay Library
     kind: library
     aliases: [John Hay Library, Hay Library, The Hay]
+  # Enrichment (Codex drop): 116 LiveWhale events (organizer: John Carter
+  # Brown Library) use the bare address "94 George Street"; the recorded
+  # Overpass fixture grounds it — way/166668948 carries name="John Carter
+  # Brown Library", addr "94 George Street", operator="Brown University".
+  # Without the alias the string trigram-trapped to 67-george-street.
   - name: John Carter Brown Library
     kind: library
-    aliases: [John Carter Brown Library, JCB, JCB Library]
+    aliases: [John Carter Brown Library, JCB, JCB Library, 94 George Street]
   - name: Annmary Brown Memorial
     kind: library
     aliases: [Annmary Brown Memorial]
@@ -124,12 +132,15 @@ places:
   - name: Blistein House
     kind: academic
     aliases: [Blistein House]
+  # Enrichment (Codex drop): way/177016146 carries addr "155 Angell Street".
   - name: Churchill House
     kind: academic
-    aliases: [Churchill House]
+    aliases: [Churchill House, 155 Angell Street, "155 Angell Street, Providence"]
+  # Enrichment (Codex drop): way/177016118 carries addr "345 Brook Street";
+  # the LiveWhale string embeds a room and the full address parenthetically.
   - name: Engineering Research Center
     kind: academic
-    aliases: [Engineering Research Center, ERC]
+    aliases: [Engineering Research Center, ERC, 345 Brook Street, 345 Brook St, "Engineering Research Center, RM 125 (345 Brook St Providence, RI)"]
   - name: Friedman Hall
     kind: academic
     aliases: [Friedman Hall]
@@ -145,9 +156,13 @@ places:
   - name: Grimshaw-Gudewicz Biomedical Building
     kind: academic
     aliases: [Grimshaw-Gudewicz Biomedical Building, Grimshaw-Gudewicz Building]
+  # Enrichment (Codex drop): 22 LiveWhale events titled "Tisch Career Center"
+  # geocode inside this footprint (way/177016150, addr "167 Angell Street"),
+  # and a sibling event string spells out "Lizzie and Jonathan Tisch Center
+  # for Career Exploration ... 167 Angell Street" — the center's own address.
   - name: Hemisphere Building
     kind: academic
-    aliases: [Hemisphere Building, 167 Angell Street]
+    aliases: [Hemisphere Building, 167 Angell Street, Tisch Career Center, Lizzie and Jonathan Tisch Center for Career Exploration, "Lizzie and Jonathan Tisch Center for Career Exploration at Brown, Kobliner Conference Space: 1st Floor, 167 Angell Street, Providence, Rhode Island 02912, United States"]
   - name: Hirschfeld House
     kind: academic
     aliases: [Hirschfeld House, 163 George Street]
@@ -197,9 +212,12 @@ places:
   - name: Morrison-Gerard Chamber Music Studios
     kind: academic
     aliases: [Morrison-Gerard Chamber Music Studios]
+  # Enrichment (Codex drop): 34 LiveWhale events (organizer: Nelson Center
+  # for Entrepreneurship) use the bare address — way/185225893 is named
+  # "Nelson Center for Entrepreneurship" with addr "1 Euclid Avenue".
   - name: Nelson Center for Entrepreneurship
     kind: academic
-    aliases: [Nelson Center for Entrepreneurship, "1 Euclid Ave, Nelson Ctr Entr"]
+    aliases: [Nelson Center for Entrepreneurship, "1 Euclid Ave, Nelson Ctr Entr", 1 Euclid Avenue, "1 Euclid Ave, Providence RI 02906"]
   - name: Nightingale-Brown House
     kind: academic
     osm: "Nightingale–Brown House"
@@ -210,9 +228,13 @@ places:
   - name: Page-Robinson Hall
     kind: academic
     aliases: [Page-Robinson Hall, J. Walter Wilson, JWW, 69 Brown Street]
+  # Enrichment (Codex drop): way/177011608 carries addr "172 Meeting Street".
+  # Only the full LiveWhale string is aliased — a bare "172 Meeting Street"
+  # alias proved to trigram-trap the street-only string "Meeting street",
+  # which must stay unresolved (no building evidence).
   - name: Pembroke Hall
     kind: academic
-    aliases: [Pembroke Hall]
+    aliases: [Pembroke Hall, "Pembroke Hall, 172 Meeting Street, Providence, RI"]
   - name: Perry and Marty Granoff Center for the Creative Arts
     kind: academic
     aliases: [Perry and Marty Granoff Center for the Creative Arts, Granoff Center, Granoff Center for the Creative Arts]
@@ -246,9 +268,11 @@ places:
   - name: Smith Buonanno Hall
     kind: academic
     aliases: [Smith Buonanno Hall, Smith Buonanno, Smith-B]
+  # Enrichment (Codex drop): the LiveWhale variant "Stephen Robert ’62 Hall,
+  # 280 Brook Street" geocodes inside way/660704097 (addr "280 Brook Street").
   - name: Stephen Robert Hall
     kind: academic
-    aliases: [Stephen Robert Hall, 280 Brook Street]
+    aliases: [Stephen Robert Hall, 280 Brook Street, "Stephen Robert '62 Hall", "Stephen Robert '62 Hall, 280 Brook Street"]
   - name: T.F. Green Hall
     kind: academic
     aliases: [T.F. Green Hall, TF Green Hall]
@@ -257,10 +281,13 @@ places:
   # trigram stage mis-bound those rows to 85 Waterman Street (0.727) with a
   # corrupted room. The OSM footprint already carries the address
   # "94 Waterman Street, Providence, RI".
+  # Enrichment (Codex drop): 22 LiveWhale events use the center's renamed
+  # long form ("Ruth J. Simmons Center ...") with its 94 Waterman St address;
+  # they geocode inside the CSSJ footprint way/177075305.
   - name: Center for the Study of Slavery and Justice
     kind: academic
     osm: The Center for the Study of Slavery and Justice (CSSJ)
-    aliases: [Center for the Study of Slavery and Justice, CSSJ, 94 Waterman Street, 94 Waterman Street - CSSJ]
+    aliases: [Center for the Study of Slavery and Justice, CSSJ, 94 Waterman Street, 94 Waterman Street - CSSJ, Ruth J. Simmons Center for the Study of Slavery & Justice, "Ruth J. Simmons Center for the Study of Slavery & Justice, 94 Waterman St., Providence, RI 02906"]
   - name: Theatre Arts Building
     kind: academic
     aliases: [Theatre Arts Building, 50 John Street]
@@ -270,9 +297,13 @@ places:
   - name: Watson Center for Information Technology
     kind: academic
     aliases: [Watson Center for Information Technology, CIT, CIT Center, Thomas Watson CIT]
+  # Enrichment (Codex drop): way/177075426 carries addr "111 Thayer Street" —
+  # the bare address (31 LiveWhale events) trigram-trapped to 135-thayer-street
+  # before the exact alias. The school's renamed long form and its Joukowsky
+  # Forum hall both carry the same 111 Thayer address in the drop.
   - name: Watson Institute for International Studies
     kind: academic
-    aliases: [Watson Institute for International Studies, Watson Institute, 111 Thayer St-Watson Institute]
+    aliases: [Watson Institute for International Studies, Watson Institute, 111 Thayer St-Watson Institute, 111 Thayer Street, Watson School of International and Public Affairs, "Watson School of International and Public Affairs, 111 Thayer Street", Joukowsky Forum, "Joukowsky Forum, 111 Thayer Street"]
   - name: Wilbour Hall
     kind: academic
     aliases: [Wilbour Hall]
@@ -289,19 +320,24 @@ places:
     aliases: [Wilson Hall]
     lat: 41.826200
     lng: -71.402500
+  # Enrichment (Codex drop): a LiveWhale event names the building in full —
+  # "Building for Environmental Research and Teaching (BERT)" — and geocodes
+  # inside way/176918226 (OSM name "BERT", addr "85 Waterman Street"), so the
+  # entry now claims that named footprint instead of curated coordinates.
   - name: 85 Waterman Street
     kind: academic
-    aliases: [85 Waterman Street, 85 Waterman]
-    lat: 41.827200
-    lng: -71.401300
+    osm: BERT
+    aliases: [85 Waterman Street, 85 Waterman, BERT, Building for Environmental Research and Teaching, Building for Environmental Research and Teaching (BERT)]
   # Task 10 review: 26 published ENGL/LITR rows read "70 Brown Street NNN".
   # Without this entry the trigram stage bound them to Page-Robinson Hall
   # via its "69 Brown Street" alias (0.684) — a different building across
   # the street. 70 Brown Street is its own OSM university building
   # (way/1073442221) in the recorded Overpass fixture.
+  # Enrichment (Codex drop): LiveWhale address variants geocode 0.4m from
+  # the way/1073442221 footprint boundary.
   - name: 70 Brown Street
     kind: academic
-    aliases: [70 Brown Street, 70 Brown St]
+    aliases: [70 Brown Street, 70 Brown St, "70 Brown St., Providence", "70 Brown St., Providence, RI 02912"]
   # Task 10 review: "155 South Main Street - Packet NNN" rows mis-bound to
   # 121 South Main Street (0.75), a different building ~150m away. The OSM
   # fixture grounds The Packet Building at 155 South Main Street
@@ -325,9 +361,11 @@ places:
     kind: admin
     osm: "Corliss–Brackett House"
     aliases: [Corliss-Brackett House, 45 Prospect St-CorlissBrackett]
+  # Enrichment (Codex drop): 6 Cogut Institute events geocode inside the
+  # way/177016154 footprint under "Cogut Institute, Andrews House".
   - name: Andrews House
     kind: admin
-    aliases: [Andrews House]
+    aliases: [Andrews House, Cogut Institute, "Cogut Institute, Andrews House"]
   - name: Norwood House
     kind: admin
     aliases: [Norwood House]
@@ -342,9 +380,12 @@ places:
     aliases: [121 South Main Street, 121 South Main]
 
   # ---- student life / other ----
+  # Enrichment (Codex drop): way/166668949 carries addr "75 Waterman Street"
+  # (the bare address was an ambiguous trigram tie before the exact alias);
+  # the two Petteruti Lounge long forms name the campus center and address.
   - name: "Stephen Robert '62 Campus Center"
     kind: other
-    aliases: ["Stephen Robert '62 Campus Center", Faunce House, Faunce, Campus Center]
+    aliases: ["Stephen Robert '62 Campus Center", Faunce House, Faunce, Campus Center, 75 Waterman Street, Petteruti Lounge, "Stephen Robert '62 Campus Center, Petteruti Lounge, Room 201, 75 Waterman Street, Providence, RI 02912", "Petteruti Lounge, 75 Waterman Street, Providence, RI 02912 - Stephen Robert '62 Campus Center"]
   - name: Alumnae Hall
     kind: other
     aliases: [Alumnae Hall]
@@ -487,10 +528,11 @@ places:
   - name: Slater Hall
     kind: residence
     aliases: [Slater Hall]
+  # Enrichment (Codex drop): way/923913054 carries addr "450 Brook Street".
   - name: Sternlicht Commons
     kind: residence
     osm: "Wellness Center & Residence Hall"
-    aliases: [Sternlicht Commons, Health and Wellness Center, "Wellness Center & Residence Hall"]
+    aliases: [Sternlicht Commons, Health and Wellness Center, "Wellness Center & Residence Hall", 450 Brook Street, 450 Brook St]
   - name: Vartan Gregorian Quad A
     kind: residence
     aliases: [Vartan Gregorian Quad A, Gregorian Quad A]
@@ -589,9 +631,11 @@ places:
     lng: -71.408416
 
   # ---- outdoor spaces (curated coordinates; no OSM building footprint) ----
+  # Enrichment (Codex drop): the George Street gate entrance string names the
+  # Main Green itself (its geocode drifts into the adjacent JCB footprint).
   - name: The College Green
     kind: outdoor
-    aliases: [The College Green, College Green, Main Green]
+    aliases: [The College Green, College Green, Main Green, "Main Green @ George St Gate Entrance"]
     lat: 41.826300
     lng: -71.403200
   - name: The Quiet Green
@@ -614,3 +658,45 @@ places:
     aliases: [Ruth J. Simmons Quadrangle, Simmons Quadrangle, Lincoln Field]
     lat: 41.825900
     lng: -71.401300
+
+  # ---- Enrichment round: event venues proven by the Codex drop ----
+  # (fixtures/user_provided/brown_event_locations.csv, 2026-07-29). Each
+  # footprint-backed entry was grounded by point-in-polygon of the LiveWhale
+  # coordinates against the recorded Overpass fixture; curated-coordinate
+  # entries pin the LiveWhale coordinates verbatim because the venue has no
+  # usable footprint in the fixture (outside the bbox, or an unnamed way
+  # without full address tags).
+  - name: Chace Center
+    kind: other
+    aliases: [Chace Center, Chase Center/RISD Museum]
+  - name: Wexford Innovation Complex
+    kind: other
+    aliases: [Wexford Innovation Complex, 225 Dyer Street, 225 Dyer St]
+  - name: 51 Prospect Street
+    kind: other
+    osm: "addr:51 Prospect Street"
+    aliases: [51 Prospect Street, "51 Prospect Street, Providence Rhode Island"]
+  - name: International House of Rhode Island
+    kind: other
+    osm: "addr:8 Stimson Avenue"
+    aliases: [International House of Rhode Island, International House, 8 Stimson Avenue]
+  - name: South Street Landing
+    kind: admin
+    aliases: [South Street Landing]
+    lat: 41.818344
+    lng: -71.406139
+  - name: 70 Ship Street
+    kind: academic
+    aliases: [70 Ship Street]
+    lat: 41.818841
+    lng: -71.410200
+  - name: Van Wickle Gates
+    kind: outdoor
+    aliases: [Van Wickle Gates, Van Wickle Gates and Memorial Park]
+    lat: 41.826124
+    lng: -71.404571
+  - name: Stonewall House
+    kind: other
+    aliases: [Stonewall House]
+    lat: 41.824775
+    lng: -71.403111
