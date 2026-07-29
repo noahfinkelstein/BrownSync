@@ -49,8 +49,9 @@ jobs:
         env:
           # Repo *variables* (gh variable set …, DEPLOY.md step 2). The app
           # reads VITE_API_URL; VITE_API_ORIGIN is the canonical repo-var name,
-          # mapped here. VITE_CANONICAL_ORIGIN is passed through for absolute
-          # OG/meta URLs once index.html consumes it.
+          # mapped here. VITE_CANONICAL_ORIGIN feeds the build-time transform
+          # in apps/web/vite.config.ts that absolutizes og:image/twitter:image
+          # URLs — REQUIRED for prod deploys.
           VITE_API_URL: ${{ vars.VITE_API_ORIGIN }}
           VITE_API_ORIGIN: ${{ vars.VITE_API_ORIGIN }}
           VITE_CANONICAL_ORIGIN: ${{ vars.VITE_CANONICAL_ORIGIN }}
