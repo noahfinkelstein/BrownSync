@@ -114,10 +114,10 @@ places:
     aliases: [Friedman Hall]
   - name: GeoChem Building
     kind: academic
-    aliases: [GeoChem Building, Geo-Chem, GeoChem]
+    aliases: [GeoChem Building, Geo-Chem, GeoChem, Geo-Chemistry Building]
   - name: German Department
     kind: academic
-    aliases: [German Department, German Studies]
+    aliases: [German Department, German Studies, 190 Hope Street]
   - name: Giddings House
     kind: academic
     aliases: [Giddings House]
@@ -129,7 +129,7 @@ places:
     aliases: [Hemisphere Building, 167 Angell Street]
   - name: Hirschfeld House
     kind: academic
-    aliases: [Hirschfeld House]
+    aliases: [Hirschfeld House, 163 George Street]
   - name: Kassar House
     kind: academic
     aliases: [Kassar House, Kassar]
@@ -162,30 +162,30 @@ places:
     aliases: [Medical Research Lab, Medical Research Laboratory]
   - name: Meiklejohn House
     kind: academic
-    aliases: [Meiklejohn House]
+    aliases: [Meiklejohn House, 159 George St-Meiklejohn House]
   - name: Mencoff Hall
     kind: academic
-    aliases: [Mencoff Hall]
+    aliases: [Mencoff Hall, 68 Waterman Mencoff Hall]
   - name: Metcalf Research Building
     kind: academic
     aliases: [Metcalf Research Building, Metcalf Research Lab]
   - name: Modern Culture and Media
     kind: academic
     osm: Brown University Department of Modern Culture and Media
-    aliases: [Modern Culture and Media, MCM, Brown University Department of Modern Culture and Media]
+    aliases: [Modern Culture and Media, MCM, Brown University Department of Modern Culture and Media, 155 George Street]
   - name: Morrison-Gerard Chamber Music Studios
     kind: academic
     aliases: [Morrison-Gerard Chamber Music Studios]
   - name: Nelson Center for Entrepreneurship
     kind: academic
-    aliases: [Nelson Center for Entrepreneurship]
+    aliases: [Nelson Center for Entrepreneurship, "1 Euclid Ave, Nelson Ctr Entr"]
   - name: Nightingale-Brown House
     kind: academic
     osm: "Nightingale–Brown House"
     aliases: [Nightingale-Brown House, John Nicholas Brown Center]
   - name: Orwig Music Hall
     kind: academic
-    aliases: [Orwig Music Hall, Orwig Music Building]
+    aliases: [Orwig Music Hall, Orwig Music Building, Grant Recital Hall, Grant Recital]
   - name: Page-Robinson Hall
     kind: academic
     aliases: [Page-Robinson Hall, J. Walter Wilson, JWW, 69 Brown Street]
@@ -197,7 +197,7 @@ places:
     aliases: [Perry and Marty Granoff Center for the Creative Arts, Granoff Center, Granoff Center for the Creative Arts]
   - name: Peter Green House
     kind: academic
-    aliases: [Peter Green House]
+    aliases: [Peter Green House, 79 Brown St-Peter Green Hse]
   - name: Prince Engineering Lab
     kind: academic
     aliases: [Prince Engineering Lab, Prince Lab]
@@ -209,7 +209,7 @@ places:
     aliases: [Robinson Hall]
   - name: Rochambeau House
     kind: academic
-    aliases: [Rochambeau House]
+    aliases: [Rochambeau House, 84 Prospect St-Rochambeau Hse]
   - name: Salomon Center for Teaching
     kind: academic
     aliases: [Salomon Center for Teaching, Salomon Center, Salomon]
@@ -221,7 +221,7 @@ places:
     aliases: [Sharpe House]
   - name: Sidney Frank Hall
     kind: academic
-    aliases: [Sidney Frank Hall, Sidney E. Frank Hall]
+    aliases: [Sidney Frank Hall, Sidney E. Frank Hall, S. Frank Hall for Life Science]
   - name: Smith Buonanno Hall
     kind: academic
     aliases: [Smith Buonanno Hall, Smith Buonanno, Smith-B]
@@ -237,7 +237,7 @@ places:
     aliases: [Center for the Study of Slavery and Justice, CSSJ]
   - name: Theatre Arts Building
     kind: academic
-    aliases: [Theatre Arts Building]
+    aliases: [Theatre Arts Building, 50 John Street]
   - name: Urban Environmental Lab
     kind: academic
     aliases: [Urban Environmental Lab, UEL]
@@ -246,7 +246,7 @@ places:
     aliases: [Watson Center for Information Technology, CIT, CIT Center, Thomas Watson CIT]
   - name: Watson Institute for International Studies
     kind: academic
-    aliases: [Watson Institute for International Studies, Watson Institute]
+    aliases: [Watson Institute for International Studies, Watson Institute, 111 Thayer St-Watson Institute]
   - name: Wilbour Hall
     kind: academic
     aliases: [Wilbour Hall]
@@ -278,11 +278,11 @@ places:
     aliases: [Maddock Alumni Center]
   - name: Horace Mann House
     kind: admin
-    aliases: [Horace Mann House]
+    aliases: [Horace Mann House, 47 George St-Horace Mann]
   - name: Corliss-Brackett House
     kind: admin
     osm: "Corliss–Brackett House"
-    aliases: [Corliss-Brackett House]
+    aliases: [Corliss-Brackett House, 45 Prospect St-CorlissBrackett]
   - name: Andrews House
     kind: admin
     aliases: [Andrews House]
@@ -477,6 +477,74 @@ places:
   - name: Young Orchard 10
     kind: residence
     aliases: [Young Orchard 10]
+
+  # ---- Task 6B: class venues proven by the Fall 2026 CAB export ----
+  # Every entry is grounded in the recorded Overpass fixture (by OSM name or,
+  # via the `addr:` fallback key, by an unnamed footprint's address tags),
+  # except the two curated-coordinate entries at the end of the section.
+  - name: 67 George Street
+    kind: academic
+    osm: 67 George
+    aliases: [67 George Street, 67 George]
+  - name: 135 Thayer Street
+    kind: academic
+    osm: "addr:135 Thayer Street"
+    aliases: [135 Thayer Street]
+  - id: 2-stimson-avenue
+    name: 2 Stimson Avenue
+    kind: academic
+    osm: "addr:2 Stimson Avenue"
+    aliases: [2 Stimson Avenue]
+  - name: 59 Charlesfield Street
+    kind: academic
+    osm: "addr:59 Charlesfield Street"
+    aliases: [59 Charlesfield Street]
+  - id: 8-fones-alley
+    name: 8 Fones Alley
+    kind: academic
+    osm: "addr:8 Fones Alley"
+    aliases: [8 Fones Alley]
+  - name: 271 Thayer Street
+    kind: other
+    osm: "addr:271 Thayer Street"
+    aliases: [271 Thayer Street]
+  - name: Steinert Hall
+    kind: academic
+    osm: Steinert
+    aliases: [Steinert Hall, Steinert]
+  - name: Feinstein Building
+    kind: academic
+    osm: Feinstein
+    aliases: [Feinstein Building, Feinstein, 130 Hope St (Feinstein Bldg.)]
+  - name: Gerard House
+    kind: academic
+    aliases: [Gerard House]
+  - name: Shirley Miller House
+    kind: academic
+    aliases: [Shirley Miller House, S. Miller House, 59 George St- S. Miller House]
+  - name: Walter Hall
+    kind: academic
+    aliases: [Walter Hall, 80 Waterman St - Walter Hall]
+  - name: Nicholson House
+    kind: academic
+    aliases: [Nicholson House]
+  # The CAB venue "101 Thayer Street (VGQ 1st fl)" is the Gregorian Quad
+  # classroom suite; both constituent OSM footprints (Quad A and Quad B)
+  # carry the address 101 Thayer Street and no complex-level element exists,
+  # so the complex gets curated coordinates at the midpoint of the two
+  # fixture centroids rather than a guessed single footprint.
+  - name: Vartan Gregorian Quad
+    kind: academic
+    aliases: [Vartan Gregorian Quad, VGQ, 101 Thayer Street (VGQ 1st fl)]
+    lat: 41.823440
+    lng: -71.399645
+  # 222 Richmond Street sits outside the College Hill capture bbox; the
+  # coordinates are OSM way/141567787 per Nominatim (2026-07-29 lookup).
+  - name: Warren Alpert Medical School
+    kind: academic
+    aliases: [Warren Alpert Medical School, Alpert Medical School, 222 Richmond (Alpert Med)]
+    lat: 41.818885
+    lng: -71.408416
 
   # ---- outdoor spaces (curated coordinates; no OSM building footprint) ----
   - name: The College Green

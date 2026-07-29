@@ -287,3 +287,89 @@ class TestFuzzySynthetic:
                     place("North-House", id="other-north"),
                 )
             )
+
+
+class TestTask6BAliasGrowthVectors:
+    """Every Task 6B alias/place decision, pinned against the real catalog.
+
+    Each vector is a verbatim unresolved location string from the Fall 2026
+    export (task-6 resolution report); the expected place is the one the
+    Overpass fixture (or, for the two curated entries, OSM-derived curated
+    coordinates) grounds. Growth is evidence-only: strings nothing grounds
+    stay unresolved and are pinned as such below.
+    """
+
+    @pytest.mark.parametrize(
+        ("query", "place_id", "room"),
+        [
+            # aliases onto existing places
+            ("S. Frank Hall for Life Science 218", "sidney-frank-hall", "218"),
+            ("155 George Street 106", "modern-culture-and-media", "106"),
+            ("Grant Recital 105", "orwig-music-hall", "105"),
+            ("Grant Recital 115", "orwig-music-hall", "115"),
+            ("111 Thayer St-Watson Institute 138", "watson-institute-for-international-studies", "138"),
+            ("190 Hope Street 102", "german-department", "102"),
+            ("Geo-Chemistry Building 039", "geochem-building", "039"),
+            ("68 Waterman Mencoff Hall 205", "mencoff-hall", "205"),
+            ("79 Brown St-Peter Green Hse 106", "peter-green-house", "106"),
+            ("84 Prospect St-Rochambeau Hse 107", "rochambeau-house", "107"),
+            ("163 George Street 103", "hirschfeld-house", "103"),
+            ("159 George St-Meiklejohn House 102", "meiklejohn-house", "102"),
+            ("50 John Street 120", "theatre-arts-building", "120"),
+            ("1 Euclid Ave, Nelson Ctr Entr 201", "nelson-center-for-entrepreneurship", "201"),
+            ("47 George St-Horace Mann 103", "horace-mann-house", "103"),
+            ("45 Prospect St-CorlissBrackett 106", "corliss-brackett-house", "106"),
+            # new places grounded by fixture footprints
+            ("67 George Street 104", "67-george-street", "104"),
+            ("135 Thayer Street 101", "135-thayer-street", "101"),
+            ("2 Stimson Avenue 111", "2-stimson-avenue", "111"),
+            ("59 Charlesfield Street 101", "59-charlesfield-street", "101"),
+            ("8 Fones Alley 016", "8-fones-alley", "016"),
+            ("271 Thayer Street 2NDFLOOR", "271-thayer-street", "2NDFLOOR"),
+            ("Steinert Hall 105", "steinert-hall", "105"),
+            ("130 Hope St (Feinstein Bldg.) 104", "feinstein-building", "104"),
+            ("Gerard House 101", "gerard-house", "101"),
+            ("59 George St- S. Miller House 101", "shirley-miller-house", "101"),
+            ("80 Waterman St - Walter Hall 102", "walter-hall", "102"),
+            ("Nicholson House 101", "nicholson-house", "101"),
+            # new places grounded by OSM-derived curated coordinates
+            ("101 Thayer Street (VGQ 1st fl) 116E", "vartan-gregorian-quad", "116E"),
+            ("101 Thayer Street (VGQ 1st fl) 116B", "vartan-gregorian-quad", "116B"),
+            ("222 Richmond (Alpert Med) 280", "warren-alpert-medical-school", "280"),
+        ],
+    )
+    def test_export_evidence_string_resolves_exactly_with_room(
+        self, resolver: PlaceResolver, query: str, place_id: str, room: str
+    ) -> None:
+        resolution = resolver.resolve(query)
+        assert resolution.place_id == place_id
+        assert resolution.room == room
+        assert resolution.method == "exact-room"
+
+    def test_the_marc_room_resolves_to_sidney_frank_hall_by_trigram(
+        self, resolver: PlaceResolver
+    ) -> None:
+        # "MARC" carries no digit, so the room stages cannot split it; the
+        # grown alias still lifts the string over the trigram threshold.
+        resolution = resolver.resolve("S. Frank Hall for Life Science MARC")
+        assert resolution.place_id == "sidney-frank-hall"
+        assert resolution.method == "trigram"
+
+    def test_barus_building_and_barus_holley_stay_distinct(
+        self, resolver: PlaceResolver
+    ) -> None:
+        assert resolver.resolve("Barus Building 141").place_id == "barus-building"
+        assert resolver.resolve("Barus & Holley 166").place_id == "barus-holley"
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "SMN121 801",  # opaque code, nothing grounds it
+            "National Press Building DC 975 968",  # Washington DC, off-campus
+            "300 Richmond Street 298",  # Jewelry District, outside the fixture bbox
+        ],
+    )
+    def test_ungroundable_strings_stay_unresolved(
+        self, resolver: PlaceResolver, query: str
+    ) -> None:
+        assert resolver.resolve(query).place_id is None

@@ -1,57 +1,41 @@
 # Place resolution report
 
-Generated: 2026-07-28
+Generated: 2026-07-29
 
 ## Hit rate by source
 
 | Source | Resolved | Total | Rate |
 | --- | ---: | ---: | ---: |
-| cab | 1253 | 1501 | 83.5% |
-| cab-embedded | 59 | 100 | 59.0% |
+| cab | 1499 | 1501 | 99.9% |
+| cab-embedded | 97 | 100 | 97.0% |
 
 ## Resolution methods
 
 | Method | Count |
 | --- | ---: |
-| exact-room | 1122 |
-| unresolved | 289 |
-| trigram | 190 |
+| exact-room | 1389 |
+| trigram | 207 |
+| unresolved | 5 |
 
 ## Unresolved reasons
 
 | Reason | Count |
 | --- | ---: |
-| below-threshold | 257 |
-| ambiguous | 32 |
+| below-threshold | 5 |
 
 ## Top unresolved values
 
 | Value | Count |
 | --- | ---: |
-| 2 Stimson Avenue 111 | 18 |
-| 101 Thayer Street (VGQ 1st fl) 116E | 16 |
-| 67 George Street 104 | 16 |
-| 101 Thayer Street (VGQ 1st fl) 116B | 13 |
-| 135 Thayer Street 101 | 10 |
-| 155 George Street 106 | 10 |
-| Grant Recital 105 | 10 |
-| S. Frank Hall for Life Science MARC | 10 |
-| 101 Thayer Street (VGQ 1st fl) 116A | 8 |
-| 111 Thayer St-Watson Institute 114 | 8 |
-| 111 Thayer St-Watson Institute 138 | 8 |
-| 190 Hope Street 102 | 8 |
-| 190 Hope Street 203 | 8 |
-| Geo-Chemistry Building 039 | 7 |
-| Geo-Chemistry Building 351 | 7 |
-| 111 Thayer St-Watson Institute 140 | 6 |
-| 68 Waterman Mencoff Hall 205 | 6 |
-| Steinert Hall 105 | 6 |
-| 1 Euclid Ave, Nelson Ctr Entr 201 | 5 |
-| 111 Thayer St-Watson Institute 112 | 5 |
+| 300 Richmond Street 298 | 1 |
+| Gerard House 101 \| Sciences Library 604 | 1 |
+| National Press Building DC 975 968 | 1 |
+| National Press Building DC 975 DC975 CLAS | 1 |
+| SMN121 801 | 1 |
 
 ## CAB resolution
 
-- Sections resolved: 1253/1501 (83.5%)
-- Patterns resolved: 197/254 (77.6%)
+- Sections resolved: 1499/1501 (99.9%)
+- Patterns resolved: 252/254 (99.2%)
 
-**Gate (CAB section resolution >= 90.0%): FAIL** — 83.5% (1253/1501 sections)
+**Gate (CAB section resolution >= 90.0%): PASS** — 99.9% (1499/1501 sections)

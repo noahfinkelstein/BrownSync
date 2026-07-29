@@ -49,14 +49,44 @@ class TestSyntheticElements:
         assert building.centroid == (pytest.approx(41.1), pytest.approx(-71.4))
         assert building.fallback_center == (pytest.approx(41.1), pytest.approx(-71.4))
 
-    def test_unnamed_elements_are_skipped(self) -> None:
+    def test_unnamed_elements_without_a_full_address_are_skipped(self) -> None:
         assert index_buildings([way(name=None)]) == {}
+        partial = way(name=None)
+        partial["tags"]["addr:housenumber"] = "2"
+        assert index_buildings([partial]) == {}
+        street_only = way(name=None)
+        street_only["tags"]["addr:street"] = "Stimson Avenue"
+        assert index_buildings([street_only]) == {}
+
+    def test_unnamed_element_with_full_address_is_indexed_under_addr_key(self) -> None:
+        unnamed = way(name=None)
+        unnamed["tags"].update({"addr:housenumber": "2", "addr:street": "Stimson Avenue"})
+        buildings = index_buildings([unnamed])
+        building = buildings["addr:2 Stimson Avenue"]
+        assert building.name == "addr:2 Stimson Avenue"
+        assert building.osm_id == "way/101"
+        assert building.wkt is not None
+        assert building.address == "2 Stimson Avenue"
+
+    def test_named_elements_are_never_indexed_under_an_addr_key(self) -> None:
+        named = way()
+        named["tags"].update({"addr:housenumber": "101", "addr:street": "Thayer Street"})
+        buildings = index_buildings([named])
+        assert set(buildings) == {"Test Hall"}
 
     def test_duplicate_names_keep_the_first_element(self) -> None:
         first = way()
         second = way(id=202)
         buildings = index_buildings([first, second])
         assert buildings["Test Hall"].osm_id == "way/101"
+
+    def test_duplicate_addr_keys_keep_the_first_unnamed_element(self) -> None:
+        first = way(name=None)
+        first["tags"].update({"addr:housenumber": "66", "addr:street": "Benefit Street"})
+        second = way(name=None, id=202)
+        second["tags"].update({"addr:housenumber": "66", "addr:street": "Benefit Street"})
+        buildings = index_buildings([first, second])
+        assert buildings["addr:66 Benefit Street"].osm_id == "way/101"
 
     def test_relation_stitches_outer_fragments_and_assigns_inner_hole(self) -> None:
         relation = {
@@ -155,11 +185,34 @@ class TestRecordedFixture:
     def test_loads_all_recorded_elements(self) -> None:
         assert len(load_overpass_elements(FIXTURE)) == 2155
 
-    def test_indexes_every_named_element(self, buildings: dict[str, OsmBuilding]) -> None:
-        assert len(buildings) == 329
+    def test_indexes_every_named_element_and_unnamed_addressed_footprint(
+        self, buildings: dict[str, OsmBuilding]
+    ) -> None:
+        named = [b for key, b in buildings.items() if not key.startswith("addr:")]
+        assert len(named) == 329
+        assert len(buildings) == 769  # 329 named + 440 unnamed with full address
         assert "Sayles Hall" in buildings
         assert "Barus & Holley" in buildings
         assert "Barus Building" in buildings
+
+    @pytest.mark.parametrize(
+        ("addr_key", "osm_id"),
+        [
+            ("addr:2 Stimson Avenue", "way/195508291"),
+            ("addr:135 Thayer Street", "way/177016169"),
+            ("addr:59 Charlesfield Street", "way/177075425"),
+            ("addr:8 Fones Alley", "way/177075314"),
+            ("addr:271 Thayer Street", "way/185225906"),
+        ],
+    )
+    def test_task_6b_unnamed_class_venues_are_reachable_by_address(
+        self, buildings: dict[str, OsmBuilding], addr_key: str, osm_id: str
+    ) -> None:
+        building = buildings[addr_key]
+        assert building.osm_id == osm_id
+        assert building.geometry_error is None
+        assert building.wkt is not None
+        assert building.centroid is not None
 
     def test_kassar_house_relation_has_two_outer_parts(self, buildings: dict[str, OsmBuilding]) -> None:
         kassar = buildings["Kassar House"]

@@ -82,7 +82,14 @@ def _address(tags: Mapping[str, str]) -> str | None:
 
 
 def index_buildings(elements: Iterable[Mapping]) -> dict[str, OsmBuilding]:
-    """Index named way/relation footprints by exact OSM name (first wins)."""
+    """Index way/relation footprints by exact OSM name (first wins).
+
+    Unnamed footprints carrying both ``addr:housenumber`` and ``addr:street``
+    are indexed under the fallback key ``addr:{housenumber} {street}`` (also
+    first wins) so curated entries can claim address-only buildings via an
+    explicit ``osm:`` reference; the prefix keeps the two key namespaces
+    disjoint. Unnamed footprints without a full address are skipped.
+    """
     buildings: dict[str, OsmBuilding] = {}
     for element in elements:
         element_type = element.get("type")
@@ -90,7 +97,13 @@ def index_buildings(elements: Iterable[Mapping]) -> dict[str, OsmBuilding]:
             continue
         tags = element.get("tags") or {}
         name = tags.get("name")
-        if not name or name in buildings:
+        if not name:
+            housenumber = tags.get("addr:housenumber")
+            street = tags.get("addr:street")
+            if not housenumber or not street:
+                continue
+            name = f"addr:{housenumber} {street}"
+        if name in buildings:
             continue
         wkt: str | None = None
         centroid: tuple[float, float] | None = None

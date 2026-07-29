@@ -286,8 +286,14 @@ class TestSkipsAndDedupe:
 class TestGates:
     def test_default_thresholds_are_the_adapted_plan_gates(self) -> None:
         assert MIN_SUBJECTS == 50
-        assert MIN_MEETING_ROWS == 2000
-        assert RESOLUTION_GATE == 0.90
+        # Task 6B recalibration, recorded verbatim in task-6b-brief.md:
+        # the 2,000-row gate was calibrated for a live CAB scrape; the
+        # authoritative user-provided export tops out at 1,828 physically
+        # scheduled rows (3,328 of 5,275 records are arranged/TBA). Revised
+        # threshold 1,500 approved by the orchestrating agent 2026-07-29 per
+        # the plan's explicit-revised-threshold mechanism.
+        assert MIN_MEETING_ROWS == 1500
+        assert RESOLUTION_GATE == 0.90  # unchanged
 
     def test_passing_gates_publish_contract_valid_seeds_atomically(
         self, tmp_path: Path, resolver: PlaceResolver
@@ -370,9 +376,10 @@ class TestGates:
 class TestRealExportRegression:
     """The full pinned export through the real curated catalog.
 
-    These numbers are the Task 6 record: they pin the fail-closed outcome
-    (rows and resolution below gate) until Task 10 grows aliases from the
-    unresolved evidence.
+    These numbers are the Task 6B record: after evidence-only alias growth
+    (57 distinct unresolved strings worked through the Overpass fixture) and
+    the signed-off meeting-rows recalibration to 1,500, every gate passes and
+    publication proceeds. Task 6 pinned the prior fail-closed state.
     """
 
     @pytest.fixture(scope="class")
@@ -392,19 +399,25 @@ class TestRealExportRegression:
         assert len(emitting_sections) + len(result.skips) == 5275
         assert emitting_sections.isdisjoint({skip.crn for skip in result.skips})
 
-    def test_gates_fail_closed_on_the_real_export(self, real_result) -> None:
+    def test_gates_pass_and_seeds_publish_on_the_real_export(self, real_result) -> None:
         result, tmp_path = real_result
         by_name = {check.name: check for check in result.gates.checks}
         assert by_name["subjects"].passed  # 81 subjects >= 50
         assert by_name["subjects"].actual == 81
-        assert not by_name["meeting-rows"].passed  # 1828 < 2000
+        assert by_name["meeting-rows"].passed  # 1828 >= 1500 (Task 6B revision)
         assert by_name["meeting-rows"].actual == 1828
-        assert not by_name["section-resolution"].passed  # 83.5% < 90%
+        assert by_name["section-resolution"].passed  # 99.9% >= 90%
         assert result.report.cab_sections_total == 1501
-        assert result.report.cab_sections_resolved == 1253
-        assert not result.gates.passed
-        assert result.published_count is None
-        assert not (tmp_path / "seeds" / "course_meetings.ndjson").exists()
+        assert result.report.cab_sections_resolved == 1499
+        # the survivors are pinned: an opaque code and a two-venue pipe row
+        unresolved = {value for value, _ in result.report.top_unresolved}
+        assert "SMN121 801" in unresolved
+        assert "Gerard House 101 | Sciences Library 604" in unresolved
+        assert result.gates.passed
+        assert result.published_count == 1828
+        seeds_path = tmp_path / "seeds" / "course_meetings.ndjson"
+        lines = seeds_path.read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 1828
         assert (tmp_path / "reports" / "cab_place_resolution.md").is_file()
 
     def test_every_emitted_row_is_contract_valid_with_cab_plausible_times(

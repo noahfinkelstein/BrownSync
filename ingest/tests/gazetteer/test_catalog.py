@@ -183,6 +183,26 @@ class TestRealAcceptance:
             assert 41.80 < row.lat < 41.86, row.id
             assert -71.42 < row.lng < -71.37, row.id
 
+    def test_task_6b_alias_growth_keeps_the_catalog_at_162_places(
+        self, build: CatalogBuild
+    ) -> None:
+        assert len(build.rows) == 162  # 148 from Task 4 + 14 export-proven venues
+        by_id = {row.id: row for row in build.rows}
+        # unnamed footprints claimed through the addr: fallback keys
+        for place_id, osm_id in (
+            ("2-stimson-avenue", "way/195508291"),
+            ("135-thayer-street", "way/177016169"),
+            ("59-charlesfield-street", "way/177075425"),
+            ("8-fones-alley", "way/177075314"),
+            ("271-thayer-street", "way/185225906"),
+        ):
+            assert by_id[place_id].osm_id == osm_id
+            assert by_id[place_id].source == "osm"
+            assert by_id[place_id].polygon is not None
+        # the two curated-coordinate entries stay flagged as curated
+        assert by_id["vartan-gregorian-quad"].source == "curated"
+        assert by_id["warren-alpert-medical-school"].source == "curated"
+
     def test_attribution_credits_openstreetmap_and_odbl(self, build: CatalogBuild) -> None:
         assert "OpenStreetMap" in build.attribution
         assert "ODbL" in build.attribution

@@ -4,10 +4,19 @@ Publication policy (plan Task 6, adapted to the user-provided export): the
 seeds file is replaced only when every gate passes —
 
 1. ``subjects``: >= 50 distinct course-code prefixes among emitted rows;
-2. ``meeting-rows``: >= 2,000 emitted contract-valid meeting rows;
+2. ``meeting-rows``: >= 1,500 emitted contract-valid meeting rows.
+   Task 6B recalibration, recorded verbatim in task-6b-brief.md: "Original
+   2,000-row gate was calibrated for a live CAB scrape whose volume includes
+   sections this authoritative user-provided export lists as arranged/TBA
+   (3,328 of 5,275 records). Export maximum is 1,828 physically-scheduled
+   rows. Revised threshold 1,500 approved by the orchestrating agent
+   (Claude, owner of both lanes) 2026-07-29 per the plan's
+   explicit-revised-threshold mechanism; automatic overrides remain
+   forbidden.";
 3. ``section-resolution``: >= 90% of sections with a published physical
    location resolve to a gazetteer place (the Task 5 report gate; an
-   unevaluable gate — no published sections — fails closed).
+   unevaluable gate — no published sections — fails closed). UNCHANGED by
+   Task 6B.
 
 A failing run renders the place-resolution report and leaves existing seeds
 untouched: reports always, seeds only on full success.
@@ -41,8 +50,8 @@ from brownsync_ingest.output import publish_ndjson
 
 
 MIN_SUBJECTS = 50
-MIN_MEETING_ROWS = 2000
-RESOLUTION_GATE = 0.90
+MIN_MEETING_ROWS = 1500  # Task 6B signed-off revision; see module docstring
+RESOLUTION_GATE = 0.90  # unchanged by Task 6B
 
 SOURCE = "cab"
 EMBEDDED_SOURCE = "cab-embedded"
