@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-28T21:50:53.049590Z",
+  "generated_at": "2026-07-29T04:40:47.356629Z",
   "recorded_user_agent": "BrownSync/1.0 (+noah_finkelstein@brown.edu)",
   "notes": [
     "user_provided entries are inputs handed over by the user (kind \"user_provided\"): hash-pinned with provenance, never recorded HTTP evidence; they stand in for the capture gaps they name in fills_gaps",
     "livewhale_events: contact_info values are blanked at capture — they hold staff names/titles and no contract field consumes them",
     "livewhale_events: the '?max=200' parameter was not honored — the endpoint returned 1000 events",
-    "overpass_buildings: OpenStreetMap data, ODbL licence — attribute OpenStreetMap contributors"
+    "overpass_buildings: OpenStreetMap data, ODbL licence — attribute OpenStreetMap contributors",
+    "athletics_ics: robots.txt asks Crawl-delay 30 and the feed advertises X-PUBLISHED-TTL PT120M — poll no more often than every 2 hours (probe: reports/sdd/brownsync-ingestion/athletics-probe.md)"
   ],
   "gaps": [
     {
@@ -44,39 +45,29 @@
   ],
   "fixtures": [
     {
-      "path": "user_provided/brown_fall_2026_classes_and_locations.csv",
-      "kind": "user_provided",
-      "source": "cab_fall_2026_csv",
-      "provided_by": "user",
-      "provided_at": "2026-07-28T00:00:00Z",
-      "provenance": "Authoritative Fall 2026 CAB course/location export supplied by the user on 2026-07-28 because cab.brown.edu answers every route with an AWS WAF bot challenge (status 202) for the mandated UA; bypassing bot detection is not permitted, so live capture stays a declared gap and this export is the Task 6 source of record.",
-      "fills_gaps": [
-        "cab_home",
-        "cab_bootstrap",
-        "cab_search",
-        "cab_details"
-      ],
-      "sha256": "50a20adb13d64f061ff11239a32e9a51b6d33dfc00f86003f1fdec4af975204c",
-      "bytes": 1016538,
-      "content_type": "text/csv; charset=utf-8 (with BOM)",
+      "path": "recorded/athletics/calendar.ics",
+      "source": "athletics_ics",
+      "route": "GET https://brownbears.com/calendar.ashx/calendar.ics",
+      "request_body": null,
+      "request_fingerprint": "8b818bd84201b48bb674fbf91f30c4720ec47162f5847e86cd0c605425963b0d",
+      "retrieved_at": "2026-07-29T04:40:47.353474Z",
+      "status": 200,
+      "content_type": "text/calendar",
+      "sha256": "ded454a16176876a2b2d95ae2ad85c6ab055caf99ac273363f5aae0a53da8620",
+      "bytes": 71149,
+      "scrubbed": false,
       "expected": {
+        "vevent_count": 170,
+        "distinct_location_count": 50,
         "body_contains": [
-          "term,term_code,course_code,course_title,section,crn,meeting_schedule,location,location_status,instructor",
-          "AFRI 0090",
-          "TTh 10:30am-11:50am",
-          "CIT Center (Thomas Watson CIT) 227"
+          "BEGIN:VCALENDAR",
+          "X-WR-CALNAME:Brown University Athletics",
+          "X-PUBLISHED-TTL:PT120M",
+          "Brown University Women's Soccer vs New Haven"
         ],
-        "data_rows": 5275,
-        "raw_data_lines": 5281,
-        "term_code": "202610",
-        "distinct_crns": 5275,
-        "location_status_counts": {
-          "Physical location published": 1501,
-          "TBA": 3328,
-          "Physical location not yet published": 274,
-          "Cross-listed reference": 100,
-          "Online": 72
-        }
+        "calendar_name": "Brown University Athletics",
+        "published_ttl": "PT120M",
+        "sample_summary": "Brown University Women's Soccer vs New Haven"
       }
     },
     {
@@ -161,6 +152,42 @@
           "Barus"
         ],
         "sample_building_name": "Penner Field House"
+      }
+    },
+    {
+      "path": "user_provided/brown_fall_2026_classes_and_locations.csv",
+      "kind": "user_provided",
+      "source": "cab_fall_2026_csv",
+      "provided_by": "user",
+      "provided_at": "2026-07-28T00:00:00Z",
+      "provenance": "Authoritative Fall 2026 CAB course/location export supplied by the user on 2026-07-28 because cab.brown.edu answers every route with an AWS WAF bot challenge (status 202) for the mandated UA; bypassing bot detection is not permitted, so live capture stays a declared gap and this export is the Task 6 source of record.",
+      "fills_gaps": [
+        "cab_home",
+        "cab_bootstrap",
+        "cab_search",
+        "cab_details"
+      ],
+      "sha256": "50a20adb13d64f061ff11239a32e9a51b6d33dfc00f86003f1fdec4af975204c",
+      "bytes": 1016538,
+      "content_type": "text/csv; charset=utf-8 (with BOM)",
+      "expected": {
+        "body_contains": [
+          "term,term_code,course_code,course_title,section,crn,meeting_schedule,location,location_status,instructor",
+          "AFRI 0090",
+          "TTh 10:30am-11:50am",
+          "CIT Center (Thomas Watson CIT) 227"
+        ],
+        "data_rows": 5275,
+        "raw_data_lines": 5281,
+        "term_code": "202610",
+        "distinct_crns": 5275,
+        "location_status_counts": {
+          "Physical location published": 1501,
+          "TBA": 3328,
+          "Physical location not yet published": 274,
+          "Cross-listed reference": 100,
+          "Online": 72
+        }
       }
     }
   ]

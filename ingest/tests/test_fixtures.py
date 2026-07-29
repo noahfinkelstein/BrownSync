@@ -51,6 +51,7 @@ REQUIRED_MINIMUMS = {
     "overpass_buildings": 1,
     "dining_landing": 1,
     "dining_bundle": 1,
+    "athletics_ics": 1,
 }
 
 

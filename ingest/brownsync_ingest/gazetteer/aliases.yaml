@@ -66,6 +66,27 @@ places:
     aliases: [Stevenson-Pincince Field, Stevenson Pincince, Pincince Field]
     lat: 41.830700
     lng: -71.398500
+  # Task 8 (athletics ICS evidence): Brown field hockey's home venue on the
+  # Erickson Athletic Complex, adjacent to Stevenson Field (EAP: enter at
+  # 235 Lloyd Avenue, "between Stevenson Field and the Goldberger Family
+  # Field"). Coordinates are the centroid of OSM way 141129272
+  # (leisure=pitch, "Goldberger Family Field", Stimson Avenue) — a pitch,
+  # not a building, so it is absent from the buildings-only Overpass fixture.
+  - name: Goldberger Family Field
+    kind: athletic
+    aliases: [Goldberger Family Field, Goldberger Field]
+    lat: 41.830826
+    lng: -71.395228
+  # Task 8 (athletics ICS evidence): Brown swimming/diving and water polo
+  # venue, part of the 2012 Nelson Fitness Center building program on the
+  # Erickson Athletic Complex (EAP: behind the OMAC, side entrance at
+  # 235 Hope Street). OSM has no separate element for the aquatics center,
+  # so it merges the Nelson Fitness Center footprint it physically occupies.
+  - id: coleman-aquatics-center
+    name: Katherine Moran Coleman Aquatics Center
+    kind: athletic
+    osm: Nelson Fitness Center
+    aliases: [Katherine Moran Coleman Aquatics Center, Coleman Aquatics Center]
 
   # ---- libraries ----
   - name: John D. Rockefeller Jr. Library

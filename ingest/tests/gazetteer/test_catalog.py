@@ -183,10 +183,18 @@ class TestRealAcceptance:
             assert 41.80 < row.lat < 41.86, row.id
             assert -71.42 < row.lng < -71.37, row.id
 
-    def test_task_6b_alias_growth_keeps_the_catalog_at_162_places(
+    def test_task_8_athletics_growth_keeps_the_catalog_at_164_places(
         self, build: CatalogBuild
     ) -> None:
-        assert len(build.rows) == 162  # 148 from Task 4 + 14 export-proven venues
+        # 148 from Task 4 + 14 export-proven venues (6B) + 2 athletics (8)
+        assert len(build.rows) == 164
+        by_id_athletics = {row.id: row for row in build.rows}
+        # Task 8: ICS-proven home venues — the aquatics center merges the
+        # Nelson Fitness Center footprint it occupies; Goldberger Family
+        # Field is an OSM pitch (way 141129272) carried as curated coords.
+        assert by_id_athletics["coleman-aquatics-center"].source == "osm"
+        assert by_id_athletics["coleman-aquatics-center"].osm_id == "way/195508288"
+        assert by_id_athletics["goldberger-family-field"].source == "curated"
         by_id = {row.id: row for row in build.rows}
         # unnamed footprints claimed through the addr: fallback keys
         for place_id, osm_id in (

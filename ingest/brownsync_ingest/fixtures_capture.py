@@ -12,8 +12,14 @@ Run from ``ingest/``:
 
     uv run python -m brownsync_ingest.fixtures_capture --cache-dir <scratch>
 
-This module performs live network access by design and is not imported by any
-test; the offline integrity gate lives in ``tests/test_fixtures.py``.
+``--groups`` (Task 8) restricts a run to named capture groups and MERGES the
+fresh entries into the existing manifest: evidence for unselected groups is
+preserved verbatim, while entries, gaps, and prefixed notes belonging to the
+selected groups are replaced by the new run.
+
+Only ``main`` performs live network access; importing this module is safe and
+``tests/test_fixtures_capture_athletics.py`` exercises the offline pieces.
+The fixture integrity gate lives in ``tests/test_fixtures.py``.
 """
 from __future__ import annotations
 
@@ -31,6 +37,7 @@ from bs4 import BeautifulSoup
 import httpx
 from pydantic import JsonValue
 
+from brownsync_ingest.athletics_venues import unfold_ics_lines as _unfold_ics
 from brownsync_ingest.common.http import CachedHttpClient, _normalized_url
 
 DEFAULT_CONTACT = "noah_finkelstein@brown.edu"
@@ -50,6 +57,7 @@ OVERPASS_QUERY = (
     'relation["building"](41.820,-71.410,41.834,-71.393); ); out body geom;'
 )
 DINING_LANDING = "https://dining.brown.edu/"
+ATHLETICS_ICS = "https://brownbears.com/calendar.ashx/calendar.ics"
 
 CAB_SEARCH_SUBJECTS = ("CSCI", "ENGN", "HIST")
 CAB_DETAIL_TARGET = 24
@@ -718,6 +726,48 @@ def _find_dining_bundles(soup: BeautifulSoup) -> list[str]:
     return unique
 
 
+# -- athletics -------------------------------------------------------------
+
+
+def capture_athletics(session: CaptureSession) -> None:
+    session.capture(
+        source="athletics_ics",
+        relpath="recorded/athletics/calendar.ics",
+        method="GET",
+        url=ATHLETICS_ICS,
+        expected=_athletics_ics_expected,
+    )
+    session.note(
+        "athletics_ics: robots.txt asks Crawl-delay 30 and the feed advertises X-PUBLISHED-TTL PT120M — "
+        "poll no more often than every 2 hours (probe: reports/sdd/brownsync-ingestion/athletics-probe.md)"
+    )
+
+
+def _athletics_ics_expected(body: bytes) -> dict[str, Any]:
+    text = _text(body)
+    lines = _unfold_ics(text)
+    locations = {line[len("LOCATION:") :] for line in lines if line.startswith("LOCATION:")}
+    facts: dict[str, Any] = {
+        "vevent_count": sum(1 for line in lines if line.strip() == "BEGIN:VEVENT"),
+        "distinct_location_count": len(locations),
+        "body_contains": ["BEGIN:VCALENDAR"],
+    }
+    for prefix, key in (("X-WR-CALNAME:", "calendar_name"), ("X-PUBLISHED-TTL:", "published_ttl")):
+        for line in lines:
+            if line.startswith(prefix):
+                facts[key] = line[len(prefix) :].strip()
+                if prefix + facts[key] in text:
+                    facts["body_contains"].append(prefix + facts[key])
+                break
+    sample = next(
+        (line[len("SUMMARY:") :] for line in lines if line.startswith("SUMMARY:")), None
+    )
+    if sample and sample in text:
+        facts["sample_summary"] = sample
+        facts["body_contains"].append(sample)
+    return facts
+
+
 # -- entry point -----------------------------------------------------------
 
 GROUPS: dict[str, Callable[[CaptureSession], None]] = {
@@ -726,6 +776,7 @@ GROUPS: dict[str, Callable[[CaptureSession], None]] = {
     "livewhale": capture_livewhale,
     "overpass": capture_overpass,
     "dining": capture_dining,
+    "athletics": capture_athletics,
 }
 
 GROUP_SOURCES: dict[str, tuple[str, ...]] = {
@@ -734,7 +785,31 @@ GROUP_SOURCES: dict[str, tuple[str, ...]] = {
     "livewhale": ("livewhale_events", "livewhale_groups"),
     "overpass": ("overpass_buildings",),
     "dining": ("dining_landing", "dining_bundle"),
+    "athletics": ("athletics_ics",),
 }
+
+
+def preload_manifest(session: CaptureSession, *, selected_sources: set[str]) -> None:
+    """Carry forward existing manifest evidence for sources NOT being recaptured.
+
+    Entries, gaps, and ``<source>:``-prefixed notes owned by the selected
+    sources are dropped so the fresh run replaces them; everything else —
+    including user_provided inputs, which no capture group owns — survives
+    verbatim.
+    """
+    path = session.fixtures_root / "manifest.json"
+    if not path.is_file():
+        return
+    existing = json.loads(path.read_text(encoding="utf-8"))
+    for entry in existing.get("fixtures", []):
+        if entry.get("source") not in selected_sources:
+            session.entries.append(entry)
+    for gap in existing.get("gaps", []):
+        if gap.get("source") not in selected_sources:
+            session.gaps.append(gap)
+    for note in existing.get("notes", []):
+        if note.split(":", 1)[0] not in selected_sources:
+            session.notes.append(note)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -742,12 +817,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1] / "fixtures")
     parser.add_argument("--cache-dir", type=Path, required=True, help="scratch cache directory OUTSIDE the repository")
     parser.add_argument("--contact", default=DEFAULT_CONTACT)
+    parser.add_argument(
+        "--groups",
+        nargs="+",
+        choices=sorted(GROUPS),
+        default=None,
+        help="capture only these groups, merging into the existing manifest",
+    )
     arguments = parser.parse_args(argv)
+    selected_groups = list(GROUPS) if arguments.groups is None else list(arguments.groups)
 
     session = CaptureSession(
         contact_email=arguments.contact, fixtures_root=arguments.root, cache_dir=arguments.cache_dir
     )
-    for name, group in GROUPS.items():
+    preload_manifest(
+        session,
+        selected_sources={source for group in selected_groups for source in GROUP_SOURCES[group]},
+    )
+    for name in selected_groups:
+        group = GROUPS[name]
         print(f"capturing {name} ...")
         try:
             group(session)
