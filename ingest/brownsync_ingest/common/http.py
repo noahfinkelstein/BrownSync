@@ -133,7 +133,7 @@ class CachedHttpClient:
                 raise outcome.exception()
             response = outcome.result()
         if response.is_success:
-            if cacheable:
+            if cacheable and response.status_code == 200:
                 self._write_cache(fingerprint, response)
             return response
         response.raise_for_status()
@@ -158,7 +158,7 @@ class CachedHttpClient:
             return None
         try:
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            if metadata["request_fingerprint"] != fingerprint or not 200 <= metadata["status"] < 300:
+            if metadata["request_fingerprint"] != fingerprint or metadata["status"] != 200:
                 return None
             body_name = metadata["body_file"]
             if not isinstance(body_name, str) or Path(body_name).name != body_name or not body_name.startswith(f"{fingerprint}.") or not body_name.endswith(".body"):

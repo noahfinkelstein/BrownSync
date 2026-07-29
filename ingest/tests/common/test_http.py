@@ -75,7 +75,7 @@ def test_success_is_reconstructed_from_cache_without_transport_or_sleep(tmp_path
     def handler(request: httpx.Request) -> httpx.Response:
         nonlocal calls
         calls += 1
-        return httpx.Response(201, headers={"Content-Type": "application/x-test", "ETag": "tag", "Last-Modified": "yesterday"}, content=b"body")
+        return httpx.Response(200, headers={"Content-Type": "application/x-test", "ETag": "tag", "Last-Modified": "yesterday"}, content=b"body")
     time = FakeTime()
     c = client(tmp_path, handler, time)
 
@@ -85,10 +85,46 @@ def test_success_is_reconstructed_from_cache_without_transport_or_sleep(tmp_path
 
     assert calls == 1
     assert time.sleeps == before_sleeps
-    assert (cached.status_code, cached.content, cached.headers["content-type"], cached.headers["etag"], cached.headers["last-modified"]) == (201, b"body", "application/x-test", "tag", "yesterday")
+    assert (cached.status_code, cached.content, cached.headers["content-type"], cached.headers["etag"], cached.headers["last-modified"]) == (200, b"body", "application/x-test", "tag", "yesterday")
     assert cached.request.method == "GET"
     assert str(cached.request.url) == "https://cache.test/value"
     assert first.content == cached.content
+
+
+@pytest.mark.parametrize("status", [201, 202, 203, 204, 226])
+def test_non_200_success_is_returned_to_the_caller_but_never_cached(tmp_path: Path, status: int) -> None:
+    calls = 0
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(status, content=f"challenge-{calls}".encode())
+    c = client(tmp_path, handler)
+
+    first = c.get("https://waf.test/challenge")
+    second = c.get("https://waf.test/challenge")
+
+    assert (first.status_code, first.content) == (status, b"challenge-1")
+    assert (second.status_code, second.content) == (status, b"challenge-2")
+    assert calls == 2, "a non-200 success must hit the transport every time"
+    cache_dir = tmp_path / "cache"
+    assert not cache_dir.is_dir() or not list(cache_dir.iterdir()), "no cache entry may be written"
+
+
+def test_cache_entry_claiming_a_non_200_status_is_ignored_on_load(tmp_path: Path) -> None:
+    calls = 0
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, content=b"real")
+    c = client(tmp_path, handler)
+    assert c.get("https://waf.test/page").content == b"real"
+    metadata_path = next((tmp_path / "cache").glob("*.json"))
+    tampered = json.loads(metadata_path.read_text())
+    tampered["status"] = 202
+    metadata_path.write_text(json.dumps(tampered))
+
+    assert c.get("https://waf.test/page").status_code == 200
+    assert calls == 2, "a cached entry recorded with a non-200 status must not be replayed"
 
 
 def test_livewhale_freshness_and_force_refresh_control_cache_use(tmp_path: Path) -> None:

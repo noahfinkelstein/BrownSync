@@ -99,7 +99,9 @@ def test_every_stored_fixture_is_manifested(entries: list[dict]) -> None:
     stray = {
         str(path.relative_to(FIXTURES_ROOT))
         for path in FIXTURES_ROOT.iterdir()
-        if path.name not in {"manifest.json", "recorded"}
+        # user_provided/ holds inputs handed over by the user (not recorded
+        # evidence); the task that consumes them must manifest them there.
+        if path.name not in {"manifest.json", "recorded", "user_provided"}
     }
     assert not stray, f"unexpected files beside the manifest: {sorted(stray)}"
 

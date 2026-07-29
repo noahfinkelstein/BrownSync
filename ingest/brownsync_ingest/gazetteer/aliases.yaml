@@ -1,0 +1,506 @@
+# BrownSync curated campus gazetteer — schema v1.
+#
+# Every entry's `name` must also appear in `aliases`; normalized aliases are
+# globally unique across the catalog (the loader fails closed on collisions).
+# `osm` is the exact OpenStreetMap `name` tag to merge geometry from (defaults
+# to `name`); entries without an OSM match must carry curated lat/lng.
+# Geometry, addresses, and osm ids merged from OSM are ODbL-licensed.
+schema_version: 1
+attribution: "Building footprints and addresses © OpenStreetMap contributors, licensed under the Open Database License (ODbL) 1.0 — https://www.openstreetmap.org/copyright"
+places:
+  # ---- dining (canonical six) ----
+  - name: Sharpe Refectory
+    kind: dining
+    aliases: [Sharpe Refectory, The Ratty, Ratty, Refectory]
+  - name: Andrews Commons
+    kind: dining
+    aliases: [Andrews Commons]
+  - name: Verney-Woolley Dining Hall
+    kind: dining
+    osm: Verney-Woolley Hall
+    aliases: [Verney-Woolley Dining Hall, Verney-Woolley Hall, V-Dub, The V-Dub, VDub]
+  - name: Blue Room
+    kind: dining
+    aliases: [Blue Room, The Blue Room]
+    lat: 41.826845
+    lng: -71.402913
+  - name: Ivy Room
+    kind: dining
+    aliases: [Ivy Room, The Ivy Room]
+    lat: 41.825115
+    lng: -71.400836
+  - id: josiahs
+    name: "Josiah's"
+    kind: dining
+    aliases: ["Josiah's", "Jo's"]
+    lat: 41.823295
+    lng: -71.399789
+
+  # ---- athletics ----
+  - name: Meehan Auditorium
+    kind: athletic
+    aliases: [Meehan Auditorium, Meehan]
+  - name: Pizzitola Sports Center
+    kind: athletic
+    osm: Pizzitola Gymnasium
+    aliases: [Pizzitola Sports Center, Pizzitola, Pizzitola Gymnasium, Pizzitola Memorial Sports Center]
+  - name: Olney-Margolies Athletic Center
+    kind: athletic
+    aliases: [Olney-Margolies Athletic Center, OMAC]
+  - name: Nelson Fitness Center
+    kind: athletic
+    aliases: [Nelson Fitness Center]
+  - name: Pembroke Field House
+    kind: athletic
+    aliases: [Pembroke Field House]
+  - name: Penner Field House
+    kind: athletic
+    aliases: [Penner Field House]
+  - name: Brown Stadium
+    kind: athletic
+    aliases: [Brown Stadium, Richard Gouse Field]
+    lat: 41.839800
+    lng: -71.390500
+  - name: Stevenson-Pincince Field
+    kind: athletic
+    aliases: [Stevenson-Pincince Field, Stevenson Pincince, Pincince Field]
+    lat: 41.830700
+    lng: -71.398500
+
+  # ---- libraries ----
+  - name: John D. Rockefeller Jr. Library
+    kind: library
+    aliases: [John D. Rockefeller Jr. Library, Rockefeller Library, The Rock]
+  - name: Sciences Library
+    kind: library
+    aliases: [Sciences Library, Science Library, SciLi]
+  - name: John Hay Library
+    kind: library
+    aliases: [John Hay Library, Hay Library, The Hay]
+  - name: John Carter Brown Library
+    kind: library
+    aliases: [John Carter Brown Library, JCB, JCB Library]
+  - name: Annmary Brown Memorial
+    kind: library
+    aliases: [Annmary Brown Memorial]
+
+  # ---- academic ----
+  - name: "Barus & Holley"
+    kind: academic
+    aliases: ["Barus & Holley", Barus and Holley, "B&H", BH]
+  - name: Barus Building
+    kind: academic
+    aliases: [Barus Building]
+  - name: Applied Math Building
+    kind: academic
+    aliases: [Applied Math Building]
+  - name: Arnold Lab
+    kind: academic
+    aliases: [Arnold Lab, Arnold Laboratory]
+  - name: Biomedical Center
+    kind: academic
+    aliases: [Biomedical Center, Bio-Med Center]
+  - name: Blistein House
+    kind: academic
+    aliases: [Blistein House]
+  - name: Churchill House
+    kind: academic
+    aliases: [Churchill House]
+  - name: Engineering Research Center
+    kind: academic
+    aliases: [Engineering Research Center, ERC]
+  - name: Friedman Hall
+    kind: academic
+    aliases: [Friedman Hall]
+  - name: GeoChem Building
+    kind: academic
+    aliases: [GeoChem Building, Geo-Chem, GeoChem]
+  - name: German Department
+    kind: academic
+    aliases: [German Department, German Studies]
+  - name: Giddings House
+    kind: academic
+    aliases: [Giddings House]
+  - name: Grimshaw-Gudewicz Biomedical Building
+    kind: academic
+    aliases: [Grimshaw-Gudewicz Biomedical Building, Grimshaw-Gudewicz Building]
+  - name: Hemisphere Building
+    kind: academic
+    aliases: [Hemisphere Building, 167 Angell Street]
+  - name: Hirschfeld House
+    kind: academic
+    aliases: [Hirschfeld House]
+  - name: Kassar House
+    kind: academic
+    aliases: [Kassar House, Kassar]
+  - name: Lincoln Field Building
+    kind: academic
+    aliases: [Lincoln Field Building]
+  - name: Lindemann Performing Arts Center
+    kind: academic
+    aliases: [Lindemann Performing Arts Center, The Lindemann]
+  - name: List Art Building
+    kind: academic
+    aliases: [List Art Building, List Art Center]
+  - name: Lyman Hall
+    kind: academic
+    aliases: [Lyman Hall]
+  - name: MacMillan Hall
+    kind: academic
+    aliases: [MacMillan Hall, Starr Auditorium]
+  - name: Manning Hall
+    kind: academic
+    aliases: [Manning Hall, Manning Chapel]
+  - name: Marston Hall
+    kind: academic
+    aliases: [Marston Hall]
+  - name: Maxcy Hall
+    kind: academic
+    aliases: [Maxcy Hall]
+  - name: Medical Research Lab
+    kind: academic
+    aliases: [Medical Research Lab, Medical Research Laboratory]
+  - name: Meiklejohn House
+    kind: academic
+    aliases: [Meiklejohn House]
+  - name: Mencoff Hall
+    kind: academic
+    aliases: [Mencoff Hall]
+  - name: Metcalf Research Building
+    kind: academic
+    aliases: [Metcalf Research Building, Metcalf Research Lab]
+  - name: Modern Culture and Media
+    kind: academic
+    osm: Brown University Department of Modern Culture and Media
+    aliases: [Modern Culture and Media, MCM, Brown University Department of Modern Culture and Media]
+  - name: Morrison-Gerard Chamber Music Studios
+    kind: academic
+    aliases: [Morrison-Gerard Chamber Music Studios]
+  - name: Nelson Center for Entrepreneurship
+    kind: academic
+    aliases: [Nelson Center for Entrepreneurship]
+  - name: Nightingale-Brown House
+    kind: academic
+    osm: "Nightingale–Brown House"
+    aliases: [Nightingale-Brown House, John Nicholas Brown Center]
+  - name: Orwig Music Hall
+    kind: academic
+    aliases: [Orwig Music Hall, Orwig Music Building]
+  - name: Page-Robinson Hall
+    kind: academic
+    aliases: [Page-Robinson Hall, J. Walter Wilson, JWW, 69 Brown Street]
+  - name: Pembroke Hall
+    kind: academic
+    aliases: [Pembroke Hall]
+  - name: Perry and Marty Granoff Center for the Creative Arts
+    kind: academic
+    aliases: [Perry and Marty Granoff Center for the Creative Arts, Granoff Center, Granoff Center for the Creative Arts]
+  - name: Peter Green House
+    kind: academic
+    aliases: [Peter Green House]
+  - name: Prince Engineering Lab
+    kind: academic
+    aliases: [Prince Engineering Lab, Prince Lab]
+  - name: Rhode Island Hall
+    kind: academic
+    aliases: [Rhode Island Hall, RI Hall]
+  - name: Robinson Hall
+    kind: academic
+    aliases: [Robinson Hall]
+  - name: Rochambeau House
+    kind: academic
+    aliases: [Rochambeau House]
+  - name: Salomon Center for Teaching
+    kind: academic
+    aliases: [Salomon Center for Teaching, Salomon Center, Salomon]
+  - name: Sayles Hall
+    kind: academic
+    aliases: [Sayles Hall, Sayles]
+  - name: Sharpe House
+    kind: academic
+    aliases: [Sharpe House]
+  - name: Sidney Frank Hall
+    kind: academic
+    aliases: [Sidney Frank Hall, Sidney E. Frank Hall]
+  - name: Smith Buonanno Hall
+    kind: academic
+    aliases: [Smith Buonanno Hall, Smith Buonanno, Smith-B]
+  - name: Stephen Robert Hall
+    kind: academic
+    aliases: [Stephen Robert Hall, 280 Brook Street]
+  - name: T.F. Green Hall
+    kind: academic
+    aliases: [T.F. Green Hall, TF Green Hall]
+  - name: Center for the Study of Slavery and Justice
+    kind: academic
+    osm: The Center for the Study of Slavery and Justice (CSSJ)
+    aliases: [Center for the Study of Slavery and Justice, CSSJ]
+  - name: Theatre Arts Building
+    kind: academic
+    aliases: [Theatre Arts Building]
+  - name: Urban Environmental Lab
+    kind: academic
+    aliases: [Urban Environmental Lab, UEL]
+  - name: Watson Center for Information Technology
+    kind: academic
+    aliases: [Watson Center for Information Technology, CIT, CIT Center, Thomas Watson CIT]
+  - name: Watson Institute for International Studies
+    kind: academic
+    aliases: [Watson Institute for International Studies, Watson Institute]
+  - name: Wilbour Hall
+    kind: academic
+    aliases: [Wilbour Hall]
+  - name: 180 George Street
+    kind: academic
+    osm: 180 George
+    aliases: [180 George Street, 180 George]
+  - name: 182 George Street
+    kind: academic
+    osm: 182 George
+    aliases: [182 George Street, 182 George]
+  - name: Wilson Hall
+    kind: academic
+    aliases: [Wilson Hall]
+    lat: 41.826200
+    lng: -71.402500
+  - name: 85 Waterman Street
+    kind: academic
+    aliases: [85 Waterman Street, 85 Waterman]
+    lat: 41.827200
+    lng: -71.401300
+
+  # ---- admin ----
+  - name: University Hall
+    kind: admin
+    aliases: [University Hall, UH]
+  - name: Maddock Alumni Center
+    kind: admin
+    aliases: [Maddock Alumni Center]
+  - name: Horace Mann House
+    kind: admin
+    aliases: [Horace Mann House]
+  - name: Corliss-Brackett House
+    kind: admin
+    osm: "Corliss–Brackett House"
+    aliases: [Corliss-Brackett House]
+  - name: Andrews House
+    kind: admin
+    aliases: [Andrews House]
+  - name: Norwood House
+    kind: admin
+    aliases: [Norwood House]
+  - name: Prospect House
+    kind: admin
+    aliases: [Prospect House]
+  - name: Department of Public Safety
+    kind: admin
+    aliases: [Department of Public Safety, DPS, Public Safety]
+  - name: 121 South Main Street
+    kind: admin
+    aliases: [121 South Main Street, 121 South Main]
+
+  # ---- student life / other ----
+  - name: "Stephen Robert '62 Campus Center"
+    kind: other
+    aliases: ["Stephen Robert '62 Campus Center", Faunce House, Faunce, Campus Center]
+  - name: Alumnae Hall
+    kind: other
+    aliases: [Alumnae Hall]
+  - name: Faculty Club
+    kind: other
+    aliases: [Faculty Club, Brown Faculty Club]
+  - name: Brown RISD Hillel
+    kind: other
+    osm: Hillel House
+    aliases: [Brown RISD Hillel, Hillel House, Hillel]
+  - name: Sarah Doyle Center for Women and Gender
+    kind: other
+    aliases: [Sarah Doyle Center for Women and Gender, Sarah Doyle Center]
+  - name: Brown Center for Students of Color
+    kind: other
+    aliases: [Brown Center for Students of Color, BCSC]
+  - name: Swearer Center for Public Service
+    kind: other
+    aliases: [Swearer Center for Public Service, Swearer Center]
+  - name: Carrie Tower
+    kind: other
+    aliases: [Carrie Tower]
+  - name: Soldiers Memorial Gate
+    kind: other
+    aliases: [Soldiers Memorial Gate]
+
+  # ---- residence halls ----
+  - name: Andrews Hall
+    kind: residence
+    aliases: [Andrews Hall]
+  - name: Archibald-Bronson House
+    kind: residence
+    aliases: [Archibald-Bronson House, Archibald House, Bronson House]
+  - name: Barbour Hall
+    kind: residence
+    aliases: [Barbour Hall, Barbour Hall Apartments]
+  - name: Buxton House
+    kind: residence
+    aliases: [Buxton House]
+  - name: Caswell Hall
+    kind: residence
+    aliases: [Caswell Hall]
+  - name: Champlin Hall
+    kind: residence
+    aliases: [Champlin Hall]
+  - name: Chapin House
+    kind: residence
+    aliases: [Chapin House]
+  - name: Chen Family Hall
+    kind: residence
+    aliases: [Chen Family Hall]
+  - name: Diman House
+    kind: residence
+    aliases: [Diman House]
+  - name: Emery Hall
+    kind: residence
+    aliases: [Emery Hall]
+  - name: Everett-Poland Building
+    kind: residence
+    aliases: [Everett-Poland Building, Everett House, Poland House]
+  - name: Goddard House
+    kind: residence
+    osm: Goddard
+    aliases: [Goddard House, Goddard]
+  - name: Graduate Center A
+    kind: residence
+    aliases: [Graduate Center A, Grad Center A]
+  - name: Graduate Center B
+    kind: residence
+    aliases: [Graduate Center B, Grad Center B]
+  - name: Graduate Center C
+    kind: residence
+    aliases: [Graduate Center C, Grad Center C]
+  - name: Graduate Center D
+    kind: residence
+    aliases: [Graduate Center D, Grad Center D]
+  - name: Grant-Fulton
+    kind: residence
+    aliases: [Grant-Fulton]
+  - name: Harkness House
+    kind: residence
+    aliases: [Harkness House]
+  - name: Hegeman Hall
+    kind: residence
+    aliases: [Hegeman Hall]
+  - name: Hope College
+    kind: residence
+    aliases: [Hope College]
+  - name: Jameson-Mead Building
+    kind: residence
+    aliases: [Jameson-Mead Building, Jameson House, Mead House]
+  - name: King House
+    kind: residence
+    aliases: [King House]
+  - name: Littlefield Hall
+    kind: residence
+    aliases: [Littlefield Hall]
+  - name: Machado House
+    kind: residence
+    aliases: [Machado House]
+  - name: Marcy House
+    kind: residence
+    aliases: [Marcy House]
+  - name: Metcalf Hall
+    kind: residence
+    aliases: [Metcalf Hall]
+  - name: Miller Hall
+    kind: residence
+    aliases: [Miller Hall]
+  - name: Minden Hall
+    kind: residence
+    aliases: [Minden Hall]
+  - name: Morriss Hall
+    kind: residence
+    aliases: [Morriss Hall]
+  - name: New Pembroke 1
+    kind: residence
+    aliases: [New Pembroke 1]
+  - name: New Pembroke 2
+    kind: residence
+    aliases: [New Pembroke 2]
+  - name: New Pembroke 3
+    kind: residence
+    aliases: [New Pembroke 3]
+  - name: New Pembroke 4
+    kind: residence
+    aliases: [New Pembroke 4]
+  - name: North House
+    kind: residence
+    aliases: [North House]
+  - name: Olney House
+    kind: residence
+    aliases: [Olney House]
+  - name: Perkins Hall
+    kind: residence
+    aliases: [Perkins Hall]
+  - name: Sears House
+    kind: residence
+    aliases: [Sears House]
+  - name: Slater Hall
+    kind: residence
+    aliases: [Slater Hall]
+  - name: Sternlicht Commons
+    kind: residence
+    osm: "Wellness Center & Residence Hall"
+    aliases: [Sternlicht Commons, Health and Wellness Center, "Wellness Center & Residence Hall"]
+  - name: Vartan Gregorian Quad A
+    kind: residence
+    aliases: [Vartan Gregorian Quad A, Gregorian Quad A]
+  - name: Vartan Gregorian Quad B
+    kind: residence
+    aliases: [Vartan Gregorian Quad B, Gregorian Quad B]
+  - name: Wayland House
+    kind: residence
+    osm: Wayland
+    aliases: [Wayland House, Wayland]
+  - name: West House
+    kind: residence
+    aliases: [West House]
+  - name: William and Ami Danoff Hall
+    kind: residence
+    aliases: [William and Ami Danoff Hall, Danoff Hall]
+  - name: Woolley Hall
+    kind: residence
+    aliases: [Woolley Hall]
+  - name: Young Orchard 2
+    kind: residence
+    aliases: [Young Orchard 2]
+  - name: Young Orchard 4
+    kind: residence
+    aliases: [Young Orchard 4]
+  - name: Young Orchard 10
+    kind: residence
+    aliases: [Young Orchard 10]
+
+  # ---- outdoor spaces (curated coordinates; no OSM building footprint) ----
+  - name: The College Green
+    kind: outdoor
+    aliases: [The College Green, College Green, Main Green]
+    lat: 41.826300
+    lng: -71.403200
+  - name: The Quiet Green
+    kind: outdoor
+    aliases: [The Quiet Green, Quiet Green]
+    lat: 41.826700
+    lng: -71.404500
+  - name: Wriston Quadrangle
+    kind: outdoor
+    aliases: [Wriston Quadrangle, Wriston Quad]
+    lat: 41.824700
+    lng: -71.402500
+  - name: Pembroke Green
+    kind: outdoor
+    aliases: [Pembroke Green]
+    lat: 41.829600
+    lng: -71.400800
+  - name: Ruth J. Simmons Quadrangle
+    kind: outdoor
+    aliases: [Ruth J. Simmons Quadrangle, Simmons Quadrangle, Lincoln Field]
+    lat: 41.825900
+    lng: -71.401300
