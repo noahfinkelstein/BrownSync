@@ -7,8 +7,8 @@
   and `addr:street` under the fallback key `addr:{housenumber} {street}`
   (first wins; the prefix keeps the namespaces disjoint), so curated entries
   can claim address-only buildings via explicit `osm:` references.
-- `ingest/brownsync_ingest/gazetteer/aliases.yaml`: 17 new aliases on 16
-  existing places + 14 new places (full inventory below), every one grounded
+- `ingest/brownsync_ingest/gazetteer/aliases.yaml`: 16 new aliases on 15
+  existing places (Orwig Music Hall receives 2) + 14 new places (full inventory below), every one grounded
   in the recorded Overpass fixture or (two entries) OSM-derived curated
   coordinates. Catalog: 148 -> 162 places, 148 with footprints, 14 curated.
 - `ingest/brownsync_ingest/gazetteer/job.py`: the minimal places job seam
@@ -58,7 +58,7 @@ and sorted; every non-null `place_id` in course_meetings exists in places
 
 ## Alias-growth inventory (evidence-only)
 
-### Aliases added to existing places (17 aliases, 16 places)
+### Aliases added to existing places (16 aliases, 15 places — Orwig Music Hall receives 2)
 
 | Alias added | Place | Evidence |
 | --- | --- | --- |
