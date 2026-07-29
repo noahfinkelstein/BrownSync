@@ -9,3 +9,7 @@ allowBuilds:
   supabase: true
   "@tailwindcss/oxide": true
   "@biomejs/biome": true
+  # msw's postinstall only prints a sponsorship banner; never run it.
+  msw: false
+  # posthog-js pulls core-js, whose postinstall only prints a funding banner — skip it.
+  core-js: false

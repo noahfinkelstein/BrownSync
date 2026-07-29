@@ -5,7 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0B0E12" />
-    <title>BrownSync</title>
+
+    <title>BrownSync — everything happening at Brown, on one live map</title>
+    <meta
+      name="description"
+      content="A live 2.5D map of Brown University: events, club meetings, classes in session, and athletics — aggregated from every public source, updated continuously."
+    />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Open Graph / Twitter. og:image is site-relative until the production
+         host is fixed at deploy (Phase 3); most scrapers want an absolute
+         URL, so prefix the image tags there. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="BrownSync" />
+    <meta property="og:title" content="BrownSync — everything happening at Brown" />
+    <meta
+      property="og:description"
+      content="Events, club meetings, classes in session, athletics — live on one dark 2.5D campus map."
+    />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="BrownSync — everything happening at Brown" />
+    <meta
+      name="twitter:description"
+      content="Events, club meetings, classes in session, athletics — live on one dark 2.5D campus map."
+    />
+    <meta name="twitter:image" content="/og.png" />
   </head>
   <body>
     <div id="root"></div>
