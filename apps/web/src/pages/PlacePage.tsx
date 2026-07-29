@@ -13,7 +13,9 @@ import {
 import type { ReactNode } from "react";
 import { formatClock, formatDayLabel, formatRelative, isSameDay } from "../browse/format";
 import { isLive } from "../browse/grouping";
+import { useCursorDate } from "../data/cursor";
 import { usePlaceActivity, usePlaceWeekEvents } from "../data/places";
+import { meetingsBucketFor } from "../data/queries";
 import { ApiError } from "../data/search";
 import { PageShell, SectionHeading } from "./PageShell";
 import { PlaceMiniMap } from "./PlaceMiniMap";
@@ -53,7 +55,8 @@ const MEETING_COLUMNS: readonly DataTableColumn<MeetingOut>[] = [
 ];
 
 export function PlacePage({ id, renderMiniMap, onSelectEvent }: PlacePageProps) {
-  const activity = usePlaceActivity(id);
+  const { cursor } = useCursorDate();
+  const activity = usePlaceActivity(id, meetingsBucketFor(cursor));
   const week = usePlaceWeekEvents(id);
   const now = new Date();
 

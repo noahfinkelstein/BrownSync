@@ -2,8 +2,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { cleanup, render, screen } from "@testing-library/react";
+import { HttpResponse, http } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { setCursorSource } from "../src/data/cursor";
 import { router } from "../src/router";
+import { createTimeCursor } from "../src/time";
+import { MEETINGS, PLACES } from "./helpers/fixtures";
 import { createServer, resetSeenRequests } from "./helpers/msw";
 import { makeQueryClient, stubScrolling } from "./helpers/render";
 
@@ -62,6 +66,36 @@ describe("/p/$id — place page (handoff §3.3)", () => {
     await screen.findByRole("heading", { name: "Sayles Hall" });
     await screen.findByText("MATH 0100");
     expect(screen.queryByText("CSCI 0150")).toBeNull();
+  });
+
+  it("loads place activity at the shared time cursor", async () => {
+    const at = new Date("2026-09-16T14:30:00.000Z");
+    const cursor = createTimeCursor();
+    cursor.setAt(at);
+    setCursorSource(cursor);
+    let requestedAt: string | null = null;
+
+    server.use(
+      http.get("*/api/places/:id/activity", ({ params, request }) => {
+        const place = PLACES.find((candidate) => candidate.id === params.id);
+        if (!place) return HttpResponse.json({ error: { code: "not_found" } }, { status: 404 });
+        requestedAt = new URL(request.url).searchParams.get("at");
+        return HttpResponse.json({
+          place,
+          events: [],
+          meetings:
+            requestedAt === at.toISOString()
+              ? MEETINGS.filter((meeting) => meeting.placeId === place.id)
+              : [],
+        });
+      }),
+    );
+
+    await renderApp("/p/salomon-center");
+    await screen.findByRole("heading", { name: "Salomon Center" });
+    expect(requestedAt).toBe(at.toISOString());
+    await screen.findByRole("table", { name: "Courses in session" });
+    expect(screen.getAllByText("CSCI 0150").length).toBeGreaterThan(0);
   });
 
   it("404s get the designed empty state, not a crash", async () => {
