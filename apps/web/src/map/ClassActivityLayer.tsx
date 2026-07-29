@@ -122,15 +122,28 @@ export function ClassActivityLayer({ activities, enabled }: ClassActivityLayerPr
       appliedLevels.current = next;
     };
 
+    // Perf: "sourcedata" storms during pan/zoom (one event per tile), and
+    // each apply() runs one queryRenderedFeatures per active place — so
+    // bursts coalesce to at most one apply per animation frame.
+    let rafId: number | null = null;
+    const schedule = (): void => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        apply();
+      });
+    };
+
     // Coverage: if the map already settled, the immediate call sees rendered
     // buildings; if it is still loading, every tile arrival ("sourcedata")
-    // and settle ("idle") re-runs the (diff-guarded, cheap) apply.
+    // and settle ("idle") re-runs the (diff-guarded, coalesced) apply.
     apply();
-    map.on("idle", apply);
-    map.on("sourcedata", apply);
+    map.on("idle", schedule);
+    map.on("sourcedata", schedule);
     return () => {
-      map.off("idle", apply);
-      map.off("sourcedata", apply);
+      map.off("idle", schedule);
+      map.off("sourcedata", schedule);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       clearAll();
     };
   }, [mapRef, activities, enabled]);
