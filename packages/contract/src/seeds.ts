@@ -122,3 +122,30 @@ export const OrgLivewhaleGroupsSchema = z.object({
   ),
 });
 export type OrgLivewhaleGroups = z.infer<typeof OrgLivewhaleGroupsSchema>;
+
+/**
+ * Sidecar emitted by ingestion at db/seeds/athletics_venues.json: maps SIDEARM
+ * home-venue strings as they appear in the athletics ICS LOCATION
+ * ("Stevenson-Pincince Field", "OMAC") to gazetteer place ids. The file may
+ * not exist yet — consumers must tolerate its absence. `schema_version` is a
+ * literal so a future v2 fails loudly instead of being half-read.
+ *
+ * Shape is sidecar schema v1, coordinated with the ingestion lane's execution
+ * plan — field-for-field:
+ * `{"schema_version": 1, "generated_at": "<UTC ISO>", "mappings":
+ *   [{"source_name": "<SIDEARM venue string>", "place_id": "<canonical slug>"}]}`
+ */
+export const AthleticsVenuesSchema = z.object({
+  schema_version: z.literal(1),
+  /** UTC ISO timestamp of when ingestion generated the file. */
+  generated_at: isoTs,
+  mappings: z.array(
+    z.object({
+      /** Venue string exactly as SIDEARM emits it in the ICS LOCATION. */
+      source_name: z.string().min(1),
+      /** Canonical gazetteer place slug. */
+      place_id: z.string().min(1),
+    }),
+  ),
+});
+export type AthleticsVenues = z.infer<typeof AthleticsVenuesSchema>;

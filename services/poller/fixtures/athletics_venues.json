@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-29T05:19:12.064957Z",
+  "mappings": [
+    {
+      "source_name": "Brown Stadium",
+      "place_id": "brown-stadium"
+    },
+    {
+      "source_name": "Goldberger Family Field",
+      "place_id": "goldberger-family-field"
+    },
+    {
+      "source_name": "Katherine Moran Coleman Aquatics Center",
+      "place_id": "coleman-aquatics-center"
+    },
+    {
+      "source_name": "Meehan Auditorium",
+      "place_id": "meehan-auditorium"
+    },
+    {
+      "source_name": "OMAC",
+      "place_id": "olney-margolies-athletic-center"
+    },
+    {
+      "source_name": "Olney-Margolies Athletic Center",
+      "place_id": "olney-margolies-athletic-center"
+    },
+    {
+      "source_name": "Pizzitola",
+      "place_id": "pizzitola-sports-center"
+    },
+    {
+      "source_name": "Pizzitola Sports Center",
+      "place_id": "pizzitola-sports-center"
+    },
+    {
+      "source_name": "Richard Gouse Field at Brown Stadium",
+      "place_id": "brown-stadium"
+    },
+    {
+      "source_name": "Stevenson-Pincince",
+      "place_id": "stevenson-pincince-field"
+    },
+    {
+      "source_name": "Stevenson-Pincince Field",
+      "place_id": "stevenson-pincince-field"
+    }
+  ]
+}

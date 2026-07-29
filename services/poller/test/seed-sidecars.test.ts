@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { normalizeAthletics } from "../src/athletics/normalize";
 import { loadAthleticsVenues } from "../src/athletics/venues";
 import { normalizeLivewhaleEvent } from "../src/livewhale/normalize";
 import { loadOrgGroups } from "../src/livewhale/orgs";
@@ -9,6 +10,8 @@ import { LivewhaleEventSchema } from "../src/livewhale/schema";
 import { FIXTURES_DIR } from "../src/paths";
 
 const SIDECAR_FIXTURE = path.join(FIXTURES_DIR, "organization_livewhale_groups.json");
+/** Byte-for-byte mirror of the real ingestion-emitted db/seeds/athletics_venues.json. */
+const VENUES_FIXTURE = path.join(FIXTURES_DIR, "athletics_venues.json");
 
 /** The ingestion-emitted db/seeds sidecars are read-only inputs; missing files are normal. */
 describe("seed sidecar loaders", () => {
@@ -65,10 +68,48 @@ describe("seed sidecar loaders", () => {
     expect(() => loadOrgGroups(file)).toThrow();
   });
 
+  it("builds a venue → place lookup from the real emitted v1 sidecar", () => {
+    const map = loadAthleticsVenues(VENUES_FIXTURE);
+    expect(map.size).toBe(11);
+    // Venue keys are case-folded before lookup.
+    expect(map.get("omac")).toBe("olney-margolies-athletic-center");
+    expect(map.get("stevenson-pincince field")).toBe("stevenson-pincince-field");
+    expect(map.get("richard gouse field at brown stadium")).toBe("brown-stadium");
+  });
+
   it("normalizes venue keys case-insensitively", () => {
     const file = path.join(dir, "athletics_venues.json");
-    writeFileSync(file, JSON.stringify({ "Stevenson-Pincince Field": "stevenson-pincince" }));
+    writeFileSync(
+      file,
+      JSON.stringify({
+        schema_version: 1,
+        generated_at: "2026-07-29T05:19:12Z",
+        mappings: [{ source_name: "Stevenson-Pincince Field", place_id: "stevenson-pincince" }],
+      }),
+    );
     const map = loadAthleticsVenues(file);
     expect(map.get("stevenson-pincince field")).toBe("stevenson-pincince");
+  });
+
+  it("rejects the obsolete flat venue map — pre-v1 drift must fail loudly", () => {
+    const file = path.join(dir, "athletics_venues.json");
+    writeFileSync(file, JSON.stringify({ "Stevenson-Pincince Field": "stevenson-pincince" }));
+    expect(() => loadAthleticsVenues(file)).toThrow();
+  });
+
+  it("rejects an athletics sidecar with an unknown schema_version", () => {
+    const file = path.join(dir, "athletics_venues.json");
+    writeFileSync(
+      file,
+      JSON.stringify({ schema_version: 2, generated_at: "2026-07-29T05:19:12Z", mappings: [] }),
+    );
+    expect(() => loadAthleticsVenues(file)).toThrow();
+  });
+
+  it("resolves home venues end-to-end through the v1 sidecar", () => {
+    const icsText = readFileSync(path.join(FIXTURES_DIR, "athletics-calendar.ics"), "utf8");
+    const rows = normalizeAthletics(icsText, loadAthleticsVenues(VENUES_FIXTURE));
+    const home = rows.find((r) => r.source_id === "vcal_20893-admin.brownbears.com");
+    expect(home?.place_id).toBe("stevenson-pincince-field");
   });
 });

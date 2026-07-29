@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AthleticsVenuesSchema,
   CATEGORIES,
   CATEGORY_IDS,
   EventOutSchema,
@@ -189,6 +190,59 @@ describe("OrgLivewhaleGroups sidecar (schema v1, coordinated with the ingestion 
 
   it("rejects any schema_version other than 1 — a future v2 must fail loudly", () => {
     expect(OrgLivewhaleGroupsSchema.safeParse({ ...valid, schema_version: 2 }).success).toBe(false);
+  });
+});
+
+describe("AthleticsVenues sidecar (schema v1, coordinated with the ingestion lane)", () => {
+  const valid = {
+    schema_version: 1,
+    generated_at: "2026-07-29T05:19:12.064957Z",
+    mappings: [
+      { source_name: "Stevenson-Pincince Field", place_id: "stevenson-pincince-field" },
+      { source_name: "OMAC", place_id: "olney-margolies-athletic-center" },
+    ],
+  };
+
+  it("accepts the ingestion-lane v1 envelope", () => {
+    const parsed = AthleticsVenuesSchema.parse(valid);
+    expect(parsed.mappings).toHaveLength(2);
+    expect(parsed.mappings[1]?.place_id).toBe("olney-margolies-athletic-center");
+  });
+
+  it("rejects the obsolete flat venue → place_id map — the pre-v1 shape must fail loudly", () => {
+    expect(
+      AthleticsVenuesSchema.safeParse({
+        "Stevenson-Pincince Field": "stevenson-pincince-field",
+        OMAC: "olney-margolies-athletic-center",
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects schema_version "1" as a string — the version is a number', () => {
+    expect(AthleticsVenuesSchema.safeParse({ ...valid, schema_version: "1" }).success).toBe(false);
+  });
+
+  it("rejects any schema_version other than 1 — a future v2 must fail loudly", () => {
+    expect(AthleticsVenuesSchema.safeParse({ ...valid, schema_version: 2 }).success).toBe(false);
+  });
+
+  it("requires generated_at as an ISO timestamp", () => {
+    const { generated_at: _generatedAt, ...missing } = valid;
+    expect(AthleticsVenuesSchema.safeParse(missing).success).toBe(false);
+    expect(AthleticsVenuesSchema.safeParse({ ...valid, generated_at: "yesterday" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects empty source_name or place_id", () => {
+    for (const mapping of [
+      { source_name: "", place_id: "brown-stadium" },
+      { source_name: "Brown Stadium", place_id: "" },
+    ]) {
+      expect(AthleticsVenuesSchema.safeParse({ ...valid, mappings: [mapping] }).success).toBe(
+        false,
+      );
+    }
   });
 });
 
