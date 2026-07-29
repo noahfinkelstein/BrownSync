@@ -15,8 +15,18 @@
  *   202710 term code (0003 reconciled Fall 2026 to 202610);
  * - athletics_venues.json sidecar: schema-valid, unique venue keys, every
  *   place_id resolves to a renderable place;
- * - events/organizations/source_runs/org-groups artifacts: validated when
- *   present (they are optional per contract §6), FK'd where possible.
+ * - organizations.ndjson: loader org schema, unique ids, default_place_id
+ *   FK'd into the gazetteer (dangling refs warn — the loader nulls them);
+ * - events.ndjson: schema-valid; place_id/org_id FKs, where present, MUST
+ *   resolve; rows with coords are counted against the >=300 DoD gate;
+ * - organization_livewhale_groups.json sidecar: schema-valid, org FKs; an
+ *   EMPTY mappings array passes with a note (the events-bootstrap drop
+ *   proved the LiveWhale publisher groups are departments, not student
+ *   orgs — empty is the expected steady state, not a producer bug);
+ * - brown_owned_buildings.json sidecar (register §5 consumer pin):
+ *   schema-valid incl. the ODbL attribution key, unique way ids/slugs,
+ *   every place_id resolves into places.ndjson;
+ * - source_runs.ndjson: validated when present (optional per contract §6).
  *
  * Prints a place-resolution/renderability summary; exits 1 on any failure.
  * Run by CI's offline `ci` job — and safe to run any time seeds change.
@@ -27,6 +37,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   AthleticsVenuesSchema,
+  BrownOwnedBuildingsSchema,
   OrgLivewhaleGroupsSchema,
   type SeedCourseMeeting,
   SeedCourseMeetingSchema,
@@ -44,6 +55,9 @@ const seedsDir = path.join(here, "seeds");
 
 /** Retired Fall 2026 guess code — reconciled to 202610 by migration 0003. */
 const RETIRED_SRCDB = "202710";
+
+/** DoD gate: the published events seed must carry at least this many mappable rows. */
+const EVENTS_COORDS_DOD_MIN = 300;
 
 /** Centroids should sit in greater Providence; outliers are almost surely bugs. */
 const SANITY_BBOX = { latMin: 41.7, latMax: 41.95, lngMin: -71.6, lngMax: -71.2 };
@@ -111,6 +125,7 @@ async function checkManifest(): Promise<void> {
     "source_runs.ndjson",
     "athletics_venues.json",
     "organization_livewhale_groups.json",
+    "brown_owned_buildings.json",
   ];
   for (const file of known) {
     if (parsed.data.artifacts[file] !== undefined) continue;
@@ -328,15 +343,36 @@ async function main(): Promise<void> {
       let danglingOrg = 0;
       for (const e of events) {
         if (e.lat != null && e.lng != null) withCoords++;
-        if (e.place_id != null && !places.has(e.place_id)) danglingPlace++;
-        if (orgIds !== null && e.org_id != null && !orgIds.has(e.org_id)) danglingOrg++;
+        // FKs are hard requirements: org_id/place_id may be null, but a
+        // non-null ref that resolves nowhere is a broken publish, not noise.
+        if (e.place_id != null && !places.has(e.place_id)) {
+          danglingPlace++;
+          fail(
+            `events.ndjson: "${e.source}:${e.source_id}" place_id "${e.place_id}" ` +
+              "not in places.ndjson",
+          );
+        }
+        if (orgIds !== null && e.org_id != null && !orgIds.has(e.org_id)) {
+          danglingOrg++;
+          fail(
+            `events.ndjson: "${e.source}:${e.source_id}" org_id "${e.org_id}" ` +
+              "not in organizations.ndjson",
+          );
+        }
       }
-      if (danglingPlace > 0)
-        warn(`events.ndjson: ${danglingPlace} dangling place ref(s) (loader nulls them)`);
-      if (danglingOrg > 0)
-        warn(`events.ndjson: ${danglingOrg} dangling org ref(s) (loader nulls them)`);
+      if (withCoords < EVENTS_COORDS_DOD_MIN) {
+        fail(
+          `events.ndjson: only ${withCoords} row(s) carry coords — ` +
+            `below the >=${EVENTS_COORDS_DOD_MIN} mappable-events DoD gate`,
+        );
+      }
       summary.push(
-        `events            ${events.length} rows · ${withCoords} with coords (${pct(withCoords, events.length)})`,
+        `events            ${events.length} rows · ${withCoords} with coords ` +
+          `(${pct(withCoords, events.length)}) · DoD gate >=${EVENTS_COORDS_DOD_MIN}: ` +
+          `${withCoords >= EVENTS_COORDS_DOD_MIN ? "pass" : "FAIL"}` +
+          (danglingPlace + danglingOrg > 0
+            ? ` · ${danglingPlace + danglingOrg} dangling ref(s)`
+            : ""),
       );
     }
   } catch (e) {
@@ -358,19 +394,60 @@ async function main(): Promise<void> {
   }
 
   const groupsRaw = await readJson("organization_livewhale_groups.json");
-  if (groupsRaw !== null) {
+  if (groupsRaw === null) {
+    summary.push("org_lw_groups     absent — skipped (optional)");
+  } else {
     const parsed = OrgLivewhaleGroupsSchema.safeParse(groupsRaw);
     if (!parsed.success) {
       fail(`organization_livewhale_groups.json: contract violation — ${parsed.error.message}`);
-    } else if (orgIds !== null) {
-      for (const m of parsed.data.mappings) {
-        if (!orgIds.has(m.organization_id)) {
-          fail(
-            `organization_livewhale_groups.json: organization_id "${m.organization_id}" ` +
-              "not in organizations.ndjson",
-          );
+    } else if (parsed.data.mappings.length === 0) {
+      // Legitimately empty: the events-bootstrap drop proved the LiveWhale
+      // publisher groups are departments, not student orgs — nothing to map.
+      summary.push(
+        "org_lw_groups     0 mappings — empty is expected (LiveWhale groups are departments)",
+      );
+    } else {
+      if (orgIds !== null) {
+        for (const m of parsed.data.mappings) {
+          if (!orgIds.has(m.organization_id)) {
+            fail(
+              `organization_livewhale_groups.json: organization_id "${m.organization_id}" ` +
+                "not in organizations.ndjson",
+            );
+          }
         }
       }
+      summary.push(`org_lw_groups     ${parsed.data.mappings.length} mapping(s) validated`);
+    }
+  }
+
+  // --- Brown-owned buildings sidecar: the register §5 consumer pin -------
+  const buildingsRaw = await readJson("brown_owned_buildings.json");
+  if (buildingsRaw === null) {
+    warn("brown_owned_buildings.json: absent (tolerated per contract; map tint stays off)");
+  } else {
+    const parsed = BrownOwnedBuildingsSchema.safeParse(buildingsRaw);
+    if (!parsed.success) {
+      fail(`brown_owned_buildings.json: contract violation — ${parsed.error.message}`);
+    } else {
+      checkDuplicateIds("brown_owned_buildings.json place_ids", parsed.data.place_ids);
+      const seenWays = new Set<number>();
+      for (const w of parsed.data.osm_way_ids) {
+        if (seenWays.has(w)) fail(`brown_owned_buildings.json: duplicate osm_way_id ${w}`);
+        seenWays.add(w);
+      }
+      let renderable = 0;
+      for (const pid of parsed.data.place_ids) {
+        if (!places.has(pid)) {
+          fail(`brown_owned_buildings.json: place_id "${pid}" not in places.ndjson`);
+        } else if (renderablePlace(places, pid)) {
+          renderable++;
+        }
+      }
+      summary.push(
+        `brown_owned_bldgs ${parsed.data.osm_way_ids.length} way id(s) · ` +
+          `${parsed.data.place_ids.length} place slug(s) (${renderable} renderable)`,
+      );
     }
   }
 

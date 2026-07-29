@@ -176,3 +176,34 @@ export const AthleticsVenuesSchema = z.object({
   ),
 });
 export type AthleticsVenues = z.infer<typeof AthleticsVenuesSchema>;
+
+/**
+ * Sidecar emitted by ingestion at db/seeds/brown_owned_buildings.json: the
+ * Brown-owned building footprints the map tints — OSM way ids for the
+ * export-backed footprints, plus published gazetteer place slugs carrying the
+ * relation-backed Brown buildings (Kassar House, Barbour Hall,
+ * Verney-Woolley) that way ids cannot express. The file may not exist yet —
+ * consumers must tolerate its absence. `schema_version` is a literal so a
+ * future v2 fails loudly instead of being half-read.
+ *
+ * Shape is sidecar schema v1, pinned field-for-field to the ingestion
+ * register (reports/app_side_dependencies.md §5):
+ * `{"schema_version": 1, "generated_at": "<UTC ISO>", "attribution":
+ *   "<OpenStreetMap/ODbL credit>", "osm_way_ids": [<int>, ...],
+ *   "place_ids": ["<slug>", ...]}`
+ * The `attribution` key is mandated by the register's ODbL constraint on
+ * OSM-derived output — it must credit OpenStreetMap, and any consumer
+ * rendering the tint must surface it.
+ */
+export const BrownOwnedBuildingsSchema = z.object({
+  schema_version: z.literal(1),
+  /** UTC ISO timestamp of when ingestion generated the file. */
+  generated_at: isoTs,
+  /** ODbL-mandated credit for the OSM-derived way ids — must name OpenStreetMap. */
+  attribution: z.string().includes("OpenStreetMap"),
+  /** OSM way ids of Brown-owned building footprints (producer emits sorted unique). */
+  osm_way_ids: z.array(z.number().int().positive()),
+  /** Canonical gazetteer place slugs for the relation-backed Brown buildings. */
+  place_ids: z.array(z.string().min(1)),
+});
+export type BrownOwnedBuildings = z.infer<typeof BrownOwnedBuildingsSchema>;
