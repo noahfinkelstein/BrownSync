@@ -1,0 +1,34 @@
+# Cloudflare Workers config for the read API. Entry: src/worker.ts (the Node
+# entry src/server.ts stays the local-dev default). Nothing here deploys by
+# itself — see DEPLOY.md for the one-time Hyperdrive + deploy steps.
+#
+# Local check without Cloudflare auth:
+#   pnpm --filter @brownsync/api build:worker   (wrangler deploy --dry-run)
+#   pnpm --filter @brownsync/api dev:worker     (uses localConnectionString)
+
+name = "brownsync-api"
+main = "src/worker.ts"
+compatibility_date = "2026-07-01"
+# postgres.js needs node:net/tls/crypto on Workers; also provides `process`.
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+# Hyperdrive pools TCP connections to Supabase Postgres at the edge — required
+# because each Worker request opens a fresh postgres.js connection. One-time:
+#   npx wrangler hyperdrive create brownsync-db \
+#     --connection-string="<Supabase session-pooler URI, DEPLOY.md step 4>"
+# then replace `id` below with the returned id.
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "00000000000000000000000000000000" # placeholder — replace after `hyperdrive create`
+# `wrangler dev` ignores `id` and connects here instead (local `pnpm db:start`).
+localConnectionString = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+
+# NODE_ENV needs no var: wrangler inlines process.env.NODE_ENV at build time
+# ("production" on deploy), which disables app.ts's dev-only response
+# re-validation exactly as intended.
+[vars]
+# Uncomment with the deployed web origin(s), comma-separated (DEPLOY.md step 6):
+# CORS_ORIGINS = "https://brownsync.pages.dev"
