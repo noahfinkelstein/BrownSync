@@ -9,3 +9,5 @@ allowBuilds:
   supabase: true
   "@tailwindcss/oxide": true
   "@biomejs/biome": true
+  # msw's postinstall only prints a sponsorship banner; never run it.
+  msw: false
