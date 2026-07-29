@@ -2,18 +2,26 @@
   "artifacts": {
     "athletics_venues.json": {
       "bytes": 1226,
-      "sha256": "30e7c373ddf4584c4672128cd307508bcacaea8f44ed21165f5b376dd252881d"
+      "sha256": "f9c38f697392d9896cd9bc1a8cd849348af24babba5e86f39f24401e61ec82d9"
     },
     "course_meetings.ndjson": {
       "bytes": 1614349,
       "sha256": "23b7ddce129dfc7e3d2b105d5f96dc5a98d2d9c284803a96d5d0dc438705f149"
+    },
+    "organization_livewhale_groups.json": {
+      "bytes": 93,
+      "sha256": "15f24fa2c798d99ad84e27db3549c0d57fcacd78456c5b4dac26db17b982d7c0"
+    },
+    "organizations.ndjson": {
+      "bytes": 309596,
+      "sha256": "d67448f81ce49a9a94675f3e024700b9adc9d22e9b323316f8cad28b634882a9"
     },
     "places.ndjson": {
       "bytes": 138468,
       "sha256": "0299d3bc526640bb890e61a862a18af98a908a47fe8103c74a08b09403c1e020"
     }
   },
-  "generated_at": "2026-07-29T06:23:22.481640Z",
-  "generation": "30cbef95b0874a0fbb0fdc1bc133839a",
+  "generated_at": "2026-07-29T14:28:08.426949Z",
+  "generation": "34f2d273c10e4120a1a65ee300288599",
   "schema_version": 1
 }

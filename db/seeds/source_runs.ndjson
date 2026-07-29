@@ -4,3 +4,11 @@
 {"id":4,"source":"places","started_at":"2026-07-29T06:23:22.117953Z","finished_at":"2026-07-29T06:23:22.257376Z","status":"ok","items_upserted":166}
 {"id":5,"source":"cab","started_at":"2026-07-29T06:23:22.257742Z","finished_at":"2026-07-29T06:23:22.456684Z","status":"ok","items_upserted":1755}
 {"id":6,"source":"athletics","started_at":"2026-07-29T06:23:22.457128Z","finished_at":"2026-07-29T06:23:22.480265Z","status":"ok","items_upserted":11}
+{"id":7,"source":"places","started_at":"2026-07-29T14:25:04.279904Z","finished_at":"2026-07-29T14:25:04.428713Z","status":"ok","items_upserted":174}
+{"id":8,"source":"cab","started_at":"2026-07-29T14:25:04.429173Z","finished_at":"2026-07-29T14:25:04.658229Z","status":"ok","items_upserted":1755}
+{"id":9,"source":"clubs","started_at":"2026-07-29T14:25:04.658855Z","finished_at":"2026-07-29T14:25:05.486361Z","status":"ok","items_upserted":457}
+{"id":10,"source":"athletics","started_at":"2026-07-29T14:25:05.487143Z","finished_at":"2026-07-29T14:25:05.530511Z","status":"ok","items_upserted":11}
+{"id":11,"source":"places","started_at":"2026-07-29T14:28:07.477359Z","finished_at":"2026-07-29T14:28:07.618481Z","status":"ok","items_upserted":166}
+{"id":12,"source":"cab","started_at":"2026-07-29T14:28:07.618973Z","finished_at":"2026-07-29T14:28:07.825619Z","status":"ok","items_upserted":1755}
+{"id":13,"source":"clubs","started_at":"2026-07-29T14:28:07.826224Z","finished_at":"2026-07-29T14:28:08.400518Z","status":"ok","items_upserted":457}
+{"id":14,"source":"athletics","started_at":"2026-07-29T14:28:08.401030Z","finished_at":"2026-07-29T14:28:08.425053Z","status":"ok","items_upserted":11}

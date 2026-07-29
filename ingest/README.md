@@ -17,13 +17,16 @@ ingest/
     run_log.py           # NDJSON source-run log + SourceRunRecorder
     gazetteer/           # catalog, aliases.yaml, geometry, resolver, places job
     cab/                 # Fall 2026 course meetings job (user-provided CSV)
+    clubs/               # organizations + LiveWhale sidecar job (user-provided CSV)
+    mappings/            # source-native vocabularies -> contract §4 taxonomy
     athletics_venues.py  # SIDEARM venue -> place sidecar job
     dining/              # NOTES.md: documented discovery block (no job)
     seeds_manifest.py    # db/seeds/manifest.json publisher + validator
     cli.py               # `ingest run <job> --out ndjson|postgres`
   fixtures/
     recorded/            # captured through CachedHttpClient, hash-pinned
-    user_provided/       # Fall 2026 CAB export (hash-pinned, kind user_provided)
+    user_provided/       # user-delivered CSVs (hash-pinned, kind user_provided):
+                         #   Fall 2026 CAB export + the 2026-07-29 Codex pack
     manifest.json        # fixture integrity manifest (gates the suite)
   tests/                 # offline; `postgres`-marked tests need TEST_DATABASE_URL
 ```
@@ -37,10 +40,10 @@ uv run ingest run all --out ndjson
 ## Running and rerunning jobs
 
 `uv run ingest run <job> --out ndjson|postgres` where `<job>` is `places`,
-`cab`, `athletics`, or `all`. The registry also carries `clubs` and `dining`
-as **declared blocked gaps**: naming one exits 2 with the documented reason
+`cab`, `clubs`, `athletics`, or `all`. The registry also carries `dining` as
+a **declared blocked gap**: naming it exits 2 with the documented reason
 (never a silent skip), and `run all` runs the existing jobs in bundle order
-(places → cab → athletics) after loudly reporting those gaps.
+(places → cab → clubs → athletics) after loudly reporting that gap.
 
 - Exit 0: every invoked job published (or upserted).
 - Exit 1: a gate failed closed (source run `partial`) or a job raised
@@ -79,6 +82,8 @@ fixture integrity test rejects any silent synthetic substitution.
 | cab | distinct subjects | >= 50 |
 | cab | meeting rows | >= 1,500 (revised from 2,000; see below) |
 | cab | section-level place resolution | >= 90% |
+| clubs | distinct validated organizations | >= 400 |
+| clubs | unknown source vocabulary values | 0 (drift fails loudly) |
 | athletics | home venues mapped / place ids known | every one (no threshold) |
 
 **1,500-row revision (Task 6B, signed off):** the plan's 2,000-row gate was
@@ -93,7 +98,9 @@ the `cab/job.py` docstring. The 90% resolution gate is unchanged.
 `run all --out ndjson` replaces each artifact individually-atomically, then
 publishes `db/seeds/manifest.json` **last** with a generation ID, UTC
 timestamp, and SHA-256 + byte size per artifact (`places.ndjson`,
-`course_meetings.ndjson`, `athletics_venues.json`). The validator rejects a
+`course_meetings.ndjson`, `organizations.ndjson`,
+`organization_livewhale_groups.json`, `athletics_venues.json`). The
+validator rejects a
 mixed set — any artifact whose on-disk hash disagrees with the manifest —
 so an interrupted bundle run is detectable and the previous manifest stays
 authoritative until a full rerun repairs every artifact. Single-job runs
@@ -117,31 +124,39 @@ app-side loader accepts it. In postgres mode the lifecycle writes to the
 `db/seeds/athletics_venues.json` (schema v1:
 `{schema_version, generated_at, mappings: [{source_name, place_id}]}`) maps
 SIDEARM venue strings to canonical place ids because contract v1 has no
-database target for them. App-side consumption of the athletics (and
-future organization) sidecars is a blocking cross-workstream dependency in
+database target for them. `db/seeds/organization_livewhale_groups.json`
+(schema v1: `{schema_version, generated_at, mappings: [{organization_id,
+livewhale_group, match_method, score}]}`) links organization slugs to
+LiveWhale publisher-group names; the Task 7 measured outcome is an EMPTY
+`mappings` list — the 218 recorded LiveWhale groups are departments and
+offices, and no student group is a publisher, so the file existing with
+`[]` is the explicit statement that no link is claimed. App-side
+consumption of both sidecars is a blocking cross-workstream dependency in
 `reports/app_side_dependencies.md`; ingestion does not claim the TS poller
 consumes them until a consumer test passes in the app lane.
 
-## Blocked sources: clubs and dining
+## Blocked source: dining
 
-`studentactivities.brown.edu` and `dining.brown.edu` both answer a
-Pantheon-edge HTTP 403 to the declared UA; bypassing bot detection is
-forbidden, so no discovery requests were sent. Clubs (Task 7) has no job on
-this branch; dining discovery is documented in `dining/NOTES.md` (contract
-v1 has no dining-hours row, and the six fixed dining places are already
-seeded). Unblock paths: an OIT allowlist for the declared UA, or
-user-exported pages.
+`dining.brown.edu` answers a Pantheon-edge HTTP 403 to the declared UA;
+bypassing bot detection is forbidden, so no discovery requests were sent.
+Dining discovery is documented in `dining/NOTES.md` (contract v1 has no
+dining-hours row, and the six fixed dining places are already seeded).
+Unblock paths: an OIT allowlist for the declared UA, or user-exported
+pages. (`studentactivities.brown.edu` answers the same 403; the clubs job
+runs from the user-provided 2026-07-29 export instead of a scrape.)
 
 ## Postgres prerequisites
 
 `--out postgres` requires the `DATABASE_URL` environment variable and is
 fail-closed: absent credentials exit 2 and are reported, never treated as a
 successful database verification. `run all --out postgres` is the
-documented **hybrid**: contract rows (`places`, `course_meetings`) and
-source runs upsert via psycopg 3 (WKT through
-`ST_Multi(ST_GeomFromText(%s, 4326))`); the athletics sidecar and dining
-notes still publish as files, and the NDJSON manifest is not advanced.
-Explicit `run athletics --out postgres` is rejected as unsupported.
+documented **hybrid**: contract rows (`places`, `course_meetings`,
+`organizations`) and source runs upsert via psycopg 3 (WKT through
+`ST_Multi(ST_GeomFromText(%s, 4326))`); the athletics and organization
+sidecars and dining notes still publish as files, and the NDJSON manifest
+is not advanced. Explicit `run athletics --out postgres` is rejected as
+unsupported (its only artifact is a file); `run clubs --out postgres`
+upserts the organization rows and still publishes the sidecar file.
 `postgres`-marked integration tests (PostgreSQL 15 + PostGIS + pg_trgm) run
 only when `TEST_DATABASE_URL` is set.
 

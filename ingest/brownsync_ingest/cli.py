@@ -2,10 +2,11 @@
 
 The job registry is dependency-injected and covers the jobs that EXIST on
 this branch — ``places`` (gazetteer), ``cab`` (Fall 2026 course meetings),
-``athletics`` (venue sidecar). The two externally blocked sources are
-registered as :class:`BlockedJob` entries so naming them fails loudly with
-the documented reason, never a silent skip; ``run all`` runs the existing
-jobs in registry order and *reports* those declared gaps.
+``clubs`` (organizations + LiveWhale sidecar, Task 7 user-provided CSV),
+``athletics`` (venue sidecar). The remaining externally blocked source
+(``dining``) is registered as a :class:`BlockedJob` entry so naming it
+fails loudly with the documented reason, never a silent skip; ``run all``
+runs the existing jobs in registry order and *reports* that declared gap.
 
 Fail-closed exits: 0 only when every invoked job published (or upserted);
 1 when a job gate-fails (source run ``partial``) or raises (``error``);
@@ -48,6 +49,7 @@ import typer
 
 from brownsync_ingest.athletics_venues import run_athletics_venues_job
 from brownsync_ingest.cab.job import run_cab_csv_job
+from brownsync_ingest.clubs.job import run_clubs_job
 from brownsync_ingest.common.http import utc_now
 from brownsync_ingest.gazetteer.job import run_places_job
 from brownsync_ingest.gazetteer.resolver import PlaceResolver
@@ -74,15 +76,16 @@ DEFAULT_CAB_CSV = (
 )
 DEFAULT_CAB_REPORT = _REPO_ROOT / "reports" / "cab_fall_2026_place_resolution.md"
 DEFAULT_ATHLETICS_ICS = _INGEST_ROOT / "fixtures" / "recorded" / "athletics" / "calendar.ics"
-
-CLUBS_BLOCKED_REASON = (
-    "Task 7 clubs ingestion has no job on this branch: "
-    "studentactivities.brown.edu answers a Pantheon-edge HTTP 403 to the "
-    "declared UA (recorded capture gaps clubs_undergraduate/clubs_graduate "
-    "in ingest/fixtures/manifest.json); bypassing bot detection is "
-    "forbidden. Unblock via an OIT allowlist for the declared UA or "
-    "user-exported pages, then implement Task 7."
+DEFAULT_CLUBS_CSV = (
+    _INGEST_ROOT / "fixtures" / "user_provided" / "brown_all_student_groups.csv"
 )
+DEFAULT_CLUBS_EVENTS_CSV = (
+    _INGEST_ROOT / "fixtures" / "user_provided" / "brown_upcoming_events.csv"
+)
+DEFAULT_LIVEWHALE_GROUPS = (
+    _INGEST_ROOT / "fixtures" / "recorded" / "livewhale" / "groups.json"
+)
+
 DINING_BLOCKED_REASON = (
     "dining discovery is blocked: dining.brown.edu answers a Pantheon-edge "
     "HTTP 403 to the declared UA, so no discovery requests were sent — see "
@@ -106,6 +109,9 @@ class JobContext:
     cab_csv_path: Path
     cab_report_path: Path
     athletics_ics_path: Path
+    clubs_csv_path: Path = DEFAULT_CLUBS_CSV
+    clubs_events_csv_path: Path = DEFAULT_CLUBS_EVENTS_CSV
+    livewhale_groups_path: Path = DEFAULT_LIVEWHALE_GROUPS
     aliases_path: Path | None = None
     overpass_path: Path | None = None
     contact: str | None = None
@@ -223,6 +229,57 @@ def _cab_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
     return JobOutcome(artifacts=artifacts, items=items, notes=tuple(notes))
 
 
+def _clubs_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    resolver = PlaceResolver.from_files(context.aliases_path)
+    with _artifact_target(context, "organizations.ndjson") as (seeds_path, staging_root):
+        result = run_clubs_job(
+            context.clubs_csv_path,
+            groups_path=context.livewhale_groups_path,
+            events_csv_path=context.clubs_events_csv_path,
+            resolver=resolver,
+            seeds_path=seeds_path,
+            # the sidecar is a FILE in both modes (documented hybrid):
+            # contract v1 has no database target for LiveWhale group links
+            sidecar_path=context.seeds_dir / "organization_livewhale_groups.json",
+            staging_root=staging_root,
+            sidecar_staging_root=context.staging_root,
+        )
+    linked = [d for d in result.link_decisions if d.method is not None]
+    unlinked = len(result.link_decisions) - len(linked)
+    notes = [
+        f"{len(result.rows)} validated organizations "
+        f"({result.duplicates_dropped} duplicates dropped)",
+        (
+            f"LiveWhale linkage: {len(linked)} linked, {unlinked} reported "
+            f"unlinked; sidecar mappings: {result.sidecar_mappings}"
+        ),
+        (
+            "default_place_id awarded: "
+            f"{sum(1 for e in result.default_place_evidence.values() if e.awarded)}; "
+            f"recurring events emitted: {result.recurrence_emissions}"
+        ),
+    ]
+    if result.unknown_vocabulary:
+        notes.append(
+            "unknown source vocabulary: " + ", ".join(result.unknown_vocabulary)
+        )
+    gate_failures = tuple(
+        f"{check.name}: actual {check.actual:g} vs required {check.required:g}"
+        for check in result.gates.checks
+        if not check.passed
+    )
+    if gate_failures:
+        return JobOutcome(gate_failures=gate_failures, notes=tuple(notes))
+    if context.out == OutFormat.postgres.value:
+        items = _require_repository(context).upsert_organizations(list(result.rows))
+        artifacts: tuple[str, ...] = ("organization_livewhale_groups.json",)
+        notes.append(f"upserted {items} organizations rows to Postgres")
+    else:
+        items = result.published_count or 0
+        artifacts = ("organizations.ndjson", "organization_livewhale_groups.json")
+    return JobOutcome(artifacts=artifacts, items=items, notes=tuple(notes))
+
+
 def _athletics_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
     # The sidecar is a FILE in both modes (documented hybrid): contract v1
     # has no database target for athletics venue mappings.
@@ -247,8 +304,8 @@ def default_registry() -> dict[str, JobSpec | BlockedJob]:
     return {
         "places": JobSpec(run=_places_runner),
         "cab": JobSpec(run=_cab_runner),
+        "clubs": JobSpec(run=_clubs_runner),
         "athletics": JobSpec(run=_athletics_runner, postgres_target=False),
-        "clubs": BlockedJob(reason=CLUBS_BLOCKED_REASON),
         "dining": BlockedJob(reason=DINING_BLOCKED_REASON),
     }
 
@@ -459,8 +516,8 @@ def run(
     job: str = typer.Argument(
         ...,
         help=(
-            "places | cab | athletics | all "
-            "(clubs and dining are registered blocked gaps and fail loudly)"
+            "places | cab | clubs | athletics | all "
+            "(dining is a registered blocked gap and fails loudly)"
         ),
     ),
     out: OutFormat = typer.Option(
@@ -477,6 +534,15 @@ def run(
     cab_csv: Path = typer.Option(DEFAULT_CAB_CSV, "--cab-csv"),
     cab_report: Path = typer.Option(DEFAULT_CAB_REPORT, "--cab-report"),
     athletics_ics: Path = typer.Option(DEFAULT_ATHLETICS_ICS, "--athletics-ics"),
+    clubs_csv: Path = typer.Option(DEFAULT_CLUBS_CSV, "--clubs-csv"),
+    events_csv: Path = typer.Option(
+        DEFAULT_CLUBS_EVENTS_CSV,
+        "--events-csv",
+        help="LiveWhale events snapshot used for default-venue evidence.",
+    ),
+    livewhale_groups: Path = typer.Option(
+        DEFAULT_LIVEWHALE_GROUPS, "--livewhale-groups"
+    ),
     contact: Optional[str] = typer.Option(
         None,
         "--contact",
@@ -511,6 +577,9 @@ def run(
         cab_csv_path=cab_csv,
         cab_report_path=cab_report,
         athletics_ics_path=athletics_ics,
+        clubs_csv_path=clubs_csv,
+        clubs_events_csv_path=events_csv,
+        livewhale_groups_path=livewhale_groups,
         contact=contact,
         repository=repository,
     )

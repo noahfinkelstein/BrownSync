@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from brownsync_ingest.cli import JobContext, execute_run
-from brownsync_ingest.contract import CourseMeetingRow, PlaceRow
+from brownsync_ingest.contract import CourseMeetingRow, OrganizationRow, PlaceRow
 from brownsync_ingest.gazetteer.geometry import parse_multipolygon_wkt
 from brownsync_ingest.output import model_identity
 from brownsync_ingest.seeds_manifest import MANIFEST_NAME, validate_seeds_manifest
@@ -31,7 +31,13 @@ REAL_CSV = (
 )
 REAL_ICS = INGEST_ROOT / "fixtures" / "recorded" / "athletics" / "calendar.ics"
 
-SEED_ARTIFACTS = ("places.ndjson", "course_meetings.ndjson", "athletics_venues.json")
+SEED_ARTIFACTS = (
+    "places.ndjson",
+    "course_meetings.ndjson",
+    "organizations.ndjson",
+    "organization_livewhale_groups.json",
+    "athletics_venues.json",
+)
 DINING_IDS = {
     "sharpe-refectory",  # Ratty
     "andrews-commons",
@@ -99,9 +105,26 @@ def meetings(bundle: BundleRun) -> list[CourseMeetingRow]:
 
 
 @pytest.fixture(scope="module")
+def organizations(bundle: BundleRun) -> list[OrganizationRow]:
+    return [
+        OrganizationRow.model_validate(payload)
+        for payload in read_ndjson(bundle.seeds_dir / "organizations.ndjson")
+    ]
+
+
+@pytest.fixture(scope="module")
 def sidecar(bundle: BundleRun) -> dict[str, object]:
     return json.loads(
         (bundle.seeds_dir / "athletics_venues.json").read_text(encoding="utf-8")
+    )
+
+
+@pytest.fixture(scope="module")
+def org_sidecar(bundle: BundleRun) -> dict[str, object]:
+    return json.loads(
+        (bundle.seeds_dir / "organization_livewhale_groups.json").read_text(
+            encoding="utf-8"
+        )
     )
 
 
@@ -111,7 +134,8 @@ class TestBundleRun:
     ) -> None:
         assert bundle.code == 0, bundle.err
         gap_lines = [line for line in bundle.out if "GAP" in line]
-        assert any("clubs" in line and "403" in line for line in gap_lines)
+        # clubs became a real job in Task 7; dining is the only gap left
+        assert not any("clubs" in line for line in gap_lines)
         assert any("dining" in line and "403" in line for line in gap_lines)
 
     def test_every_seed_artifact_is_published(self, bundle: BundleRun) -> None:
@@ -142,11 +166,25 @@ class TestContractRows:
         subjects = {row.course_code.split()[0] for row in meetings}
         assert len(subjects) >= 50
 
-    @pytest.mark.parametrize("artifact", ["places.ndjson", "course_meetings.ndjson"])
+    def test_organizations_meet_the_gate_minimum(
+        self, organizations: list[OrganizationRow]
+    ) -> None:
+        assert len(organizations) >= 400
+        assert {row.kind for row in organizations} == {"club"}
+        assert {row.source for row in organizations} == {"studentactivities", "gsc"}
+
+    @pytest.mark.parametrize(
+        "artifact",
+        ["places.ndjson", "course_meetings.ndjson", "organizations.ndjson"],
+    )
     def test_identities_are_unique_and_sorted(
         self, bundle: BundleRun, artifact: str
     ) -> None:
-        model = PlaceRow if artifact == "places.ndjson" else CourseMeetingRow
+        model = {
+            "places.ndjson": PlaceRow,
+            "course_meetings.ndjson": CourseMeetingRow,
+            "organizations.ndjson": OrganizationRow,
+        }[artifact]
         rows = [
             model.model_validate(payload)
             for payload in read_ndjson(bundle.seeds_dir / artifact)
@@ -163,6 +201,19 @@ class TestContractRows:
         assert placed, "expected resolved meetings"
         missing = {row.place_id for row in placed} - place_ids
         assert missing == set()
+
+    def test_every_organization_default_place_is_a_published_place(
+        self, places: list[PlaceRow], organizations: list[OrganizationRow]
+    ) -> None:
+        place_ids = {row.id for row in places}
+        defaults = {
+            row.default_place_id
+            for row in organizations
+            if row.default_place_id is not None
+        }
+        assert defaults - place_ids == set()
+        # measured Task 7 evidence outcome: no organization qualifies
+        assert defaults == set()
 
     def test_every_nonnull_polygon_is_plain_multipolygon_wkt(
         self, places: list[PlaceRow]
@@ -189,6 +240,19 @@ class TestSidecar:
         place_ids = {row.id for row in places}
         missing = {m["place_id"] for m in sidecar["mappings"]} - place_ids
         assert missing == set()
+
+
+class TestOrganizationSidecar:
+    def test_schema_v1_shape_with_the_measured_empty_mappings(
+        self, org_sidecar: dict[str, object]
+    ) -> None:
+        assert set(org_sidecar) == {"schema_version", "generated_at", "mappings"}
+        assert org_sidecar["schema_version"] == 1
+        assert isinstance(org_sidecar["generated_at"], str) and org_sidecar["generated_at"]
+        # Task 7 measured outcome: the 218 recorded LiveWhale groups are all
+        # departments/offices — no student group links, and the empty list is
+        # the explicit statement of that (consumers tolerate absence AND []).
+        assert org_sidecar["mappings"] == []
 
 
 class TestManifestAndRuns:
@@ -218,7 +282,7 @@ class TestManifestAndRuns:
 
     def test_exactly_one_finalized_ok_run_per_job(self, bundle: BundleRun) -> None:
         runs = read_ndjson(bundle.seeds_dir / "source_runs.ndjson")
-        assert [run["source"] for run in runs] == ["places", "cab", "athletics"]
+        assert [run["source"] for run in runs] == ["places", "cab", "clubs", "athletics"]
         for run in runs:
             assert run["status"] == "ok"
             assert run["finished_at"]

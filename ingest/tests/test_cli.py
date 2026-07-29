@@ -95,11 +95,13 @@ def run_cli(
 class TestDefaultRegistry:
     def test_covers_existing_jobs_in_bundle_order_then_blocked_gaps(self) -> None:
         registry = default_registry()
-        assert list(registry) == ["places", "cab", "athletics", "clubs", "dining"]
+        # clubs became a real job in Task 7 (user-provided CSV); dining stays
+        # the sole documented blocked gap.
+        assert list(registry) == ["places", "cab", "clubs", "athletics", "dining"]
         assert isinstance(registry["places"], JobSpec)
         assert isinstance(registry["cab"], JobSpec)
+        assert isinstance(registry["clubs"], JobSpec)
         assert isinstance(registry["athletics"], JobSpec)
-        assert isinstance(registry["clubs"], BlockedJob)
         assert isinstance(registry["dining"], BlockedJob)
 
     def test_athletics_has_no_postgres_target(self) -> None:
@@ -107,13 +109,11 @@ class TestDefaultRegistry:
         assert registry["athletics"].postgres_target is False
         assert registry["places"].postgres_target is True
         assert registry["cab"].postgres_target is True
+        # organizations upsert to Postgres; the sidecar stays a file (hybrid)
+        assert registry["clubs"].postgres_target is True
 
     def test_blocked_reasons_are_the_documented_ones(self) -> None:
         registry = default_registry()
-        clubs = registry["clubs"].reason
-        assert "studentactivities.brown.edu" in clubs
-        assert "403" in clubs
-        assert "Task 7" in clubs
         dining = registry["dining"].reason
         assert "dining" in dining
         assert "403" in dining
@@ -173,12 +173,11 @@ class TestSingleJob:
         assert any("places" in line and "cab" in line for line in err)
         assert read_runs(context) == []
 
-    @pytest.mark.parametrize("job", ["clubs", "dining"])
     def test_blocked_job_named_explicitly_fails_with_documented_reason(
-        self, tmp_path: Path, job: str
+        self, tmp_path: Path
     ) -> None:
         context = make_context(tmp_path)
-        code, out, err = run_cli(job, context)
+        code, out, err = run_cli("dining", context)
         assert code == 2
         assert any("blocked" in line for line in err)
         assert any("403" in line for line in err)
@@ -332,6 +331,30 @@ class TestRealRunners:
         assert runs[0]["source"] == "cab"
         assert runs[0]["status"] == "partial"
         assert "meeting-rows" in runs[0]["error"]
+
+    def test_clubs_publishes_organizations_and_the_sidecar(self, tmp_path: Path) -> None:
+        context = make_context(tmp_path)
+        code, out, err = run_cli("clubs", context)
+        assert code == 0, err
+        lines = (
+            (context.seeds_dir / "organizations.ndjson")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+        assert len(lines) == 457
+        document = json.loads(
+            (context.seeds_dir / "organization_livewhale_groups.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert document["schema_version"] == 1
+        assert document["mappings"] == []  # measured: no club is a LW publisher
+        runs = read_runs(context)
+        assert runs[0]["source"] == "clubs"
+        assert runs[0]["status"] == "ok"
+        assert runs[0]["items_upserted"] == 457
+        # linkage statistics are logged loudly
+        assert any("linkage" in line for line in out)
 
     def test_athletics_publishes_the_sidecar(self, tmp_path: Path) -> None:
         context = make_context(tmp_path)
