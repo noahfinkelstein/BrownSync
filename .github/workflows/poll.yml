@@ -93,9 +93,14 @@ jobs:
 
       - name: Cross-source dedup after a full poll
         # Duplicates only form across feeds, so dedup rides along whenever the
-        # full set was just polled (dispatch source=all). Dispatching
+        # full set was just polled (dispatch source=all) AND after the hourly
+        # cron sweep — by then every source has been refreshed within the hour,
+        # and without a cron rider auto-dedup would never run in production
+        # (scheduled lists are per-source, never 'all'). Dispatching
         # source=dedup runs it alone via the loop above.
-        if: steps.gate.outputs.ready == 'true' && steps.sources.outputs.list == 'all'
+        if: >-
+          steps.gate.outputs.ready == 'true' &&
+          (steps.sources.outputs.list == 'all' || github.event.schedule == '37 * * * *')
         run: pnpm poll dedup
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
