@@ -32,3 +32,29 @@ body {
 .maplibregl-ctrl-attrib-button {
   filter: invert(0.65);
 }
+
+/*
+ * Route-level pending states (§6.4, router.tsx): Suspense fallbacks for the
+ * lazy profile chunks ignore defaultPendingMs, so the skeleton holds
+ * invisible for its first 150 ms — a warm-cache chunk load swaps the real
+ * page in before anything can flash.
+ */
+.bs-route-pending {
+  animation: bs-route-pending-in 200ms var(--motion-ease) 150ms both;
+}
+
+@keyframes bs-route-pending-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-route-pending {
+    /* Appears instantly — never a fade, and never an undesigned blank. */
+    animation: none;
+  }
+}
