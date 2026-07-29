@@ -1,7 +1,16 @@
 name: Poll
 
-# Phase 1: manual trigger only. The cron schedule below is written but stays
-# commented until Phase 3 flips it on (handoff §2 / §3 ops hardening).
+# Manual dispatch + cron (flipped live in Phase 3). Cadence per source
+# etiquette (contract §5 allows livewhale <= every 10 min; 15 is polite):
+#   - livewhale       every 15 min   ("*/15 * * * *")
+#   - athletics + bdh hourly         ("37 * * * *" — offset minute so the
+#     hourly run never lands on a */15 tick or the top-of-hour pileup)
+# Which sources run is derived from which cron string fired
+# (github.event.schedule), not from wall-clock time — GH cron runs can start
+# minutes late, so time-based gating would misfire.
+#
+# Until secrets.DATABASE_URL exists every run no-ops loudly (green with a
+# warning, never red) — see DEPLOY.md step 2.
 on:
   workflow_dispatch:
     inputs:
@@ -15,10 +24,9 @@ on:
           - bdh
           - dedup
         default: all
-  # schedule:
-  #   # LiveWhale: poll <= every 10 min (contract §5). Athletics/BDH ride along;
-  #   # their ETag cache makes the extra requests cheap 304s.
-  #   - cron: "*/10 * * * *"
+  schedule:
+    - cron: "*/15 * * * *" # livewhale
+    - cron: "37 * * * *" # athletics + bdh
 
 concurrency:
   group: poll
@@ -29,23 +37,65 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Gate on DATABASE_URL
+        id: gate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "::warning::DATABASE_URL secret not set — poll skipped, nothing fetched or written. See DEPLOY.md step 2."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve sources for this trigger
+        id: sources
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CRON: ${{ github.event.schedule }}
+          INPUT_SOURCE: ${{ inputs.source }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            list="${INPUT_SOURCE:-all}"
+          elif [ "$CRON" = "37 * * * *" ]; then
+            list="athletics bdh"
+          else
+            list="livewhale"
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "polling: $list"
+
       - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
       - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
       - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        if: steps.gate.outputs.ready == 'true'
       - run: pnpm --filter @brownsync/contract build
-      - name: Poll ${{ inputs.source || 'all' }}
-        run: pnpm poll ${{ inputs.source || 'all' }}
+        if: steps.gate.outputs.ready == 'true'
+
+      - name: Poll ${{ steps.sources.outputs.list }}
+        if: steps.gate.outputs.ready == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POLLER_USER_AGENT: "BrownSync/1.0 (+noah_finkelstein@brown.edu)"
+        run: |
+          for s in ${{ steps.sources.outputs.list }}; do
+            pnpm poll "$s"
+          done
+
       - name: Cross-source dedup after a full poll
         # Duplicates only form across feeds, so dedup rides along whenever the
-        # full set was just polled (and can be dispatched alone via source=dedup).
-        if: ${{ (inputs.source || 'all') == 'all' }}
+        # full set was just polled (dispatch source=all). Dispatching
+        # source=dedup runs it alone via the loop above.
+        if: steps.gate.outputs.ready == 'true' && steps.sources.outputs.list == 'all'
         run: pnpm poll dedup
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

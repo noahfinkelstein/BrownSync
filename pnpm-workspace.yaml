@@ -13,3 +13,10 @@ allowBuilds:
   msw: false
   # posthog-js pulls core-js, whose postinstall only prints a funding banner — skip it.
   core-js: false
+  # workerd's postinstall links the platform-specific Workers runtime binary
+  # (Cloudflare first-party) — required for `wrangler dev` / miniflare.
+  workerd: true
+
+minimumReleaseAgeExclude:
+  - miniflare@4.20260722.1
+  - wrangler@4.115.0
