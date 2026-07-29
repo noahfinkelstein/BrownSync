@@ -214,7 +214,7 @@ export const eventClusterCountsLayer: SymbolLayerSpecification = {
   layout: {
     "text-field": ["get", "point_count_abbreviated"],
     "text-font": ["Noto Sans Medium"],
-    "text-size": 11,
+    "text-size": 12,
     "text-allow-overlap": true,
   },
   paint: {

@@ -1,14 +1,7 @@
 import type { EventOut } from "@brownsync/contract";
-import {
-  Badge,
-  Button,
-  cn,
-  EmptyState,
-  SkeletonRows,
-  SourceBadge,
-  TimelineRow,
-} from "@brownsync/ui";
+import { Badge, Button, cn, EmptyState, SourceBadge, TimelineRow } from "@brownsync/ui";
 import { useNavigate } from "@tanstack/react-router";
+import { ListSkeleton } from "../ops/states/skeletons";
 import { useCategoryFilter } from "./filter";
 import { formatClock, formatRelative } from "./format";
 import { groupEventsByTime, isLive } from "./grouping";
@@ -65,7 +58,7 @@ export function ListView({
       </div>
 
       {pending ? (
-        <SkeletonRows rows={8} className="px-3 py-3" />
+        <ListSkeleton className="px-3 py-3" />
       ) : error ? (
         <EmptyState
           title="Events unavailable"
@@ -92,7 +85,9 @@ export function ListView({
               </h3>
               <div className="px-1 py-1">
                 {bucket.events.map((event) => (
-                  <EventRow key={event.id} event={event} now={at} onOpen={openEvent} />
+                  <div key={event.id} data-testid="event-list-item">
+                    <EventRow event={event} now={at} onOpen={openEvent} />
+                  </div>
                 ))}
               </div>
             </section>

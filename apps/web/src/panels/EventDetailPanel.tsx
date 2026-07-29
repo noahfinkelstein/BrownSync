@@ -13,6 +13,9 @@ import {
 import type { ReactNode } from "react";
 import { eventTimeLabel, fmtDay, fmtRange, minutesUntil } from "../data/format";
 import { useEventDetail } from "../data/queries";
+import { DEFAULT_DURATION_MS, isStartingSoon } from "../map/eventsLayer";
+import { ErrorState } from "../ops/states/error";
+import { PanelSkeleton } from "../ops/states/skeletons";
 import { downloadIcs } from "./ics";
 
 export type EventDetailPanelProps = {
@@ -50,12 +53,39 @@ export function EventDetailPanel({
   const detailQuery = useEventDetail(open ? eventId : null);
   const detail = detailQuery.data ?? null;
   const event: EventOut | null = detail ?? seed;
-  if (!event) return null;
+
+  // Seedless opens (deep link / ⌘K hit outside the loaded window): designed
+  // §6.4 states while the detail fetch is the only source of truth.
+  if (!event) {
+    if (!open || !eventId) return null;
+    const failed = detailQuery.isError;
+    return (
+      <Panel
+        open={open}
+        onOpenChange={onOpenChange}
+        testId="detail-panel"
+        title="Event detail"
+        sub={failed ? undefined : "loading…"}
+      >
+        {failed ? (
+          <ErrorState what="the event" onRetry={() => void detailQuery.refetch()} />
+        ) : (
+          <PanelSkeleton />
+        )}
+      </Panel>
+    );
+  }
 
   const soonMin = minutesUntil(event.start, cursor);
-  const live = soonMin <= 0 || soonMin <= 30;
+  const cursorMs = cursor.getTime();
   const start = new Date(event.start);
   const end = event.end ? new Date(event.end) : null;
+  // Accent only for genuinely live/now states (§6.1): in progress means the
+  // cursor sits inside [start, end] (90-min fallback) — never after the end.
+  const inProgress =
+    start.getTime() <= cursorMs &&
+    cursorMs <= (end ? end.getTime() : start.getTime() + DEFAULT_DURATION_MS);
+  const startingSoon = isStartingSoon(event, cursorMs);
   const meta = CATEGORY_BY_ID[event.category];
   const place = detail?.place ?? null;
   const org = detail?.org ?? null;
@@ -64,6 +94,7 @@ export function EventDetailPanel({
     <Panel
       open={open}
       onOpenChange={onOpenChange}
+      testId="detail-panel"
       title={event.title}
       sub={eventTimeLabel(event.start, event.end, cursor)}
       footer={
@@ -100,8 +131,8 @@ export function EventDetailPanel({
           {meta.label}
         </Badge>
         {event.isCanceled && <Badge className="text-status-error">canceled</Badge>}
-        {!event.isCanceled && live && (
-          <Badge variant="accent">{soonMin <= 0 ? "live" : `in ${soonMin} min`}</Badge>
+        {!event.isCanceled && (inProgress || startingSoon) && (
+          <Badge variant="accent">{inProgress ? "live" : `in ${soonMin} min`}</Badge>
         )}
         {event.cost && <Badge>{event.cost}</Badge>}
       </div>
