@@ -183,13 +183,19 @@ class TestRealAcceptance:
             assert 41.80 < row.lat < 41.86, row.id
             assert -71.42 < row.lng < -71.37, row.id
 
-    def test_curation_growth_keeps_the_catalog_at_166_places(
+    def test_curation_growth_keeps_the_catalog_at_174_places(
         self, build: CatalogBuild
     ) -> None:
         # 148 from Task 4 + 14 export-proven venues (6B) + 2 athletics (8)
         # + 2 Task 10 review address-trap buildings (70 Brown Street and
         # The Packet Building, both grounded by the recorded fixture)
-        assert len(build.rows) == 166
+        # + 8 enrichment-round event venues proven by the Codex drop's
+        # LiveWhale location evidence (4 footprint-backed: Chace Center,
+        # Wexford Innovation Complex, 51 Prospect Street, International
+        # House; 4 curated on LiveWhale coordinates: South Street Landing,
+        # 70 Ship Street, Van Wickle Gates, Stonewall House — details in
+        # tests/gazetteer/test_event_locations.py)
+        assert len(build.rows) == 174
         by_id_task10 = {row.id: row for row in build.rows}
         for place_id, osm_id in (
             ("70-brown-street", "way/1073442221"),

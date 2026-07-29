@@ -2,10 +2,13 @@
 
 The job registry is dependency-injected and covers the jobs that EXIST on
 this branch — ``places`` (gazetteer), ``cab`` (Fall 2026 course meetings),
-``athletics`` (venue sidecar). The two externally blocked sources are
-registered as :class:`BlockedJob` entries so naming them fails loudly with
-the documented reason, never a silent skip; ``run all`` runs the existing
-jobs in registry order and *reports* those declared gaps.
+``clubs`` (organizations + LiveWhale sidecar, Task 7 user-provided CSV),
+``athletics`` (venue sidecar), ``buildings`` (Brown-owned buildings
+sidecar, enrichment round), ``events`` (LiveWhale + registrar bootstrap
+seeds, poller-parity). The remaining externally blocked source
+(``dining``) is registered as a :class:`BlockedJob` entry so naming it
+fails loudly with the documented reason, never a silent skip; ``run all``
+runs the existing jobs in registry order and *reports* that declared gap.
 
 Fail-closed exits: 0 only when every invoked job published (or upserted);
 1 when a job gate-fails (source run ``partial``) or raises (``error``);
@@ -47,8 +50,14 @@ from typing import Callable, Iterator, Mapping, Optional
 import typer
 
 from brownsync_ingest.athletics_venues import run_athletics_venues_job
+from brownsync_ingest.brown_owned_buildings import (
+    DEFAULT_CSV_PATH as DEFAULT_BUILDINGS_CSV,
+    run_brown_owned_buildings_job,
+)
 from brownsync_ingest.cab.job import run_cab_csv_job
+from brownsync_ingest.clubs.job import run_clubs_job
 from brownsync_ingest.common.http import utc_now
+from brownsync_ingest.events.job import run_events_job
 from brownsync_ingest.gazetteer.job import run_places_job
 from brownsync_ingest.gazetteer.resolver import PlaceResolver
 from brownsync_ingest.repository import PostgresRepository
@@ -74,15 +83,22 @@ DEFAULT_CAB_CSV = (
 )
 DEFAULT_CAB_REPORT = _REPO_ROOT / "reports" / "cab_fall_2026_place_resolution.md"
 DEFAULT_ATHLETICS_ICS = _INGEST_ROOT / "fixtures" / "recorded" / "athletics" / "calendar.ics"
-
-CLUBS_BLOCKED_REASON = (
-    "Task 7 clubs ingestion has no job on this branch: "
-    "studentactivities.brown.edu answers a Pantheon-edge HTTP 403 to the "
-    "declared UA (recorded capture gaps clubs_undergraduate/clubs_graduate "
-    "in ingest/fixtures/manifest.json); bypassing bot detection is "
-    "forbidden. Unblock via an OIT allowlist for the declared UA or "
-    "user-exported pages, then implement Task 7."
+DEFAULT_CLUBS_CSV = (
+    _INGEST_ROOT / "fixtures" / "user_provided" / "brown_all_student_groups.csv"
 )
+DEFAULT_CLUBS_EVENTS_CSV = (
+    _INGEST_ROOT / "fixtures" / "user_provided" / "brown_upcoming_events.csv"
+)
+DEFAULT_LIVEWHALE_GROUPS = (
+    _INGEST_ROOT / "fixtures" / "recorded" / "livewhale" / "groups.json"
+)
+DEFAULT_CALENDAR_CSV = (
+    _INGEST_ROOT
+    / "fixtures"
+    / "user_provided"
+    / "brown_academic_calendar_2026_2027.csv"
+)
+
 DINING_BLOCKED_REASON = (
     "dining discovery is blocked: dining.brown.edu answers a Pantheon-edge "
     "HTTP 403 to the declared UA, so no discovery requests were sent — see "
@@ -106,6 +122,11 @@ class JobContext:
     cab_csv_path: Path
     cab_report_path: Path
     athletics_ics_path: Path
+    clubs_csv_path: Path = DEFAULT_CLUBS_CSV
+    clubs_events_csv_path: Path = DEFAULT_CLUBS_EVENTS_CSV
+    livewhale_groups_path: Path = DEFAULT_LIVEWHALE_GROUPS
+    calendar_csv_path: Path = DEFAULT_CALENDAR_CSV
+    buildings_csv_path: Path = DEFAULT_BUILDINGS_CSV
     aliases_path: Path | None = None
     overpass_path: Path | None = None
     contact: str | None = None
@@ -223,6 +244,57 @@ def _cab_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
     return JobOutcome(artifacts=artifacts, items=items, notes=tuple(notes))
 
 
+def _clubs_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    resolver = PlaceResolver.from_files(context.aliases_path)
+    with _artifact_target(context, "organizations.ndjson") as (seeds_path, staging_root):
+        result = run_clubs_job(
+            context.clubs_csv_path,
+            groups_path=context.livewhale_groups_path,
+            events_csv_path=context.clubs_events_csv_path,
+            resolver=resolver,
+            seeds_path=seeds_path,
+            # the sidecar is a FILE in both modes (documented hybrid):
+            # contract v1 has no database target for LiveWhale group links
+            sidecar_path=context.seeds_dir / "organization_livewhale_groups.json",
+            staging_root=staging_root,
+            sidecar_staging_root=context.staging_root,
+        )
+    linked = [d for d in result.link_decisions if d.method is not None]
+    unlinked = len(result.link_decisions) - len(linked)
+    notes = [
+        f"{len(result.rows)} validated organizations "
+        f"({result.duplicates_dropped} duplicates dropped)",
+        (
+            f"LiveWhale linkage: {len(linked)} linked, {unlinked} reported "
+            f"unlinked; sidecar mappings: {result.sidecar_mappings}"
+        ),
+        (
+            "default_place_id awarded: "
+            f"{sum(1 for e in result.default_place_evidence.values() if e.awarded)}; "
+            f"recurring events emitted: {result.recurrence_emissions}"
+        ),
+    ]
+    if result.unknown_vocabulary:
+        notes.append(
+            "unknown source vocabulary: " + ", ".join(result.unknown_vocabulary)
+        )
+    gate_failures = tuple(
+        f"{check.name}: actual {check.actual:g} vs required {check.required:g}"
+        for check in result.gates.checks
+        if not check.passed
+    )
+    if gate_failures:
+        return JobOutcome(gate_failures=gate_failures, notes=tuple(notes))
+    if context.out == OutFormat.postgres.value:
+        items = _require_repository(context).upsert_organizations(list(result.rows))
+        artifacts: tuple[str, ...] = ("organization_livewhale_groups.json",)
+        notes.append(f"upserted {items} organizations rows to Postgres")
+    else:
+        items = result.published_count or 0
+        artifacts = ("organizations.ndjson", "organization_livewhale_groups.json")
+    return JobOutcome(artifacts=artifacts, items=items, notes=tuple(notes))
+
+
 def _athletics_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
     # The sidecar is a FILE in both modes (documented hybrid): contract v1
     # has no database target for athletics venue mappings.
@@ -242,13 +314,115 @@ def _athletics_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOu
     return JobOutcome(artifacts=("athletics_venues.json",), items=items, notes=notes)
 
 
+def _buildings_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    # The sidecar is a FILE in both modes (documented hybrid): contract v1
+    # has no database target for the Brown-owned buildings map tint. CLI
+    # registration closes the enrichment round's recorded follow-up
+    # (reports/app_side_dependencies.md §5) so the bundle manifest covers
+    # brown_owned_buildings.json.
+    result = run_brown_owned_buildings_job(
+        csv_path=context.buildings_csv_path,
+        sidecar_path=context.seeds_dir / "brown_owned_buildings.json",
+        staging_root=context.staging_root,
+        aliases_path=context.aliases_path,
+        overpass_path=context.overpass_path,
+    )
+    classification = result.classification
+    notes = (
+        (
+            f"{len(classification.way_ids)} Brown-owned ways "
+            f"({len(classification.direct_way_ids)} operator/owner-direct, "
+            f"{len(classification.catalog_way_ids)} catalog-backed); "
+            f"{len(classification.place_ids)} place ids"
+        ),
+        (
+            "ambiguous middle reported, not guessed: "
+            f"{len(classification.ambiguous_hint_way_ids)} hint-only ways, "
+            f"{len(classification.ambiguous_other_place_ids)} kind=other places"
+        ),
+    )
+    if result.gate_failures:
+        return JobOutcome(gate_failures=result.gate_failures, notes=notes)
+    return JobOutcome(
+        artifacts=("brown_owned_buildings.json",),
+        items=result.published_count or 0,
+        notes=notes,
+    )
+
+
+def _events_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    resolver = PlaceResolver.from_files(context.aliases_path)
+    with _artifact_target(context, "events.ndjson") as (seeds_path, staging_root):
+        result = run_events_job(
+            context.clubs_events_csv_path,
+            context.calendar_csv_path,
+            # the task-7 sidecar published in db/seeds is the org lookup,
+            # exactly the file the TS poller reads (orgs.ts)
+            org_groups_path=context.seeds_dir / "organization_livewhale_groups.json",
+            resolver=resolver,
+            seeds_path=seeds_path,
+            staging_root=staging_root,
+        )
+    notes = [
+        (
+            f"{result.livewhale_count} livewhale + {result.admin_count} admin "
+            f"(registrar) events; {result.coords_count} non-canceled with "
+            f"coords; {result.canceled_count} canceled"
+        ),
+        (
+            f"place resolution where coords absent: {result.place_resolved} "
+            f"resolved {dict(result.resolution_methods)}, unresolved "
+            f"{dict(result.unresolved_reasons)}; online-only "
+            f"{result.online_only_count} never resolved"
+        ),
+        (
+            f"org attribution via the task-7 sidecar: {result.org_attributed} "
+            f"rows (sidecar mappings are the measured truth); dropped "
+            f"published-contact columns: {dict(result.dropped_contact_counts)}"
+        ),
+        (
+            f"registrar duplicates dropped: {result.registrar_duplicates_dropped}; "
+            f"cross-source overlap (registrar ids also livewhale): "
+            f"{result.cross_source_overlap} — canonical_id dedup is app-side"
+        ),
+    ]
+    if result.unknown_event_types:
+        notes.append(
+            "unknown event_types (poller fall-through, reported): "
+            + ", ".join(f"{value}={count}" for value, count in result.unknown_event_types)
+        )
+    gate_failures = tuple(
+        f"{check.name}: actual {check.actual:g} vs required {check.required:g}"
+        for check in result.gates.checks
+        if not check.passed
+    )
+    if result.unknown_vocabulary:
+        notes.append(
+            "unknown source vocabulary: " + ", ".join(result.unknown_vocabulary)
+        )
+    if gate_failures:
+        return JobOutcome(gate_failures=gate_failures, notes=tuple(notes))
+    if context.out == OutFormat.postgres.value:
+        items = _require_repository(context).upsert_events(list(result.rows))
+        artifacts: tuple[str, ...] = ()
+        notes.append(f"upserted {items} events rows to Postgres")
+    else:
+        items = result.published_count or 0
+        artifacts = ("events.ndjson",)
+    return JobOutcome(artifacts=artifacts, items=items, notes=tuple(notes))
+
+
 def default_registry() -> dict[str, JobSpec | BlockedJob]:
     """Existing jobs in bundle order, then the documented blocked gaps."""
     return {
         "places": JobSpec(run=_places_runner),
         "cab": JobSpec(run=_cab_runner),
+        "clubs": JobSpec(run=_clubs_runner),
         "athletics": JobSpec(run=_athletics_runner, postgres_target=False),
-        "clubs": BlockedJob(reason=CLUBS_BLOCKED_REASON),
+        "buildings": JobSpec(run=_buildings_runner, postgres_target=False),
+        # events runs AFTER clubs: its org lookup reads the freshly
+        # published organization_livewhale_groups.json sidecar
+        "events": JobSpec(run=_events_runner),
         "dining": BlockedJob(reason=DINING_BLOCKED_REASON),
     }
 
@@ -459,8 +633,8 @@ def run(
     job: str = typer.Argument(
         ...,
         help=(
-            "places | cab | athletics | all "
-            "(clubs and dining are registered blocked gaps and fail loudly)"
+            "places | cab | clubs | athletics | buildings | events | all "
+            "(dining is a registered blocked gap and fails loudly)"
         ),
     ),
     out: OutFormat = typer.Option(
@@ -477,6 +651,28 @@ def run(
     cab_csv: Path = typer.Option(DEFAULT_CAB_CSV, "--cab-csv"),
     cab_report: Path = typer.Option(DEFAULT_CAB_REPORT, "--cab-report"),
     athletics_ics: Path = typer.Option(DEFAULT_ATHLETICS_ICS, "--athletics-ics"),
+    clubs_csv: Path = typer.Option(DEFAULT_CLUBS_CSV, "--clubs-csv"),
+    events_csv: Path = typer.Option(
+        DEFAULT_CLUBS_EVENTS_CSV,
+        "--events-csv",
+        help=(
+            "LiveWhale events snapshot: the events job's bootstrap source "
+            "AND the clubs job's default-venue evidence."
+        ),
+    ),
+    livewhale_groups: Path = typer.Option(
+        DEFAULT_LIVEWHALE_GROUPS, "--livewhale-groups"
+    ),
+    calendar_csv: Path = typer.Option(
+        DEFAULT_CALENDAR_CSV,
+        "--calendar-csv",
+        help="Registrar academic-calendar export (admin events).",
+    ),
+    buildings_csv: Path = typer.Option(
+        DEFAULT_BUILDINGS_CSV,
+        "--buildings-csv",
+        help="Overpass building export backing the Brown-owned sidecar.",
+    ),
     contact: Optional[str] = typer.Option(
         None,
         "--contact",
@@ -511,6 +707,11 @@ def run(
         cab_csv_path=cab_csv,
         cab_report_path=cab_report,
         athletics_ics_path=athletics_ics,
+        clubs_csv_path=clubs_csv,
+        clubs_events_csv_path=events_csv,
+        livewhale_groups_path=livewhale_groups,
+        calendar_csv_path=calendar_csv,
+        buildings_csv_path=buildings_csv,
         contact=contact,
         repository=repository,
     )

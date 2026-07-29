@@ -20,7 +20,12 @@ from pathlib import Path
 import pytest
 
 from brownsync_ingest.cli import JobContext, execute_run
-from brownsync_ingest.contract import CourseMeetingRow, PlaceRow
+from brownsync_ingest.contract import (
+    CourseMeetingRow,
+    EventRow,
+    OrganizationRow,
+    PlaceRow,
+)
 from brownsync_ingest.gazetteer.geometry import parse_multipolygon_wkt
 from brownsync_ingest.output import model_identity
 from brownsync_ingest.seeds_manifest import MANIFEST_NAME, validate_seeds_manifest
@@ -31,7 +36,15 @@ REAL_CSV = (
 )
 REAL_ICS = INGEST_ROOT / "fixtures" / "recorded" / "athletics" / "calendar.ics"
 
-SEED_ARTIFACTS = ("places.ndjson", "course_meetings.ndjson", "athletics_venues.json")
+SEED_ARTIFACTS = (
+    "places.ndjson",
+    "course_meetings.ndjson",
+    "organizations.ndjson",
+    "organization_livewhale_groups.json",
+    "athletics_venues.json",
+    "brown_owned_buildings.json",
+    "events.ndjson",
+)
 DINING_IDS = {
     "sharpe-refectory",  # Ratty
     "andrews-commons",
@@ -99,10 +112,44 @@ def meetings(bundle: BundleRun) -> list[CourseMeetingRow]:
 
 
 @pytest.fixture(scope="module")
+def organizations(bundle: BundleRun) -> list[OrganizationRow]:
+    return [
+        OrganizationRow.model_validate(payload)
+        for payload in read_ndjson(bundle.seeds_dir / "organizations.ndjson")
+    ]
+
+
+@pytest.fixture(scope="module")
 def sidecar(bundle: BundleRun) -> dict[str, object]:
     return json.loads(
         (bundle.seeds_dir / "athletics_venues.json").read_text(encoding="utf-8")
     )
+
+
+@pytest.fixture(scope="module")
+def org_sidecar(bundle: BundleRun) -> dict[str, object]:
+    return json.loads(
+        (bundle.seeds_dir / "organization_livewhale_groups.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+
+@pytest.fixture(scope="module")
+def buildings_sidecar(bundle: BundleRun) -> dict[str, object]:
+    return json.loads(
+        (bundle.seeds_dir / "brown_owned_buildings.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+
+@pytest.fixture(scope="module")
+def events(bundle: BundleRun) -> list[EventRow]:
+    return [
+        EventRow.model_validate(payload)
+        for payload in read_ndjson(bundle.seeds_dir / "events.ndjson")
+    ]
 
 
 class TestBundleRun:
@@ -111,7 +158,8 @@ class TestBundleRun:
     ) -> None:
         assert bundle.code == 0, bundle.err
         gap_lines = [line for line in bundle.out if "GAP" in line]
-        assert any("clubs" in line and "403" in line for line in gap_lines)
+        # clubs became a real job in Task 7; dining is the only gap left
+        assert not any("clubs" in line for line in gap_lines)
         assert any("dining" in line and "403" in line for line in gap_lines)
 
     def test_every_seed_artifact_is_published(self, bundle: BundleRun) -> None:
@@ -142,11 +190,72 @@ class TestContractRows:
         subjects = {row.course_code.split()[0] for row in meetings}
         assert len(subjects) >= 50
 
-    @pytest.mark.parametrize("artifact", ["places.ndjson", "course_meetings.ndjson"])
+    def test_organizations_meet_the_gate_minimum(
+        self, organizations: list[OrganizationRow]
+    ) -> None:
+        assert len(organizations) >= 400
+        assert {row.kind for row in organizations} == {"club"}
+        assert {row.source for row in organizations} == {"studentactivities", "gsc"}
+
+    def test_events_meet_the_definition_of_done_gates(
+        self, events: list[EventRow]
+    ) -> None:
+        livewhale = [row for row in events if row.source == "livewhale"]
+        registrar = [row for row in events if row.source == "registrar"]
+        assert {row.source for row in events} == {"livewhale", "registrar"}
+        assert len(livewhale) >= 900
+        assert len(registrar) >= 100
+        # app handoff §4 DoD: >= 300 upcoming events with coords
+        with_coords = [
+            row
+            for row in livewhale
+            if row.lat is not None
+            and row.lng is not None
+            and not row.is_canceled
+        ]
+        assert len(with_coords) >= 300
+        assert all(row.category == "admin" for row in registrar)
+        assert all(row.is_all_day for row in registrar)
+
+    def test_livewhale_event_source_ids_are_poller_shaped(
+        self, events: list[EventRow]
+    ) -> None:
+        # the poller upserts on (source, source_id); ids must be id:epoch
+        for row in events:
+            if row.source != "livewhale":
+                continue
+            event_id, _, epoch = row.source_id.partition(":")
+            assert event_id.isdigit() and epoch.isdigit(), row.source_id
+
+    def test_no_published_contact_emails_in_events(
+        self, bundle: BundleRun
+    ) -> None:
+        text = (bundle.seeds_dir / "events.ndjson").read_text(encoding="utf-8")
+        for payload in read_ndjson(bundle.seeds_dir / "events.ndjson"):
+            raw = payload.get("raw")
+            if isinstance(raw, dict):
+                assert "contact" not in raw
+                assert "contact_emails" not in raw
+        assert "contact_emails" not in text
+
+    @pytest.mark.parametrize(
+        "artifact",
+        [
+            "places.ndjson",
+            "course_meetings.ndjson",
+            "organizations.ndjson",
+            "events.ndjson",
+        ],
+    )
     def test_identities_are_unique_and_sorted(
         self, bundle: BundleRun, artifact: str
     ) -> None:
-        model = PlaceRow if artifact == "places.ndjson" else CourseMeetingRow
+        model = {
+            "places.ndjson": PlaceRow,
+            "course_meetings.ndjson": CourseMeetingRow,
+            "organizations.ndjson": OrganizationRow,
+            "events.ndjson": EventRow,
+        }[artifact]
         rows = [
             model.model_validate(payload)
             for payload in read_ndjson(bundle.seeds_dir / artifact)
@@ -163,6 +272,37 @@ class TestContractRows:
         assert placed, "expected resolved meetings"
         missing = {row.place_id for row in placed} - place_ids
         assert missing == set()
+
+    def test_every_organization_default_place_is_a_published_place(
+        self, places: list[PlaceRow], organizations: list[OrganizationRow]
+    ) -> None:
+        place_ids = {row.id for row in places}
+        defaults = {
+            row.default_place_id
+            for row in organizations
+            if row.default_place_id is not None
+        }
+        assert defaults - place_ids == set()
+        # measured Task 7 evidence outcome: no organization qualifies
+        assert defaults == set()
+
+    def test_every_event_place_id_is_a_published_place(
+        self, places: list[PlaceRow], events: list[EventRow]
+    ) -> None:
+        place_ids = {row.id for row in places}
+        placed = [row for row in events if row.place_id is not None]
+        assert placed, "expected resolver-placed events"
+        assert {row.place_id for row in placed} - place_ids == set()
+
+    def test_every_event_org_id_is_a_published_organization(
+        self, organizations: list[OrganizationRow], events: list[EventRow]
+    ) -> None:
+        org_ids = {row.id for row in organizations}
+        attributed = {row.org_id for row in events if row.org_id is not None}
+        assert attributed - org_ids == set()
+        # measured Task 7 sidecar truth: no student group is a LiveWhale
+        # publisher, so attribution is honestly zero in this bootstrap
+        assert attributed == set()
 
     def test_every_nonnull_polygon_is_plain_multipolygon_wkt(
         self, places: list[PlaceRow]
@@ -188,6 +328,38 @@ class TestSidecar:
     ) -> None:
         place_ids = {row.id for row in places}
         missing = {m["place_id"] for m in sidecar["mappings"]} - place_ids
+        assert missing == set()
+
+
+class TestOrganizationSidecar:
+    def test_schema_v1_shape_with_the_measured_empty_mappings(
+        self, org_sidecar: dict[str, object]
+    ) -> None:
+        assert set(org_sidecar) == {"schema_version", "generated_at", "mappings"}
+        assert org_sidecar["schema_version"] == 1
+        assert isinstance(org_sidecar["generated_at"], str) and org_sidecar["generated_at"]
+        # Task 7 measured outcome: the 218 recorded LiveWhale groups are all
+        # departments/offices — no student group links, and the empty list is
+        # the explicit statement of that (consumers tolerate absence AND []).
+        assert org_sidecar["mappings"] == []
+
+
+class TestBuildingsSidecar:
+    def test_schema_v1_shape(
+        self, buildings_sidecar: dict[str, object]
+    ) -> None:
+        assert buildings_sidecar["schema_version"] == 1
+        assert isinstance(buildings_sidecar.get("generated_at"), str)
+        assert buildings_sidecar["osm_way_ids"], "expected Brown-owned ways"
+        assert buildings_sidecar["place_ids"], "expected tinted place ids"
+        attribution = json.dumps(buildings_sidecar)
+        assert "OpenStreetMap" in attribution  # ODbL attribution present
+
+    def test_every_sidecar_place_id_is_a_published_place(
+        self, buildings_sidecar: dict[str, object], places: list[PlaceRow]
+    ) -> None:
+        place_ids = {row.id for row in places}
+        missing = set(buildings_sidecar["place_ids"]) - place_ids
         assert missing == set()
 
 
@@ -218,7 +390,14 @@ class TestManifestAndRuns:
 
     def test_exactly_one_finalized_ok_run_per_job(self, bundle: BundleRun) -> None:
         runs = read_ndjson(bundle.seeds_dir / "source_runs.ndjson")
-        assert [run["source"] for run in runs] == ["places", "cab", "athletics"]
+        assert [run["source"] for run in runs] == [
+            "places",
+            "cab",
+            "clubs",
+            "athletics",
+            "buildings",
+            "events",
+        ]
         for run in runs:
             assert run["status"] == "ok"
             assert run["finished_at"]
