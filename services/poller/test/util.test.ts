@@ -11,6 +11,36 @@ describe("decodeEntities", () => {
   it("leaves unknown sequences alone", () => {
     expect(decodeEntities("R&D &unknown; ok")).toBe("R&D &unknown; ok");
   });
+
+  // Hostile numeric character references: a feed can put ANY digits inside
+  // `&#…;`. String.fromCodePoint throws RangeError past 0x10FFFF (and on lone
+  // surrogates), and one bad title must never crash a poll run.
+  it("never throws on out-of-range numeric references", () => {
+    expect(() => decodeEntities("&#x110000;")).not.toThrow();
+    expect(() => decodeEntities("&#1114112;")).not.toThrow();
+    expect(() => decodeEntities(`&#${"9".repeat(400)};`)).not.toThrow();
+  });
+
+  it("replaces out-of-range and overflow references with U+FFFD", () => {
+    expect(decodeEntities("Game &#x110000; on")).toBe("Game � on");
+    expect(decodeEntities("Game &#1114112; on")).toBe("Game � on");
+    // Number("9".repeat(400)) is Infinity — must not reach fromCodePoint.
+    expect(decodeEntities(`&#${"9".repeat(400)};`)).toBe("�");
+    expect(decodeEntities(`&#x${"f".repeat(100)};`)).toBe("�");
+  });
+
+  it("replaces lone surrogates and NUL with U+FFFD", () => {
+    expect(decodeEntities("&#xD800;")).toBe("�");
+    expect(decodeEntities("&#xDFFF;")).toBe("�");
+    expect(decodeEntities("&#55296;")).toBe("�");
+    expect(decodeEntities("&#0;")).toBe("�");
+  });
+
+  it("still decodes the extremes of the valid range", () => {
+    expect(decodeEntities("&#x10FFFF;")).toBe("\u{10FFFF}");
+    expect(decodeEntities("&#x1F389;")).toBe("🎉");
+    expect(decodeEntities("&#1;")).toBe("\u0001");
+  });
 });
 
 describe("stripHtml", () => {
