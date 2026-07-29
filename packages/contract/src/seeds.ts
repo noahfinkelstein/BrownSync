@@ -135,6 +135,33 @@ export type OrgLivewhaleGroups = z.infer<typeof OrgLivewhaleGroupsSchema>;
  * `{"schema_version": 1, "generated_at": "<UTC ISO>", "mappings":
  *   [{"source_name": "<SIDEARM venue string>", "place_id": "<canonical slug>"}]}`
  */
+/**
+ * Manifest emitted by ingestion at db/seeds/manifest.json alongside the seed
+ * artifacts: one entry per published file with its byte length and sha256, so
+ * consumers can verify the artifact set is complete and untampered before
+ * loading. Mirrors the file the ingestion lane already publishes,
+ * field-for-field:
+ * `{"schema_version": 1, "generated_at": "<UTC ISO>", "generation": "<hex>",
+ *   "artifacts": {"<filename>": {"bytes": <int>, "sha256": "<hex64>"}}}`
+ * `schema_version` is a literal so a future v2 fails loudly instead of being
+ * half-read. Verified offline by `pnpm db:seed-check` (db/seed-check.ts).
+ */
+export const SeedManifestSchema = z.object({
+  schema_version: z.literal(1),
+  /** UTC ISO timestamp of when ingestion generated the manifest. */
+  generated_at: isoTs,
+  /** Opaque generation id tying the artifacts of one publish together. */
+  generation: z.string().min(1),
+  artifacts: z.record(
+    z.string().min(1),
+    z.object({
+      bytes: z.number().int().nonnegative(),
+      sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    }),
+  ),
+});
+export type SeedManifest = z.infer<typeof SeedManifestSchema>;
+
 export const AthleticsVenuesSchema = z.object({
   schema_version: z.literal(1),
   /** UTC ISO timestamp of when ingestion generated the file. */

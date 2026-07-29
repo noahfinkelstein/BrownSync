@@ -366,7 +366,7 @@ type MeetingSeed = {
 
 const MEETING_SEEDS: MeetingSeed[] = [
   {
-    id: "202710-10041-0",
+    id: "202610-10041-0",
     courseCode: "CSCI 0150",
     title: "Introduction to Object-Oriented Programming",
     instructor: "A. van Dam",
@@ -377,7 +377,7 @@ const MEETING_SEEDS: MeetingSeed[] = [
     room: "101",
   },
   {
-    id: "202710-10322-0",
+    id: "202610-10322-0",
     courseCode: "CSCI 0320",
     title: "Introduction to Software Engineering",
     days: "TTh",
@@ -387,7 +387,7 @@ const MEETING_SEEDS: MeetingSeed[] = [
     room: "168",
   },
   {
-    id: "202710-11204-0",
+    id: "202610-11204-0",
     courseCode: "MATH 0100",
     title: "Single Variable Calculus, Part II",
     days: "MWF",
@@ -397,7 +397,7 @@ const MEETING_SEEDS: MeetingSeed[] = [
     room: "166",
   },
   {
-    id: "202710-11890-0",
+    id: "202610-11890-0",
     courseCode: "ECON 0110",
     title: "Principles of Economics",
     days: "MWF",
@@ -407,7 +407,7 @@ const MEETING_SEEDS: MeetingSeed[] = [
     room: "DECI",
   },
   {
-    id: "202710-12055-0",
+    id: "202610-12055-0",
     courseCode: "ENGL 0900",
     title: "Critical Reading and Writing",
     days: "TTh",
@@ -417,7 +417,7 @@ const MEETING_SEEDS: MeetingSeed[] = [
     room: "205",
   },
   {
-    id: "202710-12471-0",
+    id: "202610-12471-0",
     courseCode: "APMA 1650",
     title: "Statistical Inference I",
     days: "MWF",
@@ -427,7 +427,7 @@ const MEETING_SEEDS: MeetingSeed[] = [
     room: "141",
   },
   {
-    id: "202710-13007-0",
+    id: "202610-13007-0",
     courseCode: "MUSC 0550",
     title: "Chamber Music Performance",
     days: "W",
@@ -502,7 +502,7 @@ function inSessionNowMeetings(base: Date): MeetingOut[] {
   const mk = (n: number, placeId: string, courseCode: string, title: string): MeetingOut => {
     const place = placeById.get(placeId) ?? null;
     return {
-      id: `202710-9990${n}-0`,
+      id: `202610-9990${n}-0`,
       courseCode,
       title,
       instructor: null,

@@ -6,6 +6,7 @@
   "description": "Canonical schema (migrations mirror DATA_CONTRACT.md §1 verbatim) and the NDJSON seed loader (§6). Seeds themselves (db/seeds/) are produced by the Codex ingestion workstream.",
   "scripts": {
     "seed": "tsx seed.ts",
+    "seed-check": "tsx seed-check.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

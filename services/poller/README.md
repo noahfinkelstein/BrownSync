@@ -7,7 +7,7 @@ Python scrapers (CAB, clubs, OSM) are the Codex workstream in `ingest/` — not 
 ## Usage
 
 ```bash
-pnpm poll <livewhale|athletics|bdh|all> [--dry-run] [--fixture[=path]]
+pnpm poll <livewhale|athletics|bdh|all|dedup> [--dry-run] [--fixture[=path]]
 ```
 
 - `--dry-run` — fetch (or replay a fixture), print normalized contract rows as NDJSON on
@@ -37,6 +37,7 @@ pnpm poll all --dry-run                   # three polite live fetches, no DB
 | `src/bdh/` | `browndailyherald.com/feed` RSS via fast-xml-parser. Buzz layer: no coords, category null, tags `["news"]`, `start_ts` = pubDate. |
 | `src/sweep.ts` | Cancellation-sweep window logic + truncated-fetch guard (contract §2), pure + unit-tested. |
 | `src/db.ts` | postgres.js upsert on `(source, source_id)`, `last_seen_at` refresh, never deletes; `source_runs` row every run including failures. |
+| `src/dedup/` | Cross-source dedup job (`pnpm poll dedup`): SQL blocking + pg_trgm decision, pure clustering/canonical-pick logic in `cluster.ts`. See below. |
 | `src/runner.ts` / `src/cli.ts` | Per-source orchestration + arg parsing. |
 | `fixtures/` | ONE recorded real response per source (2026-07-28) + sidecar fixtures: a sample `organization_livewhale_groups.json` and a mirror of the real ingestion-emitted `athletics_venues.json`. Tests run exclusively against these — zero network in CI. |
 
@@ -70,6 +71,26 @@ identified by `source = "bdh"` plus the `news` tag instead. Descriptions are str
 **Cancellation sweep** (LiveWhale + athletics) — after a successful full fetch, this
 source's not-seen events starting inside `[min, max]` fetched `start_ts` are flagged
 `is_canceled = true`; nothing is ever deleted. An empty feed never sweeps.
+
+**Cross-source dedup** (`pnpm poll dedup`) — the same real-world event often arrives from
+several feeds (a home game is in the athletics ICS, LiveWhale, and a BDH article). The dedup
+job marks — never deletes — duplicates per contract §1/§3: the duplicate row's
+`canonical_id` points at the cluster's canonical row, and the read API exposes only
+canonical rows with `mergedSources`. Detection is one SQL self-join over canonical rows
+(candidate **blocking**: `start_ts` within 60 min AND same `place_id` / coords within 250 m
+/ at least one side unlocated) with the **decision** made by pg_trgm
+`similarity(title, title) >= 0.55` — contract §2's trigram threshold ("never guess below
+threshold"). Canonical pick: higher `confidence`, then source priority (livewhale >
+athletics_ics > cab > clubs > manual > bdh), then earliest `first_seen_at`, then smallest id
+— deterministic and idempotent; re-runs mark nothing new. Pre-existing duplicates whose
+canonical itself gets marked are re-pointed so `canonical_id` always lands on a canonical
+row. `--dry-run` prints the planned assignments as NDJSON without writing (it still reads
+`DATABASE_URL` — candidates live in the DB). Every non-dry run writes a `source_runs` row
+(`source = 'dedup'`). Logic split: `src/dedup/cluster.ts` is pure (union-find clustering +
+canonical pick, offline-tested in `test/dedup.test.ts`); the SQL text is built by
+`buildCandidatePairsQuery` (also offline-tested); the end-to-end path runs in CI's postgis
+job via `test/dedup.integration.test.ts` plus a `pnpm poll dedup` one-shot with psql
+invariant assertions.
 
 **Truncated fetches** — LiveWhale ignores small `?max=` values and caps the feed server-side:
 the recorded response to `?max=500` is exactly 1000 rows, sorted ascending by start. A fetch

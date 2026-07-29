@@ -17,6 +17,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:seed": "pnpm --filter @brownsync/db seed",
+    "db:seed-check": "pnpm --filter @brownsync/db seed-check",
     "poll": "pnpm --filter @brownsync/poller poll"
   },
   "devDependencies": {

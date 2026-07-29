@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["seed.ts"]
+  "include": ["seed.ts", "seed-check.ts", "ndjson.ts"]
 }

@@ -59,7 +59,7 @@ export const orgRow: OrgRow = {
 };
 
 export const meetingRow: MeetingRow = {
-  id: "202710-17538-0",
+  id: "202610-17538-0",
   course_code: "CSCI 0150",
   title: "Introduction to Object-Oriented Programming",
   instructor: "A. van Dam",
