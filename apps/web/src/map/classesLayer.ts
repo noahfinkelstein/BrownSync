@@ -69,9 +69,12 @@ export function blendHex(base: string, tint: string, t: number): string {
   return `#${mix.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** Basemap building colors — keep in sync with map/style.json. */
-export const BUILDING_3D_BASE = "#1A202A";
-export const BUILDING_2D_BASE = "#151A22";
+/**
+ * Basemap building colors, deduplicated into ./buildingColors (style.json is
+ * the source of truth; a test asserts equality). Re-exported here so every
+ * consumer keeps one import site.
+ */
+export { BUILDING_2D_BASE, BUILDING_3D_BASE } from "./buildingColors";
 
 /** Fully-active building tint: the `class` category hue, kept dark. */
 const CLASS_TINT = CATEGORY_BY_ID.class.colorHex;
