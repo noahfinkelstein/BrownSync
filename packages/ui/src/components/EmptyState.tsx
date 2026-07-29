@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "../cn";
 
 export type EmptyStateProps = {
-  /** e.g. <CategoryIcon category="club" size={24} /> — rendered faint. */
+  /** e.g. <CategoryIcon category="club" size={24} /> — rendered muted. */
   icon?: ReactNode;
   title: ReactNode;
   /** Real copy, not "no data" — say what to do next (§6.4). */
@@ -21,9 +21,9 @@ export function EmptyState({ icon, title, body, action, className }: EmptyStateP
         className,
       )}
     >
-      {icon && <div className="mb-2 text-text-faint">{icon}</div>}
+      {icon && <div className="mb-2 text-text-secondary">{icon}</div>}
       <div className="text-15 font-medium tracking-tight text-text-secondary">{title}</div>
-      {body && <div className="max-w-[38ch] text-13 text-text-faint">{body}</div>}
+      {body && <div className="max-w-[38ch] text-13 text-text-secondary">{body}</div>}
       {action && <div className="mt-3">{action}</div>}
     </div>
   );

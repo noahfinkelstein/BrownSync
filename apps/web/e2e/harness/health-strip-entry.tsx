@@ -13,7 +13,7 @@ createRoot(root).render(
   <StrictMode>
     <div className="flex max-w-2xl flex-col gap-8">
       <section className="flex flex-col gap-2">
-        <h2 className="font-mono text-12 tracking-[0.08em] text-text-faint uppercase">
+        <h2 className="font-mono text-12 tracking-[0.08em] text-text-secondary uppercase">
           HealthStrip
         </h2>
         <div className="flex justify-end">
@@ -21,7 +21,9 @@ createRoot(root).render(
         </div>
       </section>
       <section className="flex flex-col gap-2" data-testid="states-gallery">
-        <h2 className="font-mono text-12 tracking-[0.08em] text-text-faint uppercase">States</h2>
+        <h2 className="font-mono text-12 tracking-[0.08em] text-text-secondary uppercase">
+          States
+        </h2>
         <EmptyEvents onWidenWindow={() => {}} />
         <ErrorState what="events" detail="GET /api/events 503" bordered onRetry={() => {}} />
         <ListSkeleton />

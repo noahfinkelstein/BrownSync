@@ -14,7 +14,8 @@ body {
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
   background: color-mix(in srgb, var(--bg-base) 78%, transparent);
   border-radius: 4px;
-  color: var(--text-faint);
+  /* --text-secondary, not faint: attribution is 12 px TEXT (WCAG AA §6.1). */
+  color: var(--text-secondary);
   font-size: 12px;
   padding: 1px 6px;
 }

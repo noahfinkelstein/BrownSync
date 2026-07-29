@@ -70,7 +70,7 @@ export function SegmentedControl<V extends string>({
               density === "comfortable" ? "h-7" : "h-6",
               selected
                 ? "bg-bg-overlay text-text-primary"
-                : "text-text-faint hover:text-text-secondary",
+                : "text-text-secondary hover:text-text-primary",
               FOCUS_RING,
             )}
           >

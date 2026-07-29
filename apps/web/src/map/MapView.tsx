@@ -160,7 +160,7 @@ export function MapView({ onMapLoad, children }: MapViewProps) {
             </button>
           </div>
         ) : (
-          <p className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#566070]">
+          <p className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#8B94A3]">
             Loading basemap…
           </p>
         )}

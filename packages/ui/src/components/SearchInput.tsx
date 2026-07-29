@@ -29,11 +29,11 @@ export function SearchInput({
         className,
       )}
     >
-      <SearchGlyph className="h-3.5 w-3.5 shrink-0 text-text-faint" />
+      <SearchGlyph className="h-3.5 w-3.5 shrink-0 text-text-secondary" />
       <input
         type="search"
         value={value}
-        className="w-full min-w-0 grow bg-transparent text-13 text-text-primary outline-none placeholder:text-text-faint [&::-webkit-search-cancel-button]:hidden"
+        className="w-full min-w-0 grow bg-transparent text-13 text-text-primary outline-none placeholder:text-text-secondary [&::-webkit-search-cancel-button]:hidden"
         {...props}
       />
       {hasValue && onClear ? (
@@ -41,7 +41,7 @@ export function SearchInput({
           type="button"
           aria-label="Clear search"
           onClick={onClear}
-          className="shrink-0 text-text-faint transition-colors duration-150 ease-out hover:text-text-primary"
+          className="shrink-0 text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary"
         >
           <CloseGlyph className="h-3 w-3" />
         </button>

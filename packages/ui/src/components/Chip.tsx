@@ -39,7 +39,7 @@ export function Chip({ category, selected = false, count, onToggle, className }:
         style={{ background: `var(${meta.colorToken})`, opacity: selected ? 1 : 0.55 }}
       />
       {meta.label}
-      {count != null && <span className="font-mono text-12 text-text-faint">{count}</span>}
+      {count != null && <span className="font-mono text-12 text-text-secondary">{count}</span>}
     </button>
   );
 }

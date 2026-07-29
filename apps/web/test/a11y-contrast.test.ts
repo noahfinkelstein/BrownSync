@@ -99,9 +99,10 @@ describe("documented failure: --text-faint is NOT a text color", () => {
     // --text-faint remains legitimate for non-text ornament: hairline
     // borders, tick marks, aria-hidden geometry.
     //
-    // KNOWN out-of-lane usages left in @brownsync/ui (needs its own pass):
-    // Kbd, TimelineRow `sub`, Chip `count`, StatusDot `detail`, DataTable
-    // headers, EmptyState `body`/icon, SearchInput placeholder/glyph.
+    // The matching @brownsync/ui component pass lives in
+    // packages/ui/src/contrast.test.ts (Kbd, TimelineRow `sub`, Chip `count`,
+    // StatusDot `detail`, DataTable headers, EmptyState body/icon,
+    // SearchInput placeholder/glyph, SegmentedControl inactive labels).
     for (const bg of Object.values(BACKGROUNDS)) {
       expect(contrastRatio(tokens.text.faint, bg)).toBeLessThan(AA_TEXT);
     }
@@ -110,6 +111,9 @@ describe("documented failure: --text-faint is NOT a text color", () => {
   it("regression scan: no text-colored --text-faint usage in app source", () => {
     const srcRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
     const offenders: string[] = [];
+    const faintHex = tokens.text.faint.replace("#", "");
+    // The map pane styles with raw hex by design — catch text-[#566070] too.
+    const rawHexText = new RegExp(`text-\\[#${faintHex}\\]`, "i");
     const walk = (dir: string): void => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, entry.name);
@@ -117,10 +121,19 @@ describe("documented failure: --text-faint is NOT a text color", () => {
           walk(path);
           continue;
         }
-        if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+        const isCss = /\.css$/.test(entry.name);
+        if (!/\.(ts|tsx|css)$/.test(entry.name)) continue;
         const text = readFileSync(path, "utf8");
         // Text-painting utilities only; border-text-faint / bg-* stay legal.
-        if (/(?:^|[^-\w])text-text-faint|placeholder:text-text-faint/.test(text)) {
+        if (
+          !isCss &&
+          (/(?:^|[^-\w])text-text-faint|placeholder:text-text-faint/.test(text) ||
+            rawHexText.test(text))
+        ) {
+          offenders.push(path.slice(srcRoot.length + 1));
+        }
+        // Stylesheets: `color: var(--text-faint)` paints text (map chrome).
+        if (isCss && /color:\s*var\(--text-faint\)/.test(text)) {
           offenders.push(path.slice(srcRoot.length + 1));
         }
       }
