@@ -20,10 +20,13 @@ export * from "./cluster";
  *
  * Detection = candidate BLOCKING in SQL, then pg_trgm title similarity:
  * - time-window block: start_ts within `timeWindowMinutes` of each other;
- * - place block: same resolved place_id, or coordinates within
- *   `coordRadiusMeters` (athletics home venues vs LiveWhale coords), or at
- *   least one side is unlocated (no place_id AND no coords — bdh, away games)
- *   so place evidence cannot rule the pair out;
+ * - place block: same resolved place_id, or EFFECTIVE coordinates within
+ *   `coordRadiusMeters` — a row's effective coords are its feed coords when
+ *   present, else its resolved place's gazetteer centroid (athletics home
+ *   rows carry place_id but NO feed coords, LiveWhale rows carry coords but
+ *   NO place_id — the gazetteer fallback is what lets that pair block at
+ *   all) — or at least one side is unlocated (no place_id AND no coords —
+ *   bdh, away games) so place evidence cannot rule the pair out;
  * - decision: similarity(title, title) >= `titleSimilarityThreshold`. The
  *   threshold is contract §2's trigram threshold (0.55, "never guess below
  *   threshold") applied to titles.
@@ -31,7 +34,10 @@ export * from "./cluster";
  * Only current canonical rows (canonical_id IS NULL) are candidates — a row
  * already marked duplicate stays with its cluster; re-running is idempotent.
  * Cross-source only: same-source duplicates are prevented upstream by the
- * (source, source_id) upsert key.
+ * (source, source_id) upsert key, and enforced again during clustering —
+ * clusterPairs never places two rows of one source in the same cluster, so
+ * an unlocated bridge row cannot transitively fuse two occurrences of a
+ * pre-expanded series (see cluster.ts).
  */
 
 export type DedupConfig = {
@@ -67,9 +73,17 @@ export function buildCandidatePairsQuery(cfg: DedupConfig): {
 } {
   const text = `
 with canonical as (
-  select id, source, title, start_ts, place_id, lat, lng, confidence, first_seen_at
-  from events
-  where canonical_id is null
+  select
+    e.id, e.source, e.title, e.start_ts, e.place_id,
+    -- Effective coords: feed coords when the source provides a full pair,
+    -- else the gazetteer centroid of the resolved place (contract §5 —
+    -- athletics home venues resolve place_id and carry no coords).
+    case when e.lat is not null and e.lng is not null then e.lat else p.lat end as lat,
+    case when e.lat is not null and e.lng is not null then e.lng else p.lng end as lng,
+    e.confidence, e.first_seen_at
+  from events e
+  left join places p on p.id = e.place_id
+  where e.canonical_id is null
 )
 select
   a.id            as a_id,
@@ -174,7 +188,7 @@ export async function runDedup(
       confidence: r.b_confidence,
       firstSeenAt: r.b_first_seen_at.toISOString(),
     });
-    pairs.push({ aId: r.a_id, bId: r.b_id });
+    pairs.push({ aId: r.a_id, bId: r.b_id, similarity: r.title_similarity });
   }
 
   const assignments = resolveAssignments(membersById, pairs, cfg.sourcePriority);

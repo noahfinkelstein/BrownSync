@@ -22,7 +22,12 @@ export type DedupMember = {
 };
 
 /** One blocked-and-similar candidate pair (unordered; SQL emits each once). */
-export type DedupPair = { aId: string; bId: string };
+export type DedupPair = {
+  aId: string;
+  bId: string;
+  /** pg_trgm title similarity — stronger pairs union first (see clusterPairs). */
+  similarity?: number;
+};
 
 export type DedupAssignment = { duplicateId: string; canonicalId: string };
 
@@ -66,9 +71,28 @@ export function pickCanonical(
   return best;
 }
 
-/** Union-find over pair edges → connected components (clusters of size >= 2). */
-export function clusterPairs(pairs: readonly DedupPair[]): string[][] {
+/**
+ * Union-find over pair edges → connected components (clusters of size >= 2).
+ *
+ * When `sourceById` is provided the union is SOURCE-DISJOINT: a union that
+ * would put two rows of the same source into one component is skipped. Two
+ * same-source rows are by definition two different real events (the
+ * (source, source_id) upsert key dedupes within a source), so a cluster
+ * containing both would mark a real event as a duplicate. This is exactly the
+ * transitive-bridge hazard: an unlocated row (bdh, away games) blocks against
+ * everything in its time window, so it can pair with BOTH occurrences of a
+ * pre-expanded LiveWhale series — the bridge may join one occurrence, never
+ * fuse the two. Edges are processed strongest-similarity first (ties broken
+ * by id) so the bridge lands with its best match, deterministically. Ids
+ * missing from `sourceById` are treated as sourceless and never conflict.
+ */
+export function clusterPairs(
+  pairs: readonly DedupPair[],
+  sourceById?: ReadonlyMap<string, string>,
+): string[][] {
   const parent = new Map<string, string>();
+  /** Root → set of member sources (only tracked when constraining). */
+  const rootSources = sourceById ? new Map<string, Set<string>>() : null;
   const find = (x: string): string => {
     let root = x;
     while (true) {
@@ -86,13 +110,44 @@ export function clusterPairs(pairs: readonly DedupPair[]): string[][] {
     }
     return root;
   };
-  for (const { aId, bId } of pairs) {
+  const add = (id: string): void => {
+    if (parent.has(id)) return;
+    parent.set(id, id);
+    if (rootSources) {
+      const source = sourceById?.get(id);
+      rootSources.set(id, source === undefined ? new Set() : new Set([source]));
+    }
+  };
+  const ordered = [...pairs].sort(
+    (p, q) =>
+      (q.similarity ?? 0) - (p.similarity ?? 0) ||
+      (p.aId < q.aId ? -1 : p.aId > q.aId ? 1 : 0) ||
+      (p.bId < q.bId ? -1 : p.bId > q.bId ? 1 : 0),
+  );
+  for (const { aId, bId } of ordered) {
     if (aId === bId) continue; // self-pairs prove nothing
-    if (!parent.has(aId)) parent.set(aId, aId);
-    if (!parent.has(bId)) parent.set(bId, bId);
+    add(aId);
+    add(bId);
     const ra = find(aId);
     const rb = find(bId);
-    if (ra !== rb) parent.set(ra, rb);
+    if (ra === rb) continue;
+    if (rootSources) {
+      const sa = rootSources.get(ra) ?? new Set<string>();
+      const sb = rootSources.get(rb) ?? new Set<string>();
+      const [small, large] = sa.size <= sb.size ? [sa, sb] : [sb, sa];
+      let conflict = false;
+      for (const s of small) {
+        if (large.has(s)) {
+          conflict = true;
+          break;
+        }
+      }
+      if (conflict) continue; // union would repeat a source — evidence is ambiguous
+      for (const s of small) large.add(s);
+      rootSources.delete(ra);
+      rootSources.set(rb, large);
+    }
+    parent.set(ra, rb);
   }
   const byRoot = new Map<string, string[]>();
   for (const id of parent.keys()) {
@@ -107,15 +162,19 @@ export function clusterPairs(pairs: readonly DedupPair[]): string[][] {
 /**
  * Pairs → flat assignments: every non-canonical cluster member points DIRECTLY
  * at the cluster's canonical (never at another duplicate), so applying the
- * assignments can never create canonical_id chains.
+ * assignments can never create canonical_id chains. Clustering is
+ * source-disjoint (see clusterPairs), so no assignment can ever mark one
+ * same-source row a duplicate of another, directly or via a bridge.
  */
 export function resolveAssignments(
   membersById: ReadonlyMap<string, DedupMember>,
   pairs: readonly DedupPair[],
   sourcePriority: readonly string[],
 ): DedupAssignment[] {
+  const sourceById = new Map<string, string>();
+  for (const [id, m] of membersById) sourceById.set(id, m.source);
   const assignments: DedupAssignment[] = [];
-  for (const cluster of clusterPairs(pairs)) {
+  for (const cluster of clusterPairs(pairs, sourceById)) {
     const members = cluster.map((id) => {
       const m = membersById.get(id);
       if (m === undefined) throw new Error(`resolveAssignments: no metadata for event ${id}`);

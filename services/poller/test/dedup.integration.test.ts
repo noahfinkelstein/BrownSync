@@ -62,6 +62,13 @@ describe.skipIf(!url)("dedup job against a real migrated database", () => {
     // Test rows only — the never-delete rule is ingestion semantics, not test hygiene.
     await sql`delete from events where source like 'itest-dedup-%'`;
     await sql`delete from source_runs where source = 'dedup'`;
+    // Gazetteer venue for the home-game scenario: the athletics row resolves
+    // this place_id and carries NO coords (exactly what normalize.ts emits).
+    await sql`
+      insert into places (id, name, kind, lat, lng, source)
+      values ('itest-dedup-stadium', 'Chk Dedup Stadium', 'athletic', 41.828, -71.399, 'itest')
+      on conflict (id) do update set lat = excluded.lat, lng = excluded.lng
+    `;
 
     await upsertEvents(sql, [
       // ONE real-world game, three feeds. LiveWhale has coords; the ICS row
@@ -150,6 +157,51 @@ describe.skipIf(!url)("dedup job against a real migrated database", () => {
         title: "Chk Dedup Stale Duplicate Row",
         start_ts: "2026-10-10T18:00:00Z",
       }),
+      // PRODUCTION SHAPE — home game listed by both feeds: the athletics row
+      // has place_id but NO coords (normalize.ts hardcodes lat/lng null); the
+      // LiveWhale row has coords (~25 m from the venue centroid) but NO
+      // place_id. Only gazetteer-coordinate blocking can pair these.
+      ev({
+        source: SRC_ICS,
+        source_id: "rugby",
+        title: "Chk Dedup Women's Rugby vs. Harvard",
+        start_ts: "2026-10-11T17:00:00Z",
+        place_id: "itest-dedup-stadium",
+      }),
+      ev({
+        source: SRC_LW,
+        source_id: "rugby",
+        title: "Chk Dedup Women's Rugby vs Harvard University",
+        start_ts: "2026-10-11T17:30:00Z",
+        lat: 41.8281,
+        lng: -71.3992,
+      }),
+      // TRANSITIVE BRIDGE — a pre-expanded LiveWhale series (two occurrences,
+      // same title, 60 min apart) plus an unlocated bdh row between them.
+      // The bridge blocks against BOTH; it must merge with at most one and
+      // must never fuse the two same-source occurrences.
+      ev({
+        source: SRC_LW,
+        source_id: "tour-early",
+        title: "Chk Dedup Family Weekend Campus Tour",
+        start_ts: "2026-10-12T18:00:00Z",
+        lat: 41.8262,
+        lng: -71.4032,
+      }),
+      ev({
+        source: SRC_LW,
+        source_id: "tour-late",
+        title: "Chk Dedup Family Weekend Campus Tour",
+        start_ts: "2026-10-12T19:00:00Z",
+        lat: 41.8262,
+        lng: -71.4032,
+      }),
+      ev({
+        source: SRC_BDH,
+        source_id: "tour-story",
+        title: "Chk Dedup Family Weekend Campus Tour",
+        start_ts: "2026-10-12T18:30:00Z",
+      }),
     ]);
 
     // OLD -> ICS game. When this run marks the ICS row itself a duplicate of
@@ -178,6 +230,25 @@ describe.skipIf(!url)("dedup job against a real migrated database", () => {
     expect(await canonicalOf(SRC_BDH, "game")).toBe(lwId);
     expect(await canonicalOf(SRC_LW, "game")).toBeNull(); // canonical stays canonical
     expect(summary.marked).toBeGreaterThanOrEqual(2);
+  });
+
+  it("pairs an athletics home game (place, no coords) with its LiveWhale twin (coords, no place)", async () => {
+    // Regression: with raw-coords-only blocking this pair was structurally
+    // unreachable — every home game listed by both feeds stayed a visible
+    // cross-source duplicate forever.
+    const lwRugbyId = await idOf(SRC_LW, "rugby");
+    expect(await canonicalOf(SRC_ICS, "rugby")).toBe(lwRugbyId);
+    expect(await canonicalOf(SRC_LW, "rugby")).toBeNull();
+  });
+
+  it("lets an unlocated bridge merge with ONE series occurrence, never fusing the series", async () => {
+    // Regression: the bridge used to union both occurrences into one cluster
+    // and mark a REAL second occurrence duplicate of the first (same source).
+    const earlyId = await idOf(SRC_LW, "tour-early");
+    const lateId = await idOf(SRC_LW, "tour-late");
+    expect(await canonicalOf(SRC_LW, "tour-early")).toBeNull();
+    expect(await canonicalOf(SRC_LW, "tour-late")).toBeNull();
+    expect([earlyId, lateId]).toContain(await canonicalOf(SRC_BDH, "tour-story"));
   });
 
   it("leaves decoys alone: wrong title, wrong time, wrong place, same source", async () => {

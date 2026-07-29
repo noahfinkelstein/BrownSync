@@ -37,7 +37,7 @@ describe("buildCandidatePairsQuery", () => {
   });
 
   it("considers only canonical rows and only cross-source pairs, each once", () => {
-    expect(text).toContain("where canonical_id is null");
+    expect(text).toContain("where e.canonical_id is null");
     expect(text).toContain("b.source <> a.source");
     expect(text).toContain("b.id > a.id");
   });
@@ -51,6 +51,20 @@ describe("buildCandidatePairsQuery", () => {
     // Unlocated rows (no place, no coords) cannot be ruled out by place.
     expect(text).toContain("a.place_id is null and a.lat is null");
     expect(text).toContain("b.place_id is null and b.lat is null");
+  });
+
+  it("resolves gazetteer coordinates so place-only rows can coord-block", () => {
+    // Athletics home rows carry place_id but NO feed coords (normalize.ts
+    // hardcodes lat/lng null); LiveWhale rows carry coords but NO place_id.
+    // The coord arm can only ever fire for that pair if place-only rows fall
+    // back to the gazetteer centroid.
+    expect(text).toContain("left join places");
+    expect(text).toMatch(
+      /case when e\.lat is not null and e\.lng is not null then e\.lat else p\.lat end/,
+    );
+    expect(text).toMatch(
+      /case when e\.lat is not null and e\.lng is not null then e\.lng else p\.lng end/,
+    );
   });
 
   it("threads custom config through the params", () => {
@@ -88,6 +102,58 @@ describe("clusterPairs", () => {
 
   it("is empty for no pairs", () => {
     expect(clusterPairs([])).toEqual([]);
+  });
+
+  describe("source-disjoint constraint (same-source rows are distinct events)", () => {
+    const sources = new Map([
+      ["lwA", "livewhale"],
+      ["lwB", "livewhale"],
+      ["bdh", "bdh"],
+    ]);
+
+    it("never lets a bridge row transitively merge two same-source rows", () => {
+      // The production shape: an unlocated bdh row blocks against BOTH
+      // occurrences of a LiveWhale pre-expanded series (hourly tours).
+      const clusters = clusterPairs(
+        [
+          { aId: "lwA", bId: "bdh" },
+          { aId: "lwB", bId: "bdh" },
+        ],
+        sources,
+      );
+      expect(clusters).toEqual([["bdh", "lwA"]]); // lwB stays out — its union would repeat 'livewhale'
+    });
+
+    it("prefers the strongest pair when a bridge could join either side", () => {
+      const clusters = clusterPairs(
+        [
+          { aId: "lwA", bId: "bdh", similarity: 0.6 },
+          { aId: "lwB", bId: "bdh", similarity: 0.9 },
+        ],
+        sources,
+      );
+      expect(clusters).toEqual([["bdh", "lwB"]]);
+    });
+
+    it("refuses direct same-source pairs outright (defense in depth vs SQL)", () => {
+      expect(clusterPairs([{ aId: "lwA", bId: "lwB" }], sources)).toEqual([]);
+    });
+
+    it("still merges freely across distinct sources", () => {
+      const map = new Map([
+        ["lw", "livewhale"],
+        ["ics", "athletics_ics"],
+        ["bdh", "bdh"],
+      ]);
+      const clusters = clusterPairs(
+        [
+          { aId: "lw", bId: "ics" },
+          { aId: "ics", bId: "bdh" },
+        ],
+        map,
+      );
+      expect(clusters).toEqual([["bdh", "ics", "lw"]]);
+    });
   });
 });
 
@@ -168,6 +234,40 @@ describe("resolveAssignments", () => {
       { duplicateId: "a2", canonicalId: "a1" },
       { duplicateId: "b2", canonicalId: "b1" },
     ]);
+  });
+
+  it("never assigns a same-source duplicate — bridged twins keep one row canonical", () => {
+    // Finding repro: two occurrences of a LiveWhale series + one unlocated
+    // bdh bridge. The old behavior merged all three and marked lwB a
+    // duplicate of lwA — vanishing a REAL second occurrence from the API.
+    const lwA = member({ id: "lwA", source: "livewhale" });
+    const lwB = member({ id: "lwB", source: "livewhale" });
+    const bdh = member({ id: "bdh", source: "bdh" });
+    const assignments = resolveAssignments(
+      membersMap(lwA, lwB, bdh),
+      [
+        { aId: "lwA", bId: "bdh" },
+        { aId: "lwB", bId: "bdh" },
+      ],
+      priority,
+    );
+    expect(assignments).toEqual([{ duplicateId: "bdh", canonicalId: "lwA" }]);
+  });
+
+  it("keeps both same-source rows canonical when a shared cross-source twin exists", () => {
+    // {ATH-a, ATH-b, LW}: LW can absorb at most ONE athletics row.
+    const athA = member({ id: "athA", source: "athletics_ics" });
+    const athB = member({ id: "athB", source: "athletics_ics" });
+    const lw = member({ id: "lw", source: "livewhale" });
+    const assignments = resolveAssignments(
+      membersMap(athA, athB, lw),
+      [
+        { aId: "athA", bId: "lw" },
+        { aId: "athB", bId: "lw" },
+      ],
+      priority,
+    );
+    expect(assignments).toEqual([{ duplicateId: "athA", canonicalId: "lw" }]);
   });
 
   it("throws when pair metadata is missing (SQL and clustering out of sync)", () => {
