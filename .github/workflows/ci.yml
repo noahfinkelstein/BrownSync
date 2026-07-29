@@ -25,6 +25,14 @@ jobs:
       - run: pnpm turbo run typecheck test build
       - name: Seed QA sweep (offline — schemas, FKs, manifest hashes)
         run: pnpm db:seed-check
+      - name: Install Playwright chromium
+        run: pnpm --filter @brownsync/web exec playwright install --with-deps chromium
+      - name: Hermetic e2e (smoke, journey, a11y, perf tripwire)
+        # PERF_ENFORCE stays UNSET here on purpose: headless SwiftShader cannot
+        # meet the 32 ms p95 soft budget (p95 ~170-230 ms warm); the always-on
+        # 1.5 s tripwire in perf.e2e.ts still catches regression storms. Run
+        # PERF_ENFORCE=1 on GPU hardware for the real gate.
+        run: pnpm --filter @brownsync/web e2e
 
   migrate:
     runs-on: ubuntu-latest

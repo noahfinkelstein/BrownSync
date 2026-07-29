@@ -6,8 +6,9 @@ import { defineConfig, devices } from "@playwright/test";
  * and aborts all other external requests — tests never touch live servers.
  *
  * Files are named *.e2e.ts (not *.spec/test) so Vitest never picks them up.
- * Deliberately NOT wired into the turbo pipeline — `pnpm e2e` runs it; CI
- * wiring happens at integration (Phase 3).
+ * Deliberately NOT wired into the turbo pipeline — `pnpm e2e` runs it, and
+ * CI runs it as a dedicated step in .github/workflows/ci.yml (wired at
+ * Phase 3 integration; PERF_ENFORCE stays unset there — see perf.e2e.ts).
  */
 export default defineConfig({
   testDir: "./e2e",
