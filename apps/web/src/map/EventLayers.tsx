@@ -72,6 +72,14 @@ export function EventLayers({ data, eventsById, onHover, onSelect }: EventLayers
     };
 
     const handleMove = (e: MapMouseEvent): void => {
+      // Perf: `mousemove` also fires throughout drag-pans/zooms —
+      // `queryRenderedFeatures` mid-animation burns the 16 ms frame budget.
+      // Hover resolves again on the first still frame.
+      if (map.isMoving()) {
+        map.getCanvas().style.cursor = "";
+        onHover(null);
+        return;
+      }
       const feature = featureAt(e);
       if (!feature) {
         map.getCanvas().style.cursor = "";

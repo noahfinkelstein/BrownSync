@@ -12,7 +12,7 @@ export type StatusDotProps = {
   status: SourceStatus;
   /** Source name, mono — "livewhale". */
   label?: string;
-  /** Staleness readout, mono faint — "4 min ago". */
+  /** Staleness readout, mono muted — "4 min ago". */
   detail?: string;
   className?: string;
 };
@@ -27,7 +27,7 @@ export function StatusDot({ status, label, detail, className }: StatusDotProps) 
         style={{ background: STATUS_COLOR[status] }}
       />
       {label && <span className="font-mono text-12 text-text-secondary">{label}</span>}
-      {detail && <span className="font-mono text-12 text-text-faint">{detail}</span>}
+      {detail && <span className="font-mono text-12 text-text-secondary">{detail}</span>}
       <span className="sr-only">{status}</span>
     </span>
   );

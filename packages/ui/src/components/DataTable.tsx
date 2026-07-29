@@ -45,7 +45,7 @@ export function DataTable<T>({
               scope="col"
               style={col.width ? { width: col.width } : undefined}
               className={cn(
-                "border-b border-line px-2 pb-1.5 text-left font-mono text-12 font-normal uppercase tracking-[0.08em] text-text-faint",
+                "border-b border-line px-2 pb-1.5 text-left font-mono text-12 font-normal uppercase tracking-[0.08em] text-text-secondary",
                 col.align === "right" && "text-right",
               )}
             >

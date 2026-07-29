@@ -19,7 +19,7 @@ export function AppHeader() {
         <span className="text-15 font-semibold tracking-[-0.02em] text-text-primary">
           BrownSync
         </span>
-        <span className="hidden font-mono text-12 text-text-faint 2xl:inline">
+        <span className="hidden font-mono text-12 text-text-secondary 2xl:inline">
           COLLEGE HILL · 41.827°N 71.403°W
         </span>
       </div>

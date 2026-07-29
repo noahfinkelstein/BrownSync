@@ -62,6 +62,12 @@ describe("isDbUnavailable", () => {
     expect(isDbUnavailable(wrapped)).toBe(true);
   });
 
+  it("recognizes workerd socket failures, which carry no code", () => {
+    // Cloudflare Workers runtime rejects with a bare Error on TCP failure
+    // (observed via wrangler dev with the DB down — see src/worker.ts).
+    expect(isDbUnavailable(new Error("connection attempt failed"))).toBe(true);
+  });
+
   it("does not classify ordinary errors as unavailability", () => {
     expect(isDbUnavailable(new Error("syntax error"))).toBe(false);
     expect(isDbUnavailable({ code: "23505" })).toBe(false); // unique violation

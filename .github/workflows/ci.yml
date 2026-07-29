@@ -23,6 +23,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm turbo run typecheck test build
+      - name: Seed QA sweep (offline — schemas, FKs, manifest hashes)
+        run: pnpm db:seed-check
+      - name: Install Playwright chromium
+        run: pnpm --filter @brownsync/web exec playwright install --with-deps chromium
+      - name: Hermetic e2e (smoke, journey, a11y, perf tripwire)
+        # PERF_ENFORCE stays UNSET here on purpose: headless SwiftShader cannot
+        # meet the 32 ms p95 soft budget (p95 ~170-230 ms warm); the always-on
+        # 1.5 s tripwire in perf.e2e.ts still catches regression storms. Run
+        # PERF_ENFORCE=1 on GPU hardware for the real gate.
+        run: pnpm --filter @brownsync/web e2e
 
   migrate:
     runs-on: ubuntu-latest
@@ -49,6 +59,8 @@ jobs:
           done
       - name: Read-API SQL semantic checks (rollback-safe)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0002_api_checks.sql
+      - name: Term-reconciliation SQL checks (rollback-safe, re-applies 0003 for idempotency)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0003_term_checks.sql
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -60,8 +72,8 @@ jobs:
         run: pnpm db:seed
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-      - name: Poller DB integration tests (upsertEvents, cancelUnseen, recordSourceRun)
-        run: pnpm --filter @brownsync/poller exec vitest run test/db.integration.test.ts
+      - name: Poller DB integration tests (upsert/sweep/source_runs + cross-source dedup)
+        run: pnpm --filter @brownsync/poller exec vitest run test/db.integration.test.ts test/dedup.integration.test.ts
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       - name: Poller one-shot from recorded fixtures (non-dry-run)
@@ -71,6 +83,32 @@ jobs:
           pnpm poll all --fixture
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Cross-source dedup one-shot over the ingested fixtures
+        run: pnpm poll dedup
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Assert dedup invariants held
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          check() {
+            local desc="$1" query="$2" got
+            got=$(psql -h localhost -U postgres -d postgres -tAc "$query")
+            if [ "$got" != "t" ]; then
+              echo "FAIL: $desc — ($query) returned '$got'"
+              exit 1
+            fi
+            echo "ok: $desc"
+          }
+          check "dedup run recorded ok in source_runs" \
+            "select count(*) >= 1 from source_runs where source = 'dedup' and status = 'ok'"
+          check "no canonical chains (canonical_id always points at a canonical row)" \
+            "select count(*) = 0 from events d join events c on d.canonical_id = c.id where c.canonical_id is not null"
+          check "no self-referencing canonical_id" \
+            "select count(*) = 0 from events where canonical_id = id"
+          check "dedup never deletes — all fixture sources still present" \
+            "select count(distinct source) = 3 from events where source in ('livewhale', 'athletics_ics', 'bdh')"
       - name: Assert poller rows actually landed
         env:
           PGPASSWORD: postgres

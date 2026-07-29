@@ -8,25 +8,53 @@ body {
 
 /*
  * Map chrome (§6.3): attribution small, dark, bottom-right. MapLibre ships a
- * light default; re-skin to the token palette.
+ * light default; re-skin to the token palette — custom properties from
+ * @brownsync/ui only, no raw hex (Phase 3 token hygiene).
  */
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  background: rgb(11 14 18 / 0.78);
+  background: color-mix(in srgb, var(--bg-base) 78%, transparent);
   border-radius: 4px;
-  color: #566070;
+  /* --text-secondary, not faint: attribution is 12 px TEXT (WCAG AA §6.1). */
+  color: var(--text-secondary);
   font-size: 12px;
   padding: 1px 6px;
 }
 
 .maplibregl-ctrl-attrib a {
-  color: #8b94a3;
+  color: var(--text-secondary);
   text-decoration: none;
 }
 
 .maplibregl-ctrl-attrib a:hover {
-  color: #e8ecf1;
+  color: var(--text-primary);
 }
 
 .maplibregl-ctrl-attrib-button {
   filter: invert(0.65);
+}
+
+/*
+ * Route-level pending states (§6.4, router.tsx): Suspense fallbacks for the
+ * lazy profile chunks ignore defaultPendingMs, so the skeleton holds
+ * invisible for its first 150 ms — a warm-cache chunk load swaps the real
+ * page in before anything can flash.
+ */
+.bs-route-pending {
+  animation: bs-route-pending-in 200ms var(--motion-ease) 150ms both;
+}
+
+@keyframes bs-route-pending-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-route-pending {
+    /* Appears instantly — never a fade, and never an undesigned blank. */
+    animation: none;
+  }
 }

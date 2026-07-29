@@ -11,12 +11,17 @@ import {
   SourceBadge,
 } from "@brownsync/ui";
 import type { ReactNode } from "react";
+import { useFocusReturn } from "../browse/useFocusReturn";
 import { eventTimeLabel, fmtDay, fmtRange, minutesUntil } from "../data/format";
 import { useEventDetail } from "../data/queries";
 import { DEFAULT_DURATION_MS, isStartingSoon } from "../map/eventsLayer";
 import { ErrorState } from "../ops/states/error";
 import { PanelSkeleton } from "../ops/states/skeletons";
-import { downloadIcs } from "./ics";
+
+/** ICS builder loads on demand (Phase 3 perf) — never in the boot bundle. */
+function addToCalendar(event: EventOut): void {
+  void import("./ics").then(({ downloadIcs }) => downloadIcs(event));
+}
 
 export type EventDetailPanelProps = {
   open: boolean;
@@ -27,10 +32,20 @@ export type EventDetailPanelProps = {
   cursor: Date;
 };
 
+/**
+ * WHERE dedupe: feeds usually echo the resolved place name verbatim in
+ * `location_raw` — print the raw line only when it adds information beyond
+ * the resolved name (whitespace- and case-insensitive comparison).
+ */
+export function locationRawAddsInfo(locationRaw: string, resolvedName: string): boolean {
+  const normalize = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  return normalize(locationRaw) !== normalize(resolvedName);
+}
+
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section className="border-b border-line py-3 first:pt-1 last:border-b-0">
-      <h3 className="pb-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-faint">
+      <h3 className="pb-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
         {label}
       </h3>
       <div className="text-13 leading-relaxed text-text-primary">{children}</div>
@@ -50,6 +65,9 @@ export function EventDetailPanel({
   seed,
   cursor,
 }: EventDetailPanelProps) {
+  // State-driven dialog (no Radix Trigger): Escape must return focus to the
+  // invoking list row / pin (§6.4) — Radix alone would drop it on <body>.
+  useFocusReturn(open);
   const detailQuery = useEventDetail(open ? eventId : null);
   const detail = detailQuery.data ?? null;
   const event: EventOut | null = detail ?? seed;
@@ -89,6 +107,11 @@ export function EventDetailPanel({
   const meta = CATEGORY_BY_ID[event.category];
   const place = detail?.place ?? null;
   const org = detail?.org ?? null;
+  const resolvedPlaceName = place?.name ?? event.placeName ?? null;
+  const showLocationRaw =
+    event.locationRaw != null &&
+    resolvedPlaceName != null &&
+    locationRawAddsInfo(event.locationRaw, resolvedPlaceName);
 
   return (
     <Panel
@@ -114,7 +137,7 @@ export function EventDetailPanel({
                 open source ↗
               </a>
             )}
-            <Button variant="primary" onClick={() => downloadIcs(event)}>
+            <Button variant="primary" onClick={() => addToCalendar(event)}>
               Add to calendar
             </Button>
           </div>
@@ -140,19 +163,19 @@ export function EventDetailPanel({
       <Section label="When">
         <div className="font-mono text-13">
           {fmtDay(start)} · {event.allDay ? "all day" : fmtRange(start, end)}
-          <span className="text-text-faint"> ET</span>
+          <span className="text-text-secondary"> ET</span>
         </div>
       </Section>
 
       <Section label="Where">
         {place || event.placeName || event.locationRaw ? (
           <>
-            <div>{place?.name ?? event.placeName ?? event.locationRaw}</div>
-            {event.locationRaw && (place?.name ?? event.placeName) && (
+            <div>{resolvedPlaceName ?? event.locationRaw}</div>
+            {showLocationRaw && (
               <div className="pt-0.5 text-12 text-text-secondary">{event.locationRaw}</div>
             )}
             {place?.address && (
-              <div className="pt-0.5 font-mono text-12 text-text-faint">{place.address}</div>
+              <div className="pt-0.5 font-mono text-12 text-text-secondary">{place.address}</div>
             )}
           </>
         ) : (

@@ -11,6 +11,7 @@ import { Command } from "cmdk";
 import { type ReactNode, useDeferredValue, useState } from "react";
 import { MIN_QUERY_LENGTH, useSearch } from "../data/search";
 import { formatDayTime } from "./format";
+import { useFocusReturn } from "./useFocusReturn";
 
 /**
  * ⌘K palette — handoff §2 H, re-themed per §6: dark, dense, mono metadata,
@@ -37,19 +38,22 @@ const GROUP_CLS = cn(
   "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2",
   "[&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-12",
   "[&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em]",
-  "[&_[cmdk-group-heading]]:text-text-faint",
+  "[&_[cmdk-group-heading]]:text-text-secondary",
 );
 
 function MonoTag({ children }: { children: ReactNode }) {
-  return <span className="shrink-0 font-mono text-12 text-text-faint">{children}</span>;
+  return <span className="shrink-0 font-mono text-12 text-text-secondary">{children}</span>;
 }
 
 /** Neutral geometric marker for rows without a category glyph. */
 function SquareMark() {
-  return <span aria-hidden className="h-1.5 w-1.5 shrink-0 border border-text-faint" />;
+  return <span aria-hidden className="h-1.5 w-1.5 shrink-0 border border-text-secondary" />;
 }
 
 export function SearchPalette({ open, onOpenChange, onSelectEvent }: SearchPaletteProps) {
+  // State-driven dialog (no Radix Trigger): hand focus back to the invoker
+  // (§6.4) — Radix alone would drop it on <body>.
+  useFocusReturn(open);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const { groups, total, active, pending, degraded } = useSearch(deferredQuery);
@@ -95,26 +99,26 @@ export function SearchPalette({ open, onOpenChange, onSelectEvent }: SearchPalet
       className="overflow-hidden rounded-6 border border-line bg-bg-raised"
     >
       <div className="flex items-center gap-2 border-b border-line px-3">
-        <SearchGlyph className="h-3.5 w-3.5 shrink-0 text-text-faint" />
+        <SearchGlyph className="h-3.5 w-3.5 shrink-0 text-text-secondary" />
         <Command.Input
           data-testid="search-input"
           value={query}
           onValueChange={setQuery}
           placeholder="Search events, places, clubs, courses…"
-          className="h-9 w-full min-w-0 grow bg-transparent text-13 text-text-primary outline-none placeholder:text-text-faint"
+          className="h-9 w-full min-w-0 grow bg-transparent text-13 text-text-primary outline-none placeholder:text-text-secondary"
         />
         <Kbd>esc</Kbd>
       </div>
 
       <Command.List className="max-h-[min(420px,60vh)] overflow-y-auto p-1.5">
         {!active ? (
-          <div className="px-2 py-4 font-mono text-12 text-text-faint">
+          <div className="px-2 py-4 font-mono text-12 text-text-secondary">
             Type {MIN_QUERY_LENGTH}+ characters — try "Salomon", "outing", or "CSCI 0150"
           </div>
         ) : (
           <>
             {degraded && (
-              <div role="alert" className="px-2 py-1 font-mono text-12 text-text-faint">
+              <div role="alert" className="px-2 py-1 font-mono text-12 text-text-secondary">
                 some sources unavailable — results may be partial
               </div>
             )}
@@ -221,7 +225,7 @@ export function SearchPalette({ open, onOpenChange, onSelectEvent }: SearchPalet
         )}
       </Command.List>
 
-      <div className="flex items-center gap-3 border-t border-line px-3 py-1.5 font-mono text-12 text-text-faint">
+      <div className="flex items-center gap-3 border-t border-line px-3 py-1.5 font-mono text-12 text-text-secondary">
         <span>↑↓ navigate</span>
         <span>↵ open</span>
         <span>esc close</span>

@@ -60,4 +60,30 @@ describe("CategoryChips (filter state shared via URL)", () => {
     await user.click(screen.getByRole("button", { name: "clear" }));
     await waitFor(() => expect("cats" in searchOf(router)).toBe(false));
   });
+
+  it("overflow affordance: edge fade + scroll snap, arrows still reach all 10 chips", async () => {
+    const user = userEvent.setup();
+    renderWithHarness(<CategoryChips />);
+    const group = await screen.findByRole("group", { name: "Filter by category" });
+
+    // The scrollbar is hidden by design — the mask edge fade plus snap ARE
+    // the overflow affordance; pin them so they cannot silently vanish.
+    expect(group.className).toContain("mask-image:linear-gradient");
+    expect(group.className).toContain("snap-x");
+    const chips = Array.from(group.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"));
+    expect(chips).toHaveLength(10);
+    for (const chip of chips) expect(chip.className).toContain("snap-start");
+
+    // Keyboard: ArrowRight roves through every one of the 10 chips in
+    // taxonomy order — overflow styling must never trap the roving focus.
+    chips[0]?.focus();
+    for (let i = 1; i < chips.length; i += 1) {
+      await user.keyboard("{ArrowRight}");
+      expect(document.activeElement).toBe(chips[i]);
+    }
+    await user.keyboard("{Home}");
+    expect(document.activeElement).toBe(chips[0]);
+    await user.keyboard("{End}");
+    expect(document.activeElement).toBe(chips[chips.length - 1]);
+  });
 });

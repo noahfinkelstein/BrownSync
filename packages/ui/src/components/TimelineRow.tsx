@@ -47,7 +47,7 @@ export function TimelineRow({
         <div className={cn("font-mono text-12", live ? "text-accent" : "text-text-secondary")}>
           {time}
         </div>
-        {sub && <div className="font-mono text-12 text-text-faint">{sub}</div>}
+        {sub && <div className="font-mono text-12 text-text-secondary">{sub}</div>}
       </div>
       <div className="relative flex w-4 shrink-0 justify-center self-stretch">
         <span aria-hidden className="absolute inset-y-0 w-px bg-line" />

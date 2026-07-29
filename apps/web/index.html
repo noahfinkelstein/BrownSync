@@ -17,9 +17,10 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
 
-    <!-- Open Graph / Twitter. og:image is site-relative until the production
-         host is fixed at deploy (Phase 3); most scrapers want an absolute
-         URL, so prefix the image tags there. -->
+    <!-- Open Graph / Twitter. og:image / twitter:image are site-relative
+         here; production builds MUST set VITE_CANONICAL_ORIGIN so the
+         build-time transform in vite.config.ts (brownsync:canonical-og)
+         rewrites them to absolute URLs — scrapers ignore relative ones. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="BrownSync" />
     <meta property="og:title" content="BrownSync — everything happening at Brown" />

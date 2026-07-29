@@ -120,7 +120,9 @@ export function OrgPage({ id, onSelectEvent }: OrgPageProps) {
 
       <SectionHeading count={past.length}>Past</SectionHeading>
       {past.length === 0 ? (
-        <div className="px-2 py-3 font-mono text-12 text-text-faint">no recorded past events</div>
+        <div className="px-2 py-3 font-mono text-12 text-text-secondary">
+          no recorded past events
+        </div>
       ) : (
         <div className="mt-1 opacity-70">
           {past.map((event) => (
@@ -156,7 +158,7 @@ function OrgEventRow({
       sub={event.allDay ? formatDayLabel(start, now) : formatRelative(now, start)}
       title={
         event.isCanceled ? (
-          <span className="text-text-faint line-through">{event.title}</span>
+          <span className="text-text-secondary line-through">{event.title}</span>
         ) : (
           event.title
         )

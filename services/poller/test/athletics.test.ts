@@ -71,4 +71,26 @@ describe("normalizeAthletics (recorded fixture)", () => {
     expect(away?.place_id).toBeNull();
     expect(away?.tags).toEqual([]);
   });
+
+  it("survives hostile numeric character references in VEVENT fields", () => {
+    // URL is the athletics field that goes through decodeEntities — a feed
+    // row carrying `&#x110000;` (out of Unicode range) must not throw.
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//hostile//EN",
+      "BEGIN:VEVENT",
+      "UID:hostile-1",
+      "SUMMARY:Game &#x110000; overflow &#xD800; surrogate",
+      "DTSTART:20260820T230000Z",
+      "URL:https://x.test/a?b=1&#x110000;c=2&#55296;d=3",
+      "END:VEVENT",
+      "END:VCALENDAR",
+      "",
+    ].join("\r\n");
+    const rows2 = normalizeAthletics(ics, noVenues);
+    expect(rows2.length).toBe(1);
+    expect(rows2[0]?.url).toBe("https://x.test/a?b=1�c=2�d=3");
+    expect(rows2[0]?.title).toBe("Game &#x110000; overflow &#xD800; surrogate");
+  });
 });

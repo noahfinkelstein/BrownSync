@@ -16,11 +16,24 @@ const NAMED_ENTITIES: Record<string, string> = {
   hellip: "…",
 };
 
+/**
+ * Numeric character reference → string, hostile-input safe. Feeds control the
+ * digits, and `String.fromCodePoint` THROWS on anything past 0x10FFFF (or on
+ * NaN/Infinity from overflow) — one bad title must never crash a poll run.
+ * Out-of-range values, NUL, and lone surrogates (unrepresentable in well-formed
+ * text) decode to U+FFFD REPLACEMENT CHARACTER, mirroring the HTML spec.
+ */
+function decodeCodePoint(cp: number): string {
+  if (!Number.isInteger(cp) || cp <= 0 || cp > 0x10ffff) return "�";
+  if (cp >= 0xd800 && cp <= 0xdfff) return "�";
+  return String.fromCodePoint(cp);
+}
+
 /** Decode the HTML entities LiveWhale/SIDEARM actually emit (`&amp;`, `&#8217;`, …). */
 export function decodeEntities(s: string): string {
   return s
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => String.fromCodePoint(Number.parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n: string) => decodeCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => decodeCodePoint(Number.parseInt(n, 16)))
     .replace(/&([a-z]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m);
 }
 

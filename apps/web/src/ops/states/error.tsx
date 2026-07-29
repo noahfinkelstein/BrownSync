@@ -45,7 +45,10 @@ export function ErrorState({
           : "The read API didn’t respond. It usually recovers on its own within a minute."}
       </div>
       {detail && (
-        <div className="mt-1 max-w-full truncate font-mono text-12 text-text-faint" title={detail}>
+        <div
+          className="mt-1 max-w-full truncate font-mono text-12 text-text-secondary"
+          title={detail}
+        >
           {detail}
         </div>
       )}

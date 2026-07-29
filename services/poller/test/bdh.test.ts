@@ -63,4 +63,21 @@ describe("normalizeBdh (recorded fixture)", () => {
     expect(out[0]?.source_id).toBe("g2");
     expect(out[0]?.start_ts).toBe("2026-07-28T16:00:00Z");
   });
+
+  it("survives hostile numeric character references (one bad article must not kill the run)", () => {
+    // `&amp;#x110000;` in the XML is the literal text `&#x110000;` after XML
+    // parsing — it reaches decodeEntities via stripHtml on the description.
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel>
+      <item>
+        <title>Overflow &amp;#x110000; attack</title>
+        <guid>hostile</guid>
+        <link>https://x.test/hostile</link>
+        <pubDate>Tue, 28 Jul 2026 12:00:00 -0400</pubDate>
+        <description>Body with &amp;#x110000; and &amp;#xD800; refs</description>
+      </item>
+    </channel></rss>`;
+    const out = normalizeBdh(xml);
+    expect(out.length).toBe(1);
+    expect(out[0]?.description).toBe("Body with � and � refs");
+  });
 });

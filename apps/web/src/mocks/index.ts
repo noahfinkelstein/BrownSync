@@ -6,12 +6,17 @@ export {
   type EventsFilter,
   getDefaultFixtureData,
   getEventDetail,
+  getOrgDetail,
+  getPlaceActivity,
   healthSnapshot,
+  listOrgs,
+  listPlaces,
   meetingsAt,
   nowSnapshot,
   queryEvents,
   resetDefaultFixtureData,
 } from "./fixtureApi";
+export { type FixtureResponse, fixtureRoute } from "./fixtureRoutes";
 export {
   campusDayToken,
   campusMinutes,

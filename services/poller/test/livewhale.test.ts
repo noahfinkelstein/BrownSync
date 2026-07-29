@@ -131,4 +131,15 @@ describe("normalizeLivewhaleEvent", () => {
     const ev = LivewhaleEventSchema.parse({ ...base, is_canceled: 1 });
     expect(normalizeLivewhaleEvent(ev, noOrgs).is_canceled).toBe(true);
   });
+
+  it("survives hostile numeric character references in titles", () => {
+    // decodeEntities runs on the title — an out-of-range or lone-surrogate
+    // reference in one event must not RangeError the whole poll run.
+    const ev = LivewhaleEventSchema.parse({
+      ...base,
+      title: "Concert &#x110000; tonight &#xD800; only",
+    });
+    const row = normalizeLivewhaleEvent(ev, noOrgs);
+    expect(row.title).toBe("Concert � tonight � only");
+  });
 });

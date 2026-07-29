@@ -5,6 +5,10 @@ import type {
   HealthOut,
   MeetingOut,
   NowOut,
+  OrgDetailOut,
+  OrgOut,
+  PlaceActivityOut,
+  PlaceOut,
 } from "@brownsync/contract";
 import { CATEGORY_IDS } from "@brownsync/contract";
 import { campusDayToken, campusMinutes, type FixtureData, makeFixtureData } from "./fixtures";
@@ -22,21 +26,37 @@ const DAY = 24 * HOUR;
 export type EventsFilter = {
   from?: string;
   to?: string;
+  /** "w,s,e,n" lng/lat — api_events envelope semantics. */
+  bbox?: string;
   category?: string;
   q?: string;
 };
+
+/** "w,s,e,n" → tuple, or null when malformed (malformed = unfiltered). */
+function parseBbox(bbox: string): [number, number, number, number] | null {
+  const parts = bbox.split(",").map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
+  return parts as [number, number, number, number];
+}
 
 /** Overlap semantics with contract defaults (from=at-issue "now", to=+7 d). */
 export function queryEvents(data: FixtureData, filter: EventsFilter = {}): EventOut[] {
   const from = filter.from ? Date.parse(filter.from) : data.base.getTime();
   const to = filter.to ? Date.parse(filter.to) : from + 7 * DAY;
   const q = filter.q?.toLowerCase();
+  const box = filter.bbox ? parseBbox(filter.bbox) : null;
   return data.events
     .filter((e) => {
       const start = Date.parse(e.start);
       const end = e.end ? Date.parse(e.end) : start;
       if (start > to || end < from) return false;
       if (filter.category && e.category !== filter.category) return false;
+      if (box) {
+        // api_events: bbox only ever matches LOCATED events.
+        const [w, s, east, n] = box;
+        if (e.lat === null || e.lng === null) return false;
+        if (e.lng < w || e.lng > east || e.lat < s || e.lat > n) return false;
+      }
       if (q) {
         const hay = `${e.title} ${e.description ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -99,6 +119,69 @@ export function nowSnapshot(data: FixtureData, atIso?: string): NowOut {
 
 export function healthSnapshot(data: FixtureData): HealthOut {
   return data.health;
+}
+
+/** `/api/places` — the whole gazetteer, name-sorted (apps/api `places()`). */
+export function listPlaces(data: FixtureData): PlaceOut[] {
+  return [...data.places].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** `/api/orgs` — all organizations, name-sorted (apps/api `orgs()`). */
+export function listOrgs(data: FixtureData): OrgOut[] {
+  return [...data.orgs].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * `/api/orgs/:id` — the org with events split around `at` (default now):
+ * upcoming = still running or later (coalesce(end,start) >= at, soonest
+ * first); past = fully over (latest first). Mirrors apps/api `eventsByOrg`.
+ */
+export function getOrgDetail(data: FixtureData, id: string, atIso?: string): OrgDetailOut | null {
+  const org = data.orgs.find((o) => o.id === id);
+  if (!org) return null;
+  const at = atIso ? Date.parse(atIso) : data.base.getTime();
+  const mine = data.events.filter((e) => e.orgId === id);
+  const endOf = (e: EventOut): number => (e.end ? Date.parse(e.end) : Date.parse(e.start));
+  return {
+    ...org,
+    upcoming: mine
+      .filter((e) => endOf(e) >= at)
+      .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+      .slice(0, 100),
+    past: mine
+      .filter((e) => endOf(e) < at)
+      .sort((a, b) => Date.parse(b.start) - Date.parse(a.start))
+      .slice(0, 100),
+  };
+}
+
+/**
+ * `/api/places/:id/activity` — the place, events there overlapping
+ * [at, at+24 h] (soonest first), and course meetings in session at `at`
+ * filtered to the place. Mirrors apps/api `placeActivityRoute`.
+ */
+export function getPlaceActivity(
+  data: FixtureData,
+  id: string,
+  atIso?: string,
+): PlaceActivityOut | null {
+  const place = data.places.find((p) => p.id === id);
+  if (!place) return null;
+  const at = atIso ? Date.parse(atIso) : data.base.getTime();
+  const to = at + DAY;
+  return {
+    place,
+    events: data.events
+      .filter((e) => {
+        if (e.placeId !== id) return false;
+        const start = Date.parse(e.start);
+        const end = e.end ? Date.parse(e.end) : start;
+        return start <= to && end >= at;
+      })
+      .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+      .slice(0, 200),
+    meetings: meetingsAt(data, atIso).filter((m) => m.placeId === id),
+  };
 }
 
 let defaultData: FixtureData | null = null;

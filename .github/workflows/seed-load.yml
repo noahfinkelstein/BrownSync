@@ -1,0 +1,59 @@
+name: Seed Load
+
+# On-demand only (never scheduled): upsert the committed db/seeds/ NDJSON
+# into the database behind secrets.DATABASE_URL, then run the seed QA check.
+# This writes to prod, so it demands an explicit confirmation input:
+#   gh workflow run seed-load.yml -f confirm=load
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "load" to confirm upserting db/seeds/ into the DATABASE_URL database'
+        required: true
+        type: string
+
+concurrency:
+  group: seed-load
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Gate on confirmation + DATABASE_URL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "load" ]; then
+            echo '::error::Confirmation input was not "load" — refusing to touch the database.'
+            exit 1
+          fi
+          # Unlike poll.yml this run is human-dispatched, so a missing secret
+          # is an error, not a silent no-op.
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "::error::DATABASE_URL secret not set — nothing to load into. See DEPLOY.md step 2."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @brownsync/contract build
+
+      - name: Load db/seeds/ (upsert — safe to re-run)
+        run: pnpm db:seed
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Seed QA check
+        # No --if-present: the script exists (db/package.json `seed-check`),
+        # and a future rename must fail this step loudly, not no-op it.
+        run: pnpm --filter @brownsync/db run seed-check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

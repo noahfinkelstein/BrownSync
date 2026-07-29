@@ -93,3 +93,25 @@ describe("/o/$id — org page (handoff §3.4)", () => {
     await screen.findByText("No such organization");
   });
 });
+
+describe("router-level §6.4 states (lazy chunks + unrouted URLs)", () => {
+  it("unrouted URLs render the designed not-found state with a way back to the map", async () => {
+    await renderApp("/definitely/not/a/route");
+    await screen.findByText("Nothing lives at this address");
+    await screen.findByText("/definitely/not/a/route");
+    const back = screen.getByRole("link", { name: "← back to the map" });
+    expect(back.getAttribute("href")).toBe("/");
+  });
+
+  it("both lazy profile routes declare a pending skeleton; the router carries backstops", () => {
+    // The profile pages are lazy route chunks (P3B): the pendingComponent is
+    // the Suspense fallback that paints while the chunk downloads. Without
+    // it, navigation renders literally nothing — pin the wiring.
+    expect(router.routesById["/p/$id"].options.pendingComponent).toBeDefined();
+    expect(router.routesById["/o/$id"].options.pendingComponent).toBeDefined();
+    expect(router.options.defaultPendingComponent).toBeDefined();
+    // Loader-pending timing convention: no flash-and-swap on fast loads.
+    expect(router.options.defaultPendingMs).toBe(300);
+    expect(router.options.defaultPendingMinMs).toBe(300);
+  });
+});

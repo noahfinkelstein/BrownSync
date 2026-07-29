@@ -39,9 +39,20 @@ const DB_UNAVAILABLE_CODES = new Set([
   "57P03",
 ]);
 
+/**
+ * workerd (Cloudflare Workers) socket failures carry no `code`: the runtime
+ * rejects with a bare Error("connection attempt failed"), surfaced verbatim
+ * through postgres.js's cf/ build. Matched by message as a fallback.
+ */
+const DB_UNAVAILABLE_MESSAGES = ["connection attempt failed"];
+
 export function isDbUnavailable(err: unknown, depth = 0): boolean {
   if (depth > 5 || err === null || typeof err !== "object") return false;
   const code = (err as { code?: unknown }).code;
   if (typeof code === "string" && DB_UNAVAILABLE_CODES.has(code)) return true;
+  const message = (err as { message?: unknown }).message;
+  if (typeof message === "string" && DB_UNAVAILABLE_MESSAGES.some((m) => message.includes(m))) {
+    return true;
+  }
   return isDbUnavailable((err as { cause?: unknown }).cause, depth + 1);
 }
