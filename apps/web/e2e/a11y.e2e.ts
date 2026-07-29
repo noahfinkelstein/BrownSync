@@ -153,6 +153,57 @@ test.describe("keyboard-only journey", () => {
     await expect(slider).toHaveAttribute("aria-valuetext", /./);
   });
 
+  test("map canvases: deck's overlay canvas is no tab stop; only labeled canvases take focus", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.locator(".maplibregl-canvas").first()).toBeVisible({ timeout: 20_000 });
+
+    // deck's input manager force-sets tabIndex=0 on its overlay canvas when
+    // its async device init completes — MapView's onLoad override pulls it
+    // back out of the tab order + accessibility tree (DeckOverlay). The
+    // invariant must hold in EVERY init state (this harness's software GL
+    // may never finish deck init, and dev StrictMode double-mounts can leave
+    // an extra pre-init canvas): no overlay canvas is ever focusable —
+    // pre-init it has no tabindex at all; post-init it must be -1 with
+    // aria-hidden, never mjolnir's 0.
+    const deckCanvases = page.locator("canvas#deckgl-overlay");
+    await expect.poll(() => deckCanvases.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    const overlayStates = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("canvas#deckgl-overlay")).map((el) => ({
+        tabindex: el.getAttribute("tabindex"),
+        ariaHidden: el.getAttribute("aria-hidden"),
+      })),
+    );
+    for (const state of overlayStates) {
+      expect(state.tabindex, "deck canvas must never be a tab stop").not.toBe("0");
+      if (state.tabindex === "-1") {
+        expect(state.ariaHidden, "initialized deck canvas must be aria-hidden").toBe("true");
+      }
+    }
+    // The labeled MapLibre canvas stays keyboard-reachable, unchanged.
+    await expect(page.locator(".maplibregl-canvas").first()).toHaveAttribute("aria-label", /./);
+
+    // Tab-walk the whole screen: every canvas that takes focus must carry an
+    // accessible name — a bare unlabeled canvas stop is the regression.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    let focusedCanvases = 0;
+    for (let i = 0; i < 30; i += 1) {
+      await page.keyboard.press("Tab");
+      const active = await page.evaluate(() => {
+        const el = document.activeElement;
+        return el ? { tag: el.tagName.toLowerCase(), label: el.getAttribute("aria-label") } : null;
+      });
+      if (!active || active.tag === "body") break;
+      if (active.tag === "canvas") {
+        focusedCanvases += 1;
+        expect(active.label, "canvas tab stops must be labeled").toBeTruthy();
+      }
+    }
+    // Exactly the labeled map canvas — the bare deck overlay stop is gone.
+    expect(focusedCanvases).toBeLessThanOrEqual(1);
+  });
+
   test("place mini-map: real basemap, keyboard click-through to the live map", async ({ page }) => {
     await page.goto("/p/salomon-center");
     const miniMap = page.getByTestId("place-minimap");

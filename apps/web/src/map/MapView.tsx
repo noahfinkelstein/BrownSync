@@ -26,9 +26,26 @@ configureMaplibreWorker();
  * visual cost is pulse rings not being occluded by 3D building extrusions.
  */
 function DeckOverlay() {
-  const overlay = useControl<MapboxOverlay>(
-    () => new MapboxOverlay({ interleaved: false, layers: getOverlayLayers() }),
-  );
+  const overlay = useControl<MapboxOverlay>(() => {
+    const instance: MapboxOverlay = new MapboxOverlay({
+      interleaved: false,
+      layers: getOverlayLayers(),
+      // Keyboard a11y: deck's input manager (mjolnir KeyInput) force-sets
+      // tabIndex=0 on its own canvas during init, planting a bare unlabeled
+      // tab stop right after the labeled MapLibre canvas. The overlay is
+      // pointer/visual-only (pins stay keyboard-reachable through the list),
+      // so pull it from the tab order and the accessibility tree. onLoad
+      // fires after the event manager exists, so the override sticks.
+      onLoad: () => {
+        const canvas = instance.getCanvas();
+        if (canvas) {
+          canvas.tabIndex = -1;
+          canvas.setAttribute("aria-hidden", "true");
+        }
+      },
+    });
+    return instance;
+  });
   const layers = useSyncExternalStore(subscribeOverlayLayers, getOverlayLayers);
   overlay.setProps({ layers });
   return null;
