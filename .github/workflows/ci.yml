@@ -23,6 +23,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm turbo run typecheck test build
+      - name: Seed QA sweep (offline — schemas, FKs, manifest hashes)
+        run: pnpm db:seed-check
 
   migrate:
     runs-on: ubuntu-latest

@@ -8,7 +8,6 @@
  *
  *   DATABASE_URL=postgres://... pnpm db:seed
  */
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -20,6 +19,7 @@ import {
 } from "@brownsync/contract";
 import postgres from "postgres";
 import type { z } from "zod";
+import { readNdjsonFile } from "./ndjson";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seedsDir = path.join(here, "seeds");
@@ -27,34 +27,9 @@ const seedsDir = path.join(here, "seeds");
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
-async function readNdjson<S extends z.ZodType>(
-  file: string,
-  schema: S,
-): Promise<z.infer<S>[] | null> {
-  let text: string;
-  try {
-    text = await readFile(path.join(seedsDir, file), "utf8");
-  } catch {
-    return null; // seed not produced yet — fine, ingestion runs on its own clock
-  }
-  const rows: z.infer<S>[] = [];
-  const lines = text.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]?.trim();
-    if (!line) continue;
-    let json: unknown;
-    try {
-      json = JSON.parse(line);
-    } catch (e) {
-      throw new Error(`${file}:${i + 1}: not valid JSON — ${(e as Error).message}`);
-    }
-    const parsed = schema.safeParse(json);
-    if (!parsed.success) {
-      throw new Error(`${file}:${i + 1}: contract violation — ${parsed.error.message}`);
-    }
-    rows.push(parsed.data);
-  }
-  return rows;
+/** Null when the seed is not produced yet — ingestion runs on its own clock. */
+function readNdjson<S extends z.ZodType>(file: string, schema: S): Promise<z.infer<S>[] | null> {
+  return readNdjsonFile(path.join(seedsDir, file), schema);
 }
 
 function chunk<T>(arr: T[], size: number): T[][] {
