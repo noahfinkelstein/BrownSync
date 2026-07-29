@@ -1,10 +1,12 @@
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { App } from "./App";
 import { MapView } from "./map/MapView";
+import { OrgPage } from "./pages/OrgPage";
+import { PlacePage } from "./pages/PlacePage";
 
 /**
- * Single index route in Phase 1: the full-bleed map. Phase 2 H adds
- * `/p/:id`, `/o/:id`, `/dev/ui`, `/health` as siblings under the root.
+ * Routes: `/` full-bleed map (Phase 1), `/p/$id` place page and `/o/$id`
+ * org page (Phase 2 H). `/dev/ui` and `/health` are still to come.
  */
 
 const rootRoute = createRootRoute({ component: App });
@@ -19,7 +21,29 @@ const indexRoute = createRoute({
   component: IndexScreen,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute]);
+function PlaceScreen() {
+  const { id } = placeRoute.useParams();
+  return <PlacePage id={id} />;
+}
+
+const placeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/p/$id",
+  component: PlaceScreen,
+});
+
+function OrgScreen() {
+  const { id } = orgRoute.useParams();
+  return <OrgPage id={id} />;
+}
+
+const orgRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/o/$id",
+  component: OrgScreen,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, placeRoute, orgRoute]);
 
 export const router = createRouter({ routeTree });
 
