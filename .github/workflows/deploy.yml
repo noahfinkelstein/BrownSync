@@ -23,6 +23,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # github.ref_name reaches a command line below — hand it to the
+          # script through env (never inline `${{ }}` inside `run:`) and
+          # validate it before anything downstream may interpolate it.
+          REF_NAME: ${{ github.ref_name }}
         run: |
           if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
             echo "::warning::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — deploy skipped. See DEPLOY.md step 2."
@@ -30,6 +34,16 @@ jobs:
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
+          # Pages branch for wrangler: git ref names may legally contain
+          # shell/flag metacharacters ($ ; | & quotes …). wrangler-action
+          # spawns wrangler WITHOUT a shell, so `$VAR` in `command:` would
+          # not expand — the safe carrier is this allowlist-validated step
+          # output; the raw context string never touches the command line.
+          if ! printf '%s\n' "${REF_NAME}" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._/-]*$'; then
+            echo "::error::ref name fails the deploy-branch allowlist ([A-Za-z0-9._/-])."
+            exit 1
+          fi
+          echo "branch=${REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         if: steps.gate.outputs.ready == 'true'
@@ -63,8 +77,12 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         if: steps.gate.outputs.ready == 'true'
-        uses: cloudflare/wrangler-action@v3
+        # Convention: third-party actions (cloudflare/*) are pinned to an
+        # immutable commit SHA; first-party actions/* stay on major tags.
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || 'brownsync' }} --branch=${{ github.ref_name }}
+          # --branch consumes the gate step's allowlist-validated ref (see
+          # above) — never the raw github.ref_name context.
+          command: pages deploy apps/web/dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || 'brownsync' }} --branch=${{ steps.gate.outputs.branch }}
