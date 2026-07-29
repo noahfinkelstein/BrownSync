@@ -28,7 +28,14 @@ export function CategoryChips({ counts, className }: CategoryChipsProps) {
       onFocus={roving.onFocus}
       aria-label="Filter by category"
       className={cn(
-        "flex min-w-0 items-center gap-1.5 overflow-x-auto border-0 p-0 [scrollbar-width:none]",
+        "flex min-w-0 items-center gap-1.5 overflow-x-auto border-0 py-0 [scrollbar-width:none]",
+        // §6.4 overflow affordance (the scrollbar is hidden): clipped chips
+        // fade out at either edge — the fade IS the "more here" cue — and
+        // chips snap to the row start. The row bleeds into the pane's px-3
+        // inset (IndexPage slot) so at a scroll extreme the fade covers
+        // padding, never the first/last chip.
+        "-mx-3 snap-x snap-proximity scroll-px-3 px-3",
+        "[mask-image:linear-gradient(to_right,transparent,#000_12px,#000_calc(100%_-_12px),transparent)]",
         className,
       )}
     >
@@ -39,6 +46,7 @@ export function CategoryChips({ counts, className }: CategoryChipsProps) {
           selected={selected.includes(meta.id)}
           count={counts?.[meta.id]}
           onToggle={toggle}
+          className="snap-start"
         />
       ))}
       {selected.length > 0 && (
@@ -46,7 +54,7 @@ export function CategoryChips({ counts, className }: CategoryChipsProps) {
           type="button"
           onClick={clear}
           className={cn(
-            "shrink-0 px-1 font-mono text-12 text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary",
+            "shrink-0 snap-start px-1 font-mono text-12 text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary",
             FOCUS_RING,
           )}
         >
