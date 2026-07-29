@@ -1,0 +1,24 @@
+// @brownsync/web mocks — API-shaped fixtures + MSW handlers, shared across
+// Phase 2 lanes. Node server lives in ./server (import directly in tests so
+// browser bundles never pull in msw/node).
+
+export {
+  type EventsFilter,
+  getDefaultFixtureData,
+  getEventDetail,
+  healthSnapshot,
+  meetingsAt,
+  nowSnapshot,
+  queryEvents,
+  resetDefaultFixtureData,
+} from "./fixtureApi";
+export {
+  campusDayToken,
+  campusMinutes,
+  FIXTURE_IDS,
+  FIXTURE_ORGS,
+  FIXTURE_PLACES,
+  type FixtureData,
+  makeFixtureData,
+} from "./fixtures";
+export { buildHandlers, handlers } from "./handlers";

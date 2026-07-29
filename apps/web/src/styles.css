@@ -1,12 +1,9 @@
-@import "tailwindcss";
-
-:root {
-  color-scheme: dark;
-}
+/* The design-system stylesheet is the app stylesheet: §6 tokens as custom
+   properties + the Tailwind theme (bg-bg-base, text-13, font-mono, …). */
+@import "@brownsync/ui/styles.css";
 
 body {
   margin: 0;
-  background: #0b0e12;
 }
 
 /*

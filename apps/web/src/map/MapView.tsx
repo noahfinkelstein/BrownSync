@@ -1,14 +1,16 @@
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { AttributionControl, Map as MapGL, useControl } from "react-map-gl/maplibre";
+import { type ReactNode, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { AttributionControl, Map as MapGL, type MapRef, useControl } from "react-map-gl/maplibre";
 import { INITIAL_VIEW, MAX_BOUNDS, MAX_PITCH, MAX_ZOOM, MIN_ZOOM } from "./camera";
 import { getOverlayLayers, subscribeOverlayLayers } from "./overlay";
 import { registerPmtilesProtocol } from "./pmtiles";
 import { buildMapStyle, pmtilesUrl } from "./style";
+import { configureMaplibreWorker } from "./worker";
 
 registerPmtilesProtocol();
+configureMaplibreWorker();
 
 /**
  * deck.gl seam (handoff Phase 1 A -> Phase 2 F): a MapboxOverlay interleaved
@@ -27,6 +29,8 @@ function DeckOverlay() {
 export type MapViewProps = {
   /** Fires once the style + tiles are in; hands later phases the raw map for `flyToTarget`. */
   onMapLoad?: (map: MaplibreMap) => void;
+  /** Map children (react-map-gl `<Source>`/`<Layer>` data layers — Phase 2 F). */
+  children?: ReactNode;
 };
 
 type MapStatus = "loading" | "ready" | "error";
@@ -36,13 +40,45 @@ type MapStatus = "loading" | "ready" | "error";
  * `map/style.json`), 3D building extrusions, camera bounds-locked to College
  * Hill per handoff §5, compact OSM/Protomaps attribution bottom-right.
  */
-export function MapView({ onMapLoad }: MapViewProps) {
+export function MapView({ onMapLoad, children }: MapViewProps) {
   const mapStyle = useMemo(buildMapStyle, []);
   const [status, setStatus] = useState<MapStatus>("loading");
+  const announcedRef = useRef(false);
+
+  const markReady = (map: MaplibreMap): void => {
+    if (announcedRef.current) return;
+    announcedRef.current = true;
+    setStatus("ready");
+    onMapLoad?.(map);
+  };
+
+  // StrictMode double-mounts recycle the map instance: `load` can fire while
+  // the map is parked between mounts, after which the fully-loaded map sits
+  // dormant and emits nothing — so watch the instance state directly. A
+  // callback ref (not an effect) because react-map-gl materializes its
+  // MapRef on a later render, re-invoking the callback when it does.
+  const watchStopRef = useRef<(() => void) | null>(null);
+  const watchReadiness = (ref: MapRef | null): void => {
+    watchStopRef.current?.();
+    watchStopRef.current = null;
+    if (!ref) return;
+    const map = ref.getMap();
+    const check = (): void => {
+      if (map.loaded()) markReady(map);
+    };
+    check();
+    map.on("render", check);
+    const poll = setInterval(check, 250);
+    watchStopRef.current = () => {
+      map.off("render", check);
+      clearInterval(poll);
+    };
+  };
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0B0E12]">
       <MapGL
+        ref={watchReadiness}
         mapStyle={mapStyle}
         initialViewState={INITIAL_VIEW}
         maxBounds={MAX_BOUNDS}
@@ -51,10 +87,11 @@ export function MapView({ onMapLoad }: MapViewProps) {
         maxPitch={MAX_PITCH}
         attributionControl={false}
         style={{ position: "absolute", inset: 0 }}
-        onLoad={(e) => {
-          setStatus("ready");
-          onMapLoad?.(e.target);
-        }}
+        onLoad={(e) => markReady(e.target)}
+        // `load` can fire before React attaches handlers (StrictMode double
+        // mount + cached style); `idle` re-fires after every settled render,
+        // so it reliably clears the boot overlay in that race.
+        onIdle={(e) => markReady(e.target)}
         onError={() => {
           // Only a failure before first load is fatal (missing/corrupt
           // archive); transient tile errors afterwards are non-events.
@@ -63,6 +100,7 @@ export function MapView({ onMapLoad }: MapViewProps) {
       >
         <AttributionControl compact position="bottom-right" />
         <DeckOverlay />
+        {children}
       </MapGL>
 
       <div

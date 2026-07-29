@@ -9,3 +9,4 @@ allowBuilds:
   supabase: true
   "@tailwindcss/oxide": true
   "@biomejs/biome": true
+  msw: true
