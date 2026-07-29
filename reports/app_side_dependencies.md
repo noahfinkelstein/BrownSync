@@ -5,7 +5,7 @@ Per the execution plan, app-side acceptance of ingestion sidecars is a
 the TS poller consumes an artifact until a consumer test passes in the app
 lane. This file is the register.
 
-## 1. Athletics venue sidecar (Task 8) — BLOCKING, app lane
+## 1. Athletics venue sidecar (Task 8) — RESOLVED 2026-07-29 (PR #8 merged)
 
 - Artifact: `db/seeds/athletics_venues.json`, schema v1
   (`{"schema_version": 1, "generated_at": "<UTC ISO>", "mappings":
@@ -26,10 +26,13 @@ lane. This file is the register.
   `@brownsync/contract`, rewrites `loadAthleticsVenues()` over `mappings[]`,
   mirrors the ingestion-emitted file as a poller fixture, and covers both
   sidecar worlds (absent / present-with-v1) in consumer tests. The producer
-  shape is unchanged. This dependency stays BLOCKING until that branch
-  merges; root cause — DATA_CONTRACT.md never defines either sidecar file —
-  should be closed with a coordinated contract bump listing both sidecar
-  schemas.
+  shape is unchanged. **`fix/athletics-sidecar-v1` merged to main as PR #8
+  (merge commit `2251a15`, 2026-07-29) — verified on `origin/main`:
+  `services/poller/src/athletics/venues.ts` imports `AthleticsVenuesSchema`
+  from `@brownsync/contract` and parses the v1 envelope. Consumer acceptance
+  test exists and runs in CI. This dependency is closed.** Residual root
+  cause — DATA_CONTRACT.md never defines either sidecar file — should still
+  be closed with a coordinated contract bump listing both sidecar schemas.
 - Caution for the consumer: a `Providence, R.I.` LOCATION prefix does NOT
   imply a home game — "Chapey Field at Anderson Stadium" is Providence
   College's stadium. Home classification requires the SIDEARM "vs" summary
