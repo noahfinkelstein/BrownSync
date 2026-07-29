@@ -38,7 +38,7 @@ pnpm poll all --dry-run                   # three polite live fetches, no DB
 | `src/sweep.ts` | Cancellation-sweep window logic + truncated-fetch guard (contract §2), pure + unit-tested. |
 | `src/db.ts` | postgres.js upsert on `(source, source_id)`, `last_seen_at` refresh, never deletes; `source_runs` row every run including failures. |
 | `src/runner.ts` / `src/cli.ts` | Per-source orchestration + arg parsing. |
-| `fixtures/` | ONE recorded real response per source (2026-07-28) + a sample `organization_livewhale_groups.json` sidecar. Tests run exclusively against these — zero network in CI. |
+| `fixtures/` | ONE recorded real response per source (2026-07-28) + sidecar fixtures: a sample `organization_livewhale_groups.json` and a mirror of the real ingestion-emitted `athletics_venues.json`. Tests run exclusively against these — zero network in CI. |
 
 ## Source-specific decisions
 
@@ -54,8 +54,11 @@ lands. This package only ever READS from `db/seeds/`. Category mapping rationale
 `src/livewhale/categories.ts`.
 
 **Athletics** — LOCATION is `"City, St.[, Venue]"`; home games (`Providence, R.I., …`) get
-tag `home` and, when `db/seeds/athletics_venues.json` (venue → place_id) exists, a resolved
-`place_id`. Away games keep `location_raw` only — never guessed (contract §2).
+tag `home` and, when the ingestion-lane sidecar `db/seeds/athletics_venues.json` exists
+(`{schema_version: 1, generated_at: <UTC ISO>, mappings: [{source_name, place_id}]}` —
+sidecar schema v1, coordinated with the ingestion lane), a resolved `place_id` looked up by
+case-folded venue string. Missing file → `place_id` stays null until that lane lands. Away
+games keep `location_raw` only — never guessed (contract §2).
 
 **BDH** — rolling top-N article feed, so the cancellation sweep is disabled: an article
 dropping off the feed is not a cancellation. Articles carry category **null**, not `admin`:
