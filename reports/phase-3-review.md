@@ -19,6 +19,23 @@ Refuted findings: **none** — all four confirmed findings reproduced exactly as
 described when checked against the normalizer/emitter sources and (for #3) at
 runtime in a browser.
 
+## Fix round 2 — remaining confirmed findings
+
+The reviewer's remaining CONFIRMED findings (2 important, 7 minor), all fixed
+in this round; every fix verified by the full pipeline below.
+
+| # | Lane | Severity | Finding | Disposition |
+|---|------|----------|---------|-------------|
+| 5 | ux-design-law | important | P3B's route-level code split shipped without §6.4 loading states: PlacePage/OrgPage are `lazyRouteComponent` chunks with no `pendingComponent` (route- or router-level) — navigating to `/p/:id` / `/o/:id` painted nothing while the chunk loaded. | **FIXED** — `apps/web/src/pages/routeStates.tsx` + `router.tsx`: both lazy routes get `ProfilePagePending` (PageShell chrome + `PanelSkeleton`/`ListSkeleton` from the ops states library — real skeletons, no spinners); the router carries a themed `defaultPendingComponent` backstop and `defaultPendingMs`/`defaultPendingMinMs` = 300 (loader pendings never flash-and-swap). Suspense chunk fallbacks ignore `defaultPendingMs`, so `.bs-route-pending` (styles.css) holds the skeleton invisible for its first 150 ms — fast chunk loads swap in the real page before anything paints. Pinned in `test/pages.test.tsx`. |
+| 6 | security-robustness | important | `services/poller/src/util.ts` `decodeEntities()`: `String.fromCodePoint` on unguarded feed-controlled numeric character references — `&#x110000;`, digit-overflow, lone surrogates throw `RangeError`, so one hostile article/event title crashed the whole poll run. | **FIXED** — `decodeCodePoint()` range-guards (valid iff integer, 0 < cp ≤ 0x10FFFF, not U+D800–DFFF); everything invalid decodes to U+FFFD per the HTML spec. Hostile-payload unit tests cover the util directly plus all three feed paths: bdh RSS description (via `stripHtml`), athletics ICS URL, LiveWhale title (`test/util.test.ts`, `bdh.test.ts`, `athletics.test.ts`, `livewhale.test.ts`). |
+| 7 | ci | minor | `seed-load.yml` ran `pnpm --filter @brownsync/db run --if-present seed:check` but the real script is `seed-check` — the QA step silently no-opped. | **FIXED** — correct script name AND `--if-present` dropped, so a future rename fails the step loudly. |
+| 8 | ci-security | minor | `deploy.yml` interpolated `${{ github.ref_name }}` raw into the wrangler-action command string — shell/flag metacharacter injection vector (git ref names may contain `$ ; \| &` and quotes). | **FIXED** — the ref enters the gate step via `env:`, is validated against an `[A-Za-z0-9._/-]` allowlist (wrangler-action spawns without a shell, so a bare `$VAR` would never expand — the validated step output is the safe carrier), and only that output reaches `--branch`. |
+| 9 | ci-security | minor | Third-party `cloudflare/wrangler-action` rode the mutable `v3` tag. | **FIXED** — pinned to the immutable commit SHA for v3.15.0 (what `v3` resolves to today); YAML comment records the convention: third-party actions get SHA pins, first-party `actions/*` stay on major tags. |
+| 10 | ux-design-law | minor | No `notFoundComponent` — unrouted URLs rendered TanStack's unstyled default paragraph. | **FIXED** — `NotFoundScreen` (root-route `notFoundComponent`): §6.4 real copy, mono echo of the dead path, ghost-button link back to the map. Runtime-verified in a browser; pinned in `test/pages.test.tsx`. |
+| 11 | ux-design-law | minor | Detail-panel WHERE printed `location_raw` as a second line even when it equaled the resolved place name. | **FIXED** — `locationRawAddsInfo()` (whitespace/case-normalized equality) gates the raw line; unit-tested in `test/detail-where.test.ts`. |
+| 12 | a11y | minor | A bare unlabeled canvas tab stop followed the labeled map canvas — deck.gl's overlay canvas (mjolnir KeyInput force-sets `tabIndex=0` post-init). | **FIXED** — `DeckOverlay` passes `onLoad` (fires after deck's event manager exists, so the override sticks) setting `tabIndex=-1` + `aria-hidden` on the overlay canvas; labeled MapLibre canvas untouched. New a11y e2e spec pins the invariant in every init state plus a full tab-walk (no unlabeled canvas ever takes focus); runtime-verified in a live browser. |
+| 13 | ux-design-law | minor | Category chip row overflowed its pane with the scrollbar hidden and no affordance. | **FIXED** — `CategoryChips` fades clipped chips at either edge (mask-image gradient) and snaps chips to the row (`snap-x proximity`), bleeding into the pane's `px-3` inset so the fade never dims the first/last chip at a scroll extreme. Roving keyboard access to all 10 chips pinned in `test/browse-chips.test.tsx` (ArrowRight walk + Home/End). |
+
 ## Minor cleanups (in passing)
 
 - `.env.example` now documents `VITE_USE_FIXTURES` (README claims the file
@@ -36,13 +53,13 @@ runtime in a browser.
   fold; identical pre-existing pattern in `api.ts`). Budget-enforced and green
   with wide margin — app JS 243.11 kB gz of 450 kB.
 
-## Verification (all green)
+## Verification (all green — re-run after fix round 2)
 
 | Check | Command | Result |
 |-------|---------|--------|
-| Lint | `pnpm lint` (biome check, 252 files) | clean |
-| Types + unit | `turbo run typecheck test --force` | all tasks green; contract 24, ui 15, api 51, poller 95 (12 DB-gated skipped locally — CI's `migrate` job runs them against the postgis service container), web 315 — 500 unit tests passed |
-| Build + budget | `turbo run build --force` | app JS 243.11 kB gz (budget 450) — `bundle-budget: OK` |
-| E2E | `pnpm --filter @brownsync/web e2e` (hermetic Playwright, chromium) | 11/11 passed (a11y keyboard journey, smoke, full journey, perf soft budget) |
+| Lint | `pnpm biome check .` (254 files) | clean |
+| Types + unit + build | `pnpm turbo typecheck test build --force` | 14/14 tasks green; contract 24, ui 15, api 51, poller 102 (12 DB-gated skipped locally — CI's `migrate` job runs them against the postgis service container), web 322 |
+| Bundle budget | `node scripts/bundle-budget.mjs` | app JS 243.44 kB gz (budget 450) — `bundle-budget: OK` |
+| E2E | `pnpm --filter @brownsync/web e2e` (hermetic Playwright, chromium) | 12/12 passed (a11y keyboard journey incl. new canvas tab-order spec, smoke, full journey, perf soft budget) |
 | Seeds | `pnpm db:seed-check` | PASS — 0 failures, 1 pre-existing warning (above) |
 | Dedup SQL | libpg_query parse of `buildCandidatePairsQuery` output | syntax OK |
