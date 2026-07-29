@@ -19,6 +19,13 @@ import pytest
 FIXTURES_ROOT = Path(__file__).resolve().parents[1] / "fixtures"
 MANIFEST_PATH = FIXTURES_ROOT / "manifest.json"
 RECORDED_ROOT = FIXTURES_ROOT / "recorded"
+USER_PROVIDED_ROOT = FIXTURES_ROOT / "user_provided"
+
+# Manifest entries carry a "kind": "recorded" HTTP captures (the default when
+# absent) keep every original check; "user_provided" inputs handed over by the
+# user are hash-pinned with provenance and must name the capture gaps they
+# fill. No other kind is allowed.
+KNOWN_KINDS = {"recorded", "user_provided"}
 
 EXPECTED_USER_AGENT = "BrownSync/1.0 (+noah_finkelstein@brown.edu)"
 SCRUB_PLACEHOLDER = "scrubbed@example.invalid"
@@ -61,6 +68,22 @@ def entries(manifest: dict) -> list[dict]:
     return fixtures
 
 
+def entry_kind(entry: dict) -> str:
+    kind = entry.get("kind", "recorded")
+    assert kind in KNOWN_KINDS, f"{entry.get('path')}: unknown fixture kind {kind!r}"
+    return kind
+
+
+@pytest.fixture(scope="module")
+def recorded_entries(entries: list[dict]) -> list[dict]:
+    return [entry for entry in entries if entry_kind(entry) == "recorded"]
+
+
+@pytest.fixture(scope="module")
+def user_provided_entries(entries: list[dict]) -> list[dict]:
+    return [entry for entry in entries if entry_kind(entry) == "user_provided"]
+
+
 def test_manifest_header_is_schema_v1_with_the_exact_recorded_user_agent(manifest: dict) -> None:
     assert manifest["schema_version"] == 1
     assert manifest["recorded_user_agent"] == EXPECTED_USER_AGENT
@@ -76,7 +99,10 @@ def test_manifest_header_is_schema_v1_with_the_exact_recorded_user_agent(manifes
 def test_every_manifest_entry_matches_a_stored_fixture_byte_for_byte(entries: list[dict]) -> None:
     for entry in entries:
         relative = entry["path"]
-        assert relative.startswith("recorded/"), f"{relative}: fixture outside recorded/"
+        expected_root = "recorded/" if entry_kind(entry) == "recorded" else "user_provided/"
+        assert relative.startswith(expected_root), (
+            f"{relative}: {entry_kind(entry)} fixture outside {expected_root}"
+        )
         assert ".." not in Path(relative).parts
         stored = FIXTURES_ROOT / relative
         assert stored.is_file(), f"{relative}: manifested fixture is missing on disk"
@@ -89,9 +115,15 @@ def test_every_manifest_entry_matches_a_stored_fixture_byte_for_byte(entries: li
 def test_every_stored_fixture_is_manifested(entries: list[dict]) -> None:
     assert RECORDED_ROOT.is_dir(), "recorded fixture tree is missing"
     manifested = {entry["path"] for entry in entries}
+    roots = [RECORDED_ROOT]
+    if USER_PROVIDED_ROOT.is_dir():
+        # user_provided/ holds inputs handed over by the user; since Task 6
+        # they are manifest-mandatory exactly like recorded evidence.
+        roots.append(USER_PROVIDED_ROOT)
     on_disk = {
         str(path.relative_to(FIXTURES_ROOT))
-        for path in RECORDED_ROOT.rglob("*")
+        for root in roots
+        for path in root.rglob("*")
         if path.is_file()
     }
     unmanifested = on_disk - manifested
@@ -99,20 +131,20 @@ def test_every_stored_fixture_is_manifested(entries: list[dict]) -> None:
     stray = {
         str(path.relative_to(FIXTURES_ROOT))
         for path in FIXTURES_ROOT.iterdir()
-        # user_provided/ holds inputs handed over by the user (not recorded
-        # evidence); the task that consumes them must manifest them there.
         if path.name not in {"manifest.json", "recorded", "user_provided"}
     }
     assert not stray, f"unexpected files beside the manifest: {sorted(stray)}"
 
 
-def test_entry_identities_are_unique_and_well_formed(entries: list[dict]) -> None:
+def test_entry_identities_are_unique_and_well_formed(
+    entries: list[dict], recorded_entries: list[dict]
+) -> None:
     paths = [entry["path"] for entry in entries]
     assert len(paths) == len(set(paths)), "duplicate fixture paths in manifest"
-    fingerprints = [entry["request_fingerprint"] for entry in entries]
+    fingerprints = [entry["request_fingerprint"] for entry in recorded_entries]
     assert len(fingerprints) == len(set(fingerprints)), "duplicate request fingerprints in manifest"
     now = datetime.now(UTC) + timedelta(minutes=5)
-    for entry in entries:
+    for entry in recorded_entries:
         context = entry["path"]
         assert HEX_64.fullmatch(entry["request_fingerprint"]), f"{context}: malformed fingerprint"
         assert HEX_64.fullmatch(entry["sha256"]), f"{context}: malformed sha256"
@@ -126,6 +158,53 @@ def test_entry_identities_are_unique_and_well_formed(entries: list[dict]) -> Non
         retrieved = datetime.fromisoformat(entry["retrieved_at"].replace("Z", "+00:00"))
         assert retrieved.tzinfo is not None, f"{context}: naive retrieved_at"
         assert retrieved <= now, f"{context}: retrieved_at is in the future"
+
+
+def test_user_provided_entries_carry_provenance_and_fill_declared_gaps(
+    manifest: dict, user_provided_entries: list[dict]
+) -> None:
+    """User-provided inputs are hash-pinned data with provenance, not captures.
+
+    They must say who provided them and when, explain why they exist (the
+    provenance note), and name the declared capture gaps they stand in for —
+    and they must never masquerade as recorded HTTP evidence.
+    """
+    gap_sources = {gap["source"] for gap in manifest["gaps"]}
+    now = datetime.now(UTC) + timedelta(minutes=5)
+    for entry in user_provided_entries:
+        context = entry["path"]
+        assert HEX_64.fullmatch(entry["sha256"]), f"{context}: malformed sha256"
+        assert isinstance(entry["source"], str) and entry["source"], f"{context}: missing source key"
+        assert entry.get("provided_by") == "user", f"{context}: provided_by must be 'user'"
+        provided = datetime.fromisoformat(entry["provided_at"].replace("Z", "+00:00"))
+        assert provided.tzinfo is not None, f"{context}: naive provided_at"
+        assert provided <= now, f"{context}: provided_at is in the future"
+        provenance = entry.get("provenance")
+        assert isinstance(provenance, str) and provenance.strip(), f"{context}: missing provenance note"
+        fills = entry.get("fills_gaps")
+        assert isinstance(fills, list) and fills, f"{context}: must name the gaps it fills"
+        for source in fills:
+            assert source in gap_sources, (
+                f"{context}: fills_gaps names {source!r} which is not a declared gap"
+            )
+        for http_key in ("route", "request_fingerprint", "request_body", "status", "scrubbed"):
+            assert http_key not in entry, (
+                f"{context}: user_provided entry must not carry HTTP capture key {http_key!r}"
+            )
+
+
+def test_the_cab_fall_2026_csv_is_manifested_as_user_provided(
+    user_provided_entries: list[dict],
+) -> None:
+    """Task 6 consumes the user-supplied CAB export; it must be pinned here."""
+    by_path = {entry["path"]: entry for entry in user_provided_entries}
+    entry = by_path.get("user_provided/brown_fall_2026_classes_and_locations.csv")
+    assert entry is not None, "the Fall 2026 CAB CSV is not manifested as user_provided"
+    assert entry["source"] == "cab_fall_2026_csv"
+    assert set(entry["fills_gaps"]) == {"cab_home", "cab_bootstrap", "cab_search", "cab_details"}
+    expected = entry["expected"]
+    assert expected["data_rows"] == 5275
+    assert expected["term_code"] == "202610"
 
 
 def test_expected_parser_facts_are_present_and_anchored_to_the_stored_bytes(entries: list[dict]) -> None:
