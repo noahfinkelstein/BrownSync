@@ -1,7 +1,149 @@
 # brownsync-ingest
 
-Python 3.12 ingestion package for BrownSync. Task 9 expands this README;
-for now it records the gazetteer's data licensing.
+Python 3.12 ingestion package for BrownSync: recorded source evidence in,
+validated `db/seeds/**` files (or Postgres upserts) out. Managed with
+[uv](https://docs.astral.sh/uv/); all commands below run from `ingest/`.
+
+## Runtime and layout
+
+```
+ingest/
+  brownsync_ingest/
+    contract.py          # strict DB-row models (DATA_CONTRACT.md v1 wins)
+    policy.py            # slug/coordinate/confidence/CAB-time validators
+    output.py            # deterministic, per-file atomic NDJSON publication
+    common/              # CachedHttpClient, CheckpointStore, identifiers
+    repository.py        # PostgresRepository upserts + source-run lifecycle SQL
+    run_log.py           # NDJSON source-run log + SourceRunRecorder
+    gazetteer/           # catalog, aliases.yaml, geometry, resolver, places job
+    cab/                 # Fall 2026 course meetings job (user-provided CSV)
+    athletics_venues.py  # SIDEARM venue -> place sidecar job
+    dining/              # NOTES.md: documented discovery block (no job)
+    seeds_manifest.py    # db/seeds/manifest.json publisher + validator
+    cli.py               # `ingest run <job> --out ndjson|postgres`
+  fixtures/
+    recorded/            # captured through CachedHttpClient, hash-pinned
+    user_provided/       # Fall 2026 CAB export (hash-pinned, kind user_provided)
+    manifest.json        # fixture integrity manifest (gates the suite)
+  tests/                 # offline; `postgres`-marked tests need TEST_DATABASE_URL
+```
+
+```sh
+uv sync            # install runtime + dev dependencies
+uv run pytest -q   # offline suite
+uv run ingest run all --out ndjson
+```
+
+## Running and rerunning jobs
+
+`uv run ingest run <job> --out ndjson|postgres` where `<job>` is `places`,
+`cab`, `athletics`, or `all`. The registry also carries `clubs` and `dining`
+as **declared blocked gaps**: naming one exits 2 with the documented reason
+(never a silent skip), and `run all` runs the existing jobs in bundle order
+(places → cab → athletics) after loudly reporting those gaps.
+
+- Exit 0: every invoked job published (or upserted).
+- Exit 1: a gate failed closed (source run `partial`) or a job raised
+  (`error`). Existing outputs are untouched.
+- Exit 2: usage-level refusal — unknown or blocked job, unsupported output
+  combination, missing `DATABASE_URL`, invalid `--contact`.
+
+Jobs are rerunnable at will: outputs are staged under `reports/tmp/`,
+validated, then atomically replace their destination file, so a rerun either
+fully replaces an artifact or leaves the previous one intact. The CAB job
+logs every discovered term `srcdb` loudly, pass or fail, and renders
+`reports/cab_fall_2026_place_resolution.md` on every run.
+
+`--contact you@brown.edu` (or `BROWNSYNC_CONTACT`) records the contact email
+for the polite UA `BrownSync/1.0 (+<email>)`. The registered jobs run
+offline from recorded evidence, so it is validated and echoed, not required.
+
+## Cache and checkpoints
+
+All live acquisition goes through `common/http.py::CachedHttpClient`: exact
+UA above, at least one second between same-host requests, tenacity
+retry/backoff on transient errors, and an on-disk cache keyed by request
+fingerprint that stores only HTTP 200 responses (non-200 metadata is never
+replayed). LiveWhale responses additionally carry a ten-minute freshness
+gate. `common/checkpoint.py::CheckpointStore` gives long jobs fingerprinted
+atomic checkpoints so an interrupted acquisition resumes equivalently.
+The offline jobs on this branch read the hash-pinned fixtures instead; the
+fixture integrity test rejects any silent synthetic substitution.
+
+## Gates (all fail closed; nothing partial is published)
+
+| Job | Gate | Threshold |
+|---|---|---|
+| places | validated rows | >= 120 |
+| places | canonical dining places (`kind="dining"`) | Ratty, Andrews Commons, V-Dub, Blue Room, Ivy Room, Jo's |
+| cab | distinct subjects | >= 50 |
+| cab | meeting rows | >= 1,500 (revised from 2,000; see below) |
+| cab | section-level place resolution | >= 90% |
+| athletics | home venues mapped / place ids known | every one (no threshold) |
+
+**1,500-row revision (Task 6B, signed off):** the plan's 2,000-row gate was
+calibrated for a live CAB scrape; the user-provided Fall 2026 export
+physically schedules at most 1,828 rows (3,328 of 5,275 records are
+arranged/TBA). The orchestrator's sign-off is recorded verbatim in
+`reports/sdd/brownsync-ingestion/task-6b-brief.md`, the task 6B report, and
+the `cab/job.py` docstring. The 90% resolution gate is unchanged.
+
+## Seed bundle and manifest
+
+`run all --out ndjson` replaces each artifact individually-atomically, then
+publishes `db/seeds/manifest.json` **last** with a generation ID, UTC
+timestamp, and SHA-256 + byte size per artifact (`places.ndjson`,
+`course_meetings.ndjson`, `athletics_venues.json`). The validator rejects a
+mixed set — any artifact whose on-disk hash disagrees with the manifest —
+so an interrupted bundle run is detectable and the previous manifest stays
+authoritative until a full rerun repairs every artifact. Single-job runs
+never advance the manifest and say so. App-side manifest enforcement is a
+declared blocking dependency (`reports/app_side_dependencies.md`).
+
+## Source-run extension log
+
+Every invoked job runs inside exactly one source-run lifecycle
+(`run_log.py::SourceRunRecorder`), finalized `ok`, `partial` (gate reasons),
+or `error` even when the job raises; `run all` records one lifecycle per
+constituent job. In ndjson mode runs append to `db/seeds/source_runs.ndjson`
+— the handoff's atomic append/merge extension log with monotonically
+increasing integer IDs. It is *not* a seed artifact and stays outside the
+manifest; it is not claimed as a contract §6 loader input until the
+app-side loader accepts it. In postgres mode the lifecycle writes to the
+`source_runs` table instead.
+
+## Sidecars and their consumer dependency
+
+`db/seeds/athletics_venues.json` (schema v1:
+`{schema_version, generated_at, mappings: [{source_name, place_id}]}`) maps
+SIDEARM venue strings to canonical place ids because contract v1 has no
+database target for them. App-side consumption of the athletics (and
+future organization) sidecars is a blocking cross-workstream dependency in
+`reports/app_side_dependencies.md`; ingestion does not claim the TS poller
+consumes them until a consumer test passes in the app lane.
+
+## Blocked sources: clubs and dining
+
+`studentactivities.brown.edu` and `dining.brown.edu` both answer a
+Pantheon-edge HTTP 403 to the declared UA; bypassing bot detection is
+forbidden, so no discovery requests were sent. Clubs (Task 7) has no job on
+this branch; dining discovery is documented in `dining/NOTES.md` (contract
+v1 has no dining-hours row, and the six fixed dining places are already
+seeded). Unblock paths: an OIT allowlist for the declared UA, or
+user-exported pages.
+
+## Postgres prerequisites
+
+`--out postgres` requires the `DATABASE_URL` environment variable and is
+fail-closed: absent credentials exit 2 and are reported, never treated as a
+successful database verification. `run all --out postgres` is the
+documented **hybrid**: contract rows (`places`, `course_meetings`) and
+source runs upsert via psycopg 3 (WKT through
+`ST_Multi(ST_GeomFromText(%s, 4326))`); the athletics sidecar and dining
+notes still publish as files, and the NDJSON manifest is not advanced.
+Explicit `run athletics --out postgres` is rejected as unsupported.
+`postgres`-marked integration tests (PostgreSQL 15 + PostGIS + pg_trgm) run
+only when `TEST_DATABASE_URL` is set.
 
 ## Gazetteer data attribution
 

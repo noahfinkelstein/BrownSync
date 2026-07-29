@@ -1,0 +1,19 @@
+{
+  "artifacts": {
+    "athletics_venues.json": {
+      "bytes": 1226,
+      "sha256": "7d6339113d1c5f908fbd8feef71d1073be31a5ff94e311465f291dc76d55b33d"
+    },
+    "course_meetings.ndjson": {
+      "bytes": 1676517,
+      "sha256": "36aa60c4ba38f272e1b54c8a77f09d5fbf82919a8453ee78245343a8cf172451"
+    },
+    "places.ndjson": {
+      "bytes": 136920,
+      "sha256": "aa6a936e162f6fbbae564b95f1530fee15275be96ce369275fb8475d0793a537"
+    }
+  },
+  "generated_at": "2026-07-29T05:19:12.066671Z",
+  "generation": "315876fbf25846fabcd1271eab68c671",
+  "schema_version": 1
+}
