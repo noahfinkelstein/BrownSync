@@ -32,6 +32,16 @@ export type EventDetailPanelProps = {
   cursor: Date;
 };
 
+/**
+ * WHERE dedupe: feeds usually echo the resolved place name verbatim in
+ * `location_raw` — print the raw line only when it adds information beyond
+ * the resolved name (whitespace- and case-insensitive comparison).
+ */
+export function locationRawAddsInfo(locationRaw: string, resolvedName: string): boolean {
+  const normalize = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  return normalize(locationRaw) !== normalize(resolvedName);
+}
+
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section className="border-b border-line py-3 first:pt-1 last:border-b-0">
@@ -97,6 +107,11 @@ export function EventDetailPanel({
   const meta = CATEGORY_BY_ID[event.category];
   const place = detail?.place ?? null;
   const org = detail?.org ?? null;
+  const resolvedPlaceName = place?.name ?? event.placeName ?? null;
+  const showLocationRaw =
+    event.locationRaw != null &&
+    resolvedPlaceName != null &&
+    locationRawAddsInfo(event.locationRaw, resolvedPlaceName);
 
   return (
     <Panel
@@ -155,8 +170,8 @@ export function EventDetailPanel({
       <Section label="Where">
         {place || event.placeName || event.locationRaw ? (
           <>
-            <div>{place?.name ?? event.placeName ?? event.locationRaw}</div>
-            {event.locationRaw && (place?.name ?? event.placeName) && (
+            <div>{resolvedPlaceName ?? event.locationRaw}</div>
+            {showLocationRaw && (
               <div className="pt-0.5 text-12 text-text-secondary">{event.locationRaw}</div>
             )}
             {place?.address && (
