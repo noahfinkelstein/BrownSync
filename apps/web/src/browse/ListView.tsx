@@ -5,6 +5,7 @@ import { ListSkeleton } from "../ops/states/skeletons";
 import { useCategoryFilter } from "./filter";
 import { formatClock, formatRelative } from "./format";
 import { groupEventsByTime, isLive } from "./grouping";
+import { useRovingFocus } from "./rovingFocus";
 import { useBrowseEvents } from "./useBrowseEvents";
 import { fullCampusViewport, useViewportBbox, type ViewportSource } from "./viewport";
 
@@ -34,6 +35,12 @@ export function ListView({
   const { selected, clear } = useCategoryFilter();
   const { events, pending, error, refetch } = useBrowseEvents(bbox, selected);
   const navigate = useNavigate();
+  // §6.4 keyboard support: the list is ONE tab stop; ↑/↓ + Home/End rove
+  // between rows and Enter opens the row's detail panel (native button).
+  const roving = useRovingFocus<HTMLDivElement>(
+    '[data-testid="event-list-item"] button',
+    "vertical",
+  );
 
   const at = now ? now() : new Date();
   const buckets = groupEventsByTime(events, at);
@@ -54,7 +61,7 @@ export function ListView({
         <span className="font-mono text-12 text-text-secondary">
           {events.length} event{events.length === 1 ? "" : "s"} in view
         </span>
-        <span className="font-mono text-12 text-text-faint">next 7 days</span>
+        <span className="font-mono text-12 text-text-secondary">next 7 days</span>
       </div>
 
       {pending ? (
@@ -76,10 +83,18 @@ export function ListView({
           action={selected.length > 0 ? <Button onClick={clear}>Clear filters</Button> : undefined}
         />
       ) : (
-        <div className="min-h-0 grow overflow-y-auto pb-4">
+        // The handlers only delegate roving focus for the interactive row
+        // buttons inside — the container itself is never a target.
+        // biome-ignore lint/a11y/noStaticElementInteractions: focus delegation container
+        <div
+          ref={roving.containerRef}
+          onKeyDown={roving.onKeyDown}
+          onFocus={roving.onFocus}
+          className="min-h-0 grow overflow-y-auto pb-4"
+        >
           {buckets.map((bucket) => (
             <section key={bucket.id} aria-label={bucket.label}>
-              <h3 className="sticky top-0 z-10 flex items-baseline justify-between border-b border-line bg-bg-raised px-3 pb-1 pt-2 font-mono text-12 uppercase tracking-[0.08em] text-text-faint">
+              <h3 className="sticky top-0 z-10 flex items-baseline justify-between border-b border-line bg-bg-raised px-3 pb-1 pt-2 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
                 <span>{bucket.label}</span>
                 <span>{bucket.events.length}</span>
               </h3>
@@ -115,7 +130,7 @@ function EventRow({
       sub={event.allDay ? undefined : formatRelative(now, start)}
       title={
         event.isCanceled ? (
-          <span className="text-text-faint line-through">{event.title}</span>
+          <span className="text-text-secondary line-through">{event.title}</span>
         ) : (
           event.title
         )

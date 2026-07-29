@@ -45,7 +45,7 @@ export function LayerRail({ toggles, onToggle, counts }: LayerRailProps) {
       aria-label="Map layers"
       className="absolute top-3 left-3 z-20 w-44 rounded-6 border border-line bg-bg-raised"
     >
-      <h2 className="border-b border-line px-2.5 py-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-faint">
+      <h2 className="border-b border-line px-2.5 py-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
         Layers
       </h2>
       <ul className="py-1">
@@ -59,7 +59,7 @@ export function LayerRail({ toggles, onToggle, counts }: LayerRailProps) {
                 onClick={() => onToggle(row.key)}
                 className={cn(
                   "flex h-8 w-full items-center gap-2 px-2.5 text-13 transition-colors duration-150 ease-out hover:bg-bg-overlay/60",
-                  on ? "text-text-primary" : "text-text-faint",
+                  on ? "text-text-primary" : "text-text-secondary",
                   FOCUS_RING,
                 )}
               >
@@ -75,7 +75,7 @@ export function LayerRail({ toggles, onToggle, counts }: LayerRailProps) {
                   {row.icon}
                 </span>
                 <span className="grow text-left">{row.label}</span>
-                <span className="font-mono text-12 text-text-faint">{counts[row.key]}</span>
+                <span className="font-mono text-12 text-text-secondary">{counts[row.key]}</span>
               </button>
             </li>
           );

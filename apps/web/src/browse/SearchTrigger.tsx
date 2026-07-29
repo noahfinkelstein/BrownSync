@@ -34,7 +34,7 @@ export function SearchTrigger({ onSelectEvent, className }: SearchTriggerProps) 
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "flex h-7 w-56 shrink-0 items-center gap-1.5 rounded-4 border border-line bg-bg-overlay px-2 text-13 text-text-faint transition-colors duration-150 ease-out hover:border-text-faint hover:text-text-secondary",
+          "flex h-7 w-56 shrink-0 items-center gap-1.5 rounded-4 border border-line bg-bg-overlay px-2 text-13 text-text-secondary transition-colors duration-150 ease-out hover:border-text-faint hover:text-text-primary",
           FOCUS_RING,
           className,
         )}

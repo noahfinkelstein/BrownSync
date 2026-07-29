@@ -11,6 +11,7 @@ import {
   SourceBadge,
 } from "@brownsync/ui";
 import type { ReactNode } from "react";
+import { useFocusReturn } from "../browse/useFocusReturn";
 import { eventTimeLabel, fmtDay, fmtRange, minutesUntil } from "../data/format";
 import { useEventDetail } from "../data/queries";
 import { DEFAULT_DURATION_MS, isStartingSoon } from "../map/eventsLayer";
@@ -34,7 +35,7 @@ export type EventDetailPanelProps = {
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section className="border-b border-line py-3 first:pt-1 last:border-b-0">
-      <h3 className="pb-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-faint">
+      <h3 className="pb-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
         {label}
       </h3>
       <div className="text-13 leading-relaxed text-text-primary">{children}</div>
@@ -54,6 +55,9 @@ export function EventDetailPanel({
   seed,
   cursor,
 }: EventDetailPanelProps) {
+  // State-driven dialog (no Radix Trigger): Escape must return focus to the
+  // invoking list row / pin (§6.4) — Radix alone would drop it on <body>.
+  useFocusReturn(open);
   const detailQuery = useEventDetail(open ? eventId : null);
   const detail = detailQuery.data ?? null;
   const event: EventOut | null = detail ?? seed;
@@ -144,7 +148,7 @@ export function EventDetailPanel({
       <Section label="When">
         <div className="font-mono text-13">
           {fmtDay(start)} · {event.allDay ? "all day" : fmtRange(start, end)}
-          <span className="text-text-faint"> ET</span>
+          <span className="text-text-secondary"> ET</span>
         </div>
       </Section>
 
@@ -156,7 +160,7 @@ export function EventDetailPanel({
               <div className="pt-0.5 text-12 text-text-secondary">{event.locationRaw}</div>
             )}
             {place?.address && (
-              <div className="pt-0.5 font-mono text-12 text-text-faint">{place.address}</div>
+              <div className="pt-0.5 font-mono text-12 text-text-secondary">{place.address}</div>
             )}
           </>
         ) : (
