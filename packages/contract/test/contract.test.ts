@@ -8,6 +8,7 @@ import {
   OrgLivewhaleGroupsSchema,
   SeedCourseMeetingSchema,
   SeedEventSchema,
+  SeedOrganizationSchema,
   SeedPlaceSchema,
   tokens,
 } from "../src/index";
@@ -31,10 +32,23 @@ describe("taxonomy", () => {
 
 describe("tokens", () => {
   it("pins the §6.1 background stack and single accent", () => {
-    expect(tokens.bg.base).toBe("#0B0E12");
-    expect(tokens.accent).toBe("#D96C3D");
+    // Light theme on Brown's own palette (2026-07-29). Seal brown #4E3629 is
+    // Brown University's documented primary; #C00404 is Brown red and is the
+    // ONLY signal colour. Both are contrast-audited in the web a11y suite.
+    expect(tokens.bg.base).toBe("#FFFFFF");
+    expect(tokens.brand.brown).toBe("#4E3629");
+    expect(tokens.accent).toBe("#C00404");
     expect(tokens.radius.max).toBeLessThanOrEqual(6);
-    expect(tokens.type.scale).toEqual([12, 13, 15, 18, 24]);
+    expect(tokens.type.scale).toEqual([12, 14, 16, 19, 24, 30]);
+  });
+
+  it("pins the §6.2 body size and a line height for every step", () => {
+    // The scale is consumed by three independent renderers — the Tailwind
+    // @theme block, the MapLibre style, and (Lane C) a generated Tokens.swift.
+    // Widening it here without widening lineHeights leaves one of them
+    // reading undefined, which is why this is a pin and not a lint.
+    expect(tokens.type.body).toBe(14);
+    expect(Object.keys(tokens.type.lineHeights).map(Number)).toEqual([...tokens.type.scale]);
   });
 });
 
@@ -106,6 +120,42 @@ describe("seed rows (contract §6)", () => {
       source: "osm",
     });
     expect(p.aliases).toContain("B&H");
+  });
+
+  it("preserves organization source enrichment with backward-compatible defaults", () => {
+    const minimal = SeedOrganizationSchema.parse({
+      id: "brown-outing-club",
+      name: "Brown Outing Club",
+      kind: "club",
+      source: "studentactivities",
+    });
+    expect(minimal.contact_emails).toEqual([]);
+
+    const enriched = SeedOrganizationSchema.parse({
+      ...minimal,
+      contact_emails: ["president@brown.edu", "treasurer@brown.edu"],
+      advisor: "A. Advisor",
+      funding_category: "Category 2",
+      website_url: "https://outing.example",
+      instagram: "https://instagram.com/brownoutingclub",
+      facebook_url: "https://facebook.com/brownoutingclub",
+      linkedin_url: "https://linkedin.com/company/brownoutingclub",
+      youtube_url: "https://youtube.com/@brownoutingclub",
+      twitter_url: "https://x.com/brownoutingclub",
+      tiktok_url: "https://tiktok.com/@brownoutingclub",
+    });
+    expect(enriched).toMatchObject({
+      contact_emails: ["president@brown.edu", "treasurer@brown.edu"],
+      advisor: "A. Advisor",
+      funding_category: "Category 2",
+      website_url: "https://outing.example",
+      instagram: "https://instagram.com/brownoutingclub",
+      facebook_url: "https://facebook.com/brownoutingclub",
+      linkedin_url: "https://linkedin.com/company/brownoutingclub",
+      youtube_url: "https://youtube.com/@brownoutingclub",
+      twitter_url: "https://x.com/brownoutingclub",
+      tiktok_url: "https://tiktok.com/@brownoutingclub",
+    });
   });
 
   it("accepts an event row and defaults confidence/tags", () => {

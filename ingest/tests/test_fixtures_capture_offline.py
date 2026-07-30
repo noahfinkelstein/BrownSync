@@ -709,6 +709,49 @@ class TestCaptureLivewhale:
         assert session.gaps == []
 
 
+#: Smallest payload that satisfies `_dining_expected`'s anchors. The anchors
+#: are asserted against the STORED BYTES, so a stub that omits `"stations"` or
+#: `"allergens"` fails the capture rather than the assertion — which is the
+#: behaviour we want in production and therefore the behaviour to stub here.
+DINING_MENUS_BODY = json.dumps(
+    [
+        {
+            "name": "Blue Room",
+            "locationId": "BR",
+            "locationAddress": "75 Waterman St.",
+            "meals": {
+                "2026-07-29": [
+                    {
+                        "name": "Blue Room",
+                        "meal": "Lunch",
+                        "menu": {
+                            "date": "2026-07-29",
+                            "hours": {"start": "2026-07-29T07:30:00-04:00", "end": None},
+                            "stations": [
+                                {
+                                    "stationId": 1,
+                                    "name": "Pastry",
+                                    "items": [
+                                        {
+                                            "itemId": 1,
+                                            "item": "Muffin",
+                                            "icons": [],
+                                            "allergens": ["DAIRY"],
+                                            "description": "",
+                                            "itemType": "recipe",
+                                        }
+                                    ],
+                                }
+                            ],
+                        },
+                    }
+                ]
+            },
+        }
+    ]
+).encode()
+
+
 class TestCaptureOverpassDiningAthletics:
     def test_overpass_records_the_query_display_body_and_the_odbl_note(self, tmp_path: Path) -> None:
         body = json.dumps({"elements": [{"type": "way", "id": 1, "tags": {"name": "Sayles Hall"}}]})
@@ -731,6 +774,10 @@ class TestCaptureOverpassDiningAthletics:
         )
 
         def handler(request: httpx.Request) -> httpx.Response:
+            # The menus API is fetched FIRST now; the landing page is the
+            # secondary discovery path.
+            if "brown-dining" in request.url.path:
+                return httpx.Response(200, content=DINING_MENUS_BODY)
             if request.url.path == "/":
                 return httpx.Response(200, content=landing.encode())
             if request.url.path.endswith("app.js"):
@@ -743,17 +790,20 @@ class TestCaptureOverpassDiningAthletics:
         # app.js is deduplicated and the cdn script is filtered as off-site;
         # every same-site script matches the "dining" host token, so other.js
         # and menu-config.js are attempted and their 404s become gaps.
-        assert sources == ["dining_landing", "dining_bundle"]
+        assert sources == ["dining_menus", "dining_landing", "dining_bundle"]
         assert [gap["source"] for gap in session.gaps] == ["dining_bundle", "dining_bundle"]
         assert "other.js" in session.gaps[0]["reason"]
         assert "menu-config.js" in session.gaps[1]["reason"]
 
     def test_a_bundleless_dining_page_is_an_explicit_gap(self, tmp_path: Path) -> None:
         session = offline_session(
-            tmp_path, lambda request: httpx.Response(200, content=b"<h1>Dining</h1><p>static</p>")
+            tmp_path,
+            lambda request: httpx.Response(200, content=DINING_MENUS_BODY)
+            if "brown-dining" in request.url.path
+            else httpx.Response(200, content=b"<h1>Dining</h1><p>static</p>")
         )
         harness.capture_dining(session)
-        assert [entry["source"] for entry in session.entries] == ["dining_landing"]
+        assert [entry["source"] for entry in session.entries] == ["dining_menus", "dining_landing"]
         (gap,) = session.gaps
         assert gap["source"] == "dining_bundle"
         assert "no same-site script/config bundles" in gap["reason"]

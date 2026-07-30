@@ -1,0 +1,8 @@
+{
+  "note": "The pathological replay: every window answers at the cap, including after the planner has narrowed to a single day. This is the ONLY shape that may still record `partial`, and it exists so that `partial` remains reachable — a status nothing can ever produce is not a status. Paired in test/runner.test.ts with a 2-day plan and `cap: 150`, so the recorded 150-row shard stands in for 'at cap' and the whole case costs three fetches; the real 1000-row cap is exercised against livewhale-events.json in test/shard.test.ts.",
+  "responses": [],
+  "default": "livewhale-shard-a.json",
+  "sha256": {
+    "livewhale-shard-a.json": "4ea04a872ec5ab9abdfa7ea8a8c6bc299e9ff435317b19898b9defd74d61afe9"
+  }
+}

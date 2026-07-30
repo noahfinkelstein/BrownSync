@@ -22,9 +22,14 @@ test("map shell boots on the committed basemap", async ({ page }) => {
   await expect(page.getByText("Basemap unavailable")).toHaveCount(0);
 });
 
-test("index.html ships OG metadata and the PWA manifest", async ({ page, request, baseURL }) => {
+test("document title, OG metadata, and PWA manifest stay canonical", async ({
+  page,
+  request,
+  baseURL,
+}) => {
   await page.goto("/");
 
+  await expect(page).toHaveTitle("BrownSync — everything happening at Brown, on one live map");
   await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Brown/);
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0B0E12");
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", /BrownSync/);

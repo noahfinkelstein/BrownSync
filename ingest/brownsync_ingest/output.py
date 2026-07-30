@@ -30,13 +30,20 @@ def publish_json_document(
     document: dict[str, object],
     destination: Path,
     staging_root: Path,
+    *,
+    compact: bool = False,
 ) -> None:
-    """Atomically replace one pretty-printed JSON sidecar file.
+    """Atomically replace one JSON sidecar file.
 
     Same staging/fsync/replace discipline as :func:`publish_ndjson`;
     promoted from ``athletics_venues.py`` in Task 7 so every sidecar
     publisher shares one implementation. A serialization failure leaves any
     existing destination untouched and the staging root clean.
+
+    Sidecars are pretty-printed by default because they are small and read by
+    humans in review. ``compact=True`` is for artifacts the browser fetches —
+    ``campus_buildings.geojson`` is 441 kB pretty and 319 kB compact, which is
+    58 kB rather than 90 kB over the wire once gzipped.
     """
     destination = Path(destination)
     staging_root = Path(staging_root)
@@ -54,9 +61,18 @@ def publish_json_document(
             delete=False,
         ) as staging_file:
             staging_path = Path(staging_file.name)
-            json.dump(
-                document, staging_file, indent=2, ensure_ascii=False, allow_nan=False
-            )
+            if compact:
+                json.dump(
+                    document,
+                    staging_file,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                    allow_nan=False,
+                )
+            else:
+                json.dump(
+                    document, staging_file, indent=2, ensure_ascii=False, allow_nan=False
+                )
             staging_file.write("\n")
             staging_file.flush()
             os.fsync(staging_file.fileno())

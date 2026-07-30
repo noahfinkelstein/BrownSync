@@ -77,7 +77,7 @@ export function TimeScrubber({ store = timeCursor, className }: TimeScrubberProp
           every 30 s live tick. The slider's aria-valuetext covers AT. */}
       <output
         aria-live="off"
-        className="min-w-[10.5rem] shrink-0 whitespace-nowrap text-right font-mono text-13 text-text-secondary tabular-nums"
+        className="min-w-[10.5rem] shrink-0 whitespace-nowrap text-right font-mono text-14 text-text-secondary tabular-nums"
       >
         {formatCursor(at, liveNow)}
       </output>

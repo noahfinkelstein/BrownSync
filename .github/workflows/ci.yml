@@ -34,6 +34,72 @@ jobs:
         # PERF_ENFORCE=1 on GPU hardware for the real gate.
         run: pnpm --filter @brownsync/web e2e
 
+  ingest:
+    # The Python lane had NO CI job at all: ~1,155 offline tests, including
+    # every fixture-integrity and fail-closed-gate assertion, ran only on a
+    # developer's machine. They are fully offline (recorded, hash-pinned
+    # fixtures; `test_fixtures.py` rejects silent synthetic substitution), so
+    # there is nothing to gate them behind.
+    #
+    # The postgres-marked tests stay skipped here — the `migrate` job owns the
+    # DATABASE_URL-gated parity checks against a real PostGIS container.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Python offline test suite
+        working-directory: ingest
+        run: uv run pytest -q
+      - name: Rebuild the seed bundle from pinned fixtures
+        working-directory: ingest
+        run: uv run ingest run all --out ndjson --seeds-dir ../db/seeds --staging-root ../reports/tmp
+      - name: Data artifacts must rebuild byte-identically
+        # Determinism guard. Every producer reads only recorded, hash-pinned
+        # fixtures, so the DATA files must come out byte-for-byte identical; a
+        # diff means a producer went non-deterministic (unstable sort, dict
+        # iteration order, a stray timestamp) and CI should say so rather than
+        # let it surface as a mystery diff in someone else's PR.
+        #
+        # Deliberately EXCLUDED, because these change on every run by design:
+        #   manifest.json                     fresh `generation` uuid + generated_at
+        #   athletics_venues.json             carries generated_at
+        #   brown_owned_buildings.json        carries generated_at
+        #   organization_livewhale_groups.json carries generated_at
+        #   dining_menus.json                 carries generated_at
+        #   publications.json                 carries generated_at
+        #   library_hours.json                carries generated_at
+        #   source_runs.ndjson                append-only run history
+        run: |
+          set -euo pipefail
+          DETERMINISTIC="db/seeds/places.ndjson \
+                         db/seeds/course_meetings.ndjson \
+                         db/seeds/organizations.ndjson \
+                         db/seeds/events.ndjson \
+                         db/seeds/campus_buildings.geojson \
+                         db/seeds/campus_landmarks.geojson \
+                         db/seeds/campus_amenities.geojson"
+          if ! git diff --quiet -- $DETERMINISTIC; then
+            echo "::error::ingest run all produced different bytes for a data artifact"
+            git diff --stat -- $DETERMINISTIC
+            exit 1
+          fi
+          echo "ok: every data artifact rebuilt byte-identically"
+      - name: Manifest covers exactly the published artifacts
+        run: |
+          git checkout -- db/seeds/ 2>/dev/null || true
+          pnpm install --frozen-lockfile
+          pnpm --filter @brownsync/contract build
+          pnpm db:seed-check
+
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -53,6 +119,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply migrations in order
         run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0010_ci_auth_bootstrap.sql
           for f in db/migrations/*.sql; do
             echo "applying $f"
             PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$f"
@@ -61,6 +128,22 @@ jobs:
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0002_api_checks.sql
       - name: Term-reconciliation SQL checks (rollback-safe, re-applies 0003 for idempotency)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0003_term_checks.sql
+      - name: BDH licence SQL checks (rollback-safe, re-applies 0004 for idempotency)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0004_bdh_licence_checks.sql
+      - name: Index hygiene SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0005_index_checks.sql
+      - name: Source registry SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0006_source_registry_checks.sql
+      - name: Place resolution SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0007_place_resolution_checks.sql
+      - name: Identity SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0010_identity_checks.sql
+      - name: RLS SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0011_rls_checks.sql
+      - name: Social SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0012_social_checks.sql
+      - name: Social SQL two-session race checks
+        run: BROWNSYNC_DISPOSABLE_SOCIAL_RACE=1 PGPASSWORD=postgres bash db/checks/0012_social_race.sh postgresql://postgres:postgres@localhost:5432/postgres
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -133,9 +216,61 @@ jobs:
             "select count(*) = count(distinct (source, source_id)) from events"
           check "second pass refreshed last_seen_at" \
             "select count(*) > 0 from events where source = 'livewhale' and last_seen_at > first_seen_at"
-          check "capped livewhale fixture recorded partial, not ok" \
-            "select count(*) = 2 from source_runs where source = 'livewhale' and status = 'partial'"
+          # THE regression guard for the LiveWhale sharding fix. Before it, one
+          # unbounded fetch always came back at the server's 1000-row cap, so
+          # 'partial' was structural and 'ok' was unreachable for the primary
+          # source. The sharded replay proves completeness window by window.
+          check "sharded livewhale fixture recorded ok, not partial" \
+            "select count(*) = 2 from source_runs where source = 'livewhale' and status = 'ok'"
+          check "no livewhale run recorded partial" \
+            "select count(*) = 0 from source_runs where source = 'livewhale' and status = 'partial'"
           check "athletics + bdh runs recorded ok" \
             "select count(*) = 4 from source_runs where source in ('athletics_ics', 'bdh') and status = 'ok'"
           check "no error runs recorded" \
             "select count(*) = 0 from source_runs where source in ('livewhale', 'athletics_ics', 'bdh') and status = 'error'"
+      - name: Assert place resolution survived the poll
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          check() {
+            local desc="$1" query="$2" got
+            got=$(psql -h localhost -U postgres -d postgres -tAc "$query")
+            if [ "$got" != "t" ]; then
+              echo "FAIL: $desc — ($query) returned '$got'"
+              exit 1
+            fi
+            echo "ok: $desc"
+          }
+          # The seed bundle ships 229 resolved livewhale place_ids. The poller
+          # emits place_id null, so before migration 0007 the first refresh
+          # nulled every one it touched — which is why /api/events served 500
+          # rows with zero placeId.
+          check "livewhale place resolution survived the poll" \
+            "select count(*) > 100 from events where source = 'livewhale' and place_id is not null"
+          # Sharper: rows the poller ACTUALLY refreshed this run must still
+          # carry their place. 57 of the fixture's rows are seeded with one, so
+          # the old bare 'place_id = excluded.place_id' would land this at 0.
+          check "refreshed livewhale rows kept their resolved place" \
+            "select count(*) > 50 from events where source = 'livewhale' and place_id is not null and last_seen_at > first_seen_at"
+          check "the alias index covers the loaded gazetteer" \
+            "select count(*) > 100 from place_aliases"
+
+      # Migration 0007 makes the DATABASE a second implementation of a resolver
+      # whose Python original was itself written to mirror pg_trgm. This is the
+      # pin between them: the same corpus through both, asserting identical
+      # (place_id, room, method). It runs in a transaction it always rolls back.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: SQL/Python place-resolver parity
+        working-directory: ingest
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: uv run pytest -q tests/gazetteer/test_sql_resolver_parity.py

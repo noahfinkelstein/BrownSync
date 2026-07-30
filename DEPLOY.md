@@ -10,7 +10,7 @@ set in step 2 and no-ops (green, with a warning) before then.
 | Piece | Where | Config |
 |---|---|---|
 | Database | Supabase Postgres, project `hkrxahzdqqxxovvilalm` ([dashboard](https://supabase.com/dashboard/project/hkrxahzdqqxxovvilalm)) | `supabase/` (already linked locally) |
-| Read API | Cloudflare Worker `brownsync-api` + Hyperdrive → Supabase | `apps/api/wrangler.toml`, entry `apps/api/src/worker.ts` |
+| API | Cloudflare Worker `brownsync-api` + Hyperdrive → Supabase | `apps/api/wrangler.toml`, entry `apps/api/src/worker.ts` |
 | Web | Cloudflare Pages project `brownsync` | `.github/workflows/deploy.yml` |
 | Pollers | GitHub Actions cron | `.github/workflows/poll.yml` |
 | Seed load | GitHub Actions, on demand | `.github/workflows/seed-load.yml` |
@@ -107,6 +107,38 @@ curl https://brownsync-api.<your-workers-subdomain>.workers.dev/api/health
 
 If the printed Worker URL differs from what you set in step 2, update
 `VITE_API_ORIGIN` now (`gh variable set VITE_API_ORIGIN --body "…"`).
+
+### Account-deletion secret and smoke prerequisite
+
+The authenticated account-deletion route fails closed with sanitized `503`
+until its server-only Supabase service-role secret is provisioned. From
+`apps/api`, set it through Wrangler's prompt, then redeploy:
+
+```sh
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler deploy
+```
+
+Never place or print the secret value in configuration, logs, commands, or
+documentation. After deployment, smoke the route only with a disposable Brown
+Google test account:
+
+- [ ] Do not rely on token refresh or a newly issued JWT `iat`: current
+      Supabase Auth source persists session AMR across refresh and does not
+      advance the OAuth authentication timestamp.
+- [ ] Sign in and complete a fresh Google OAuth authentication.
+- [ ] Call `DELETE /api/account` with that account's bearer token and confirm
+      an empty `204`.
+- [ ] Confirm the disposable Auth user and its dependent application records
+      are gone.
+
+The AMR behavior above is verified from the official Supabase JWT
+documentation and `supabase/auth` commit `163ab6f`, but hosted smoke remains
+required to verify the deployed project's actual claims and configuration.
+Deletion does not instantly invalidate an already-issued JWT; it can remain
+cryptographically valid until expiry. Every future protected mutation must
+also require a surviving account/profile record (or an equivalent
+account-existence gate), not only a valid signature.
 
 Local sanity checks that need no Cloudflare auth:
 `pnpm --filter @brownsync/api build:worker` (bundle dry-run) and

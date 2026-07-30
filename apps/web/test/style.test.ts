@@ -57,17 +57,45 @@ describe("map/style.json (canonical basemap style)", () => {
     }
   });
 
-  it("extrudes buildings with the height attr and a 12 m fallback", () => {
+  it("extrudes context buildings with a clamped height fallback", () => {
+    // Measured against the committed extract: the campus z15 tile has 889
+    // buildings and only 121 (13.6%) carry `height`, with a minimum of
+    // 0.3048 m (a 1-foot data-entry artifact). The old flat 12 m fallback was
+    // therefore doing the work for ~86% of buildings, which is precisely why
+    // the massing read uniform. `max(coalesce(height, 9), 6)` clamps the 1-ft
+    // artifacts up and drops the fallback so real heights stand out.
+    //
+    // Brown's own buildings no longer use this layer at all — they are drawn
+    // by bs-campus-extrusion from measured floor counts (see campusBuildings.ts).
     const b3d = byId.get("buildings-3d");
     expect(b3d?.type).toBe("fill-extrusion");
-    expect(b3d?.paint?.["fill-extrusion-height"]).toEqual(["coalesce", ["get", "height"], 12]);
+    expect(b3d?.paint?.["fill-extrusion-height"]).toEqual([
+      "max",
+      ["coalesce", ["get", "height"], 9],
+      6,
+    ]);
     expect(b3d?.paint?.["fill-extrusion-base"]).toEqual(["coalesce", ["get", "min_height"], 0]);
+  });
+
+  it("recedes context buildings so the campus layer reads as figure", () => {
+    // Non-Brown College Hill is context. Brown's own footprints draw above it
+    // at full opacity from bs-campus-*, so pushing this darker is the cheapest
+    // available legibility win.
+    expect(byId.get("buildings-3d")?.paint?.["fill-extrusion-color"]).toBe("#141821");
+    expect(byId.get("buildings-3d")?.paint?.["fill-extrusion-opacity"]).toBe(0.9);
+    expect(byId.get("buildings-2d")?.paint?.["fill-color"]).toBe("#141821");
   });
 
   it("gates labels to at most 3 tiers at any zoom", () => {
     const symbolLayers = layers.filter((l) => l.type === "symbol");
-    // Tiers: neighbourhood > street > civic POI (locality hands off below z13).
-    expect(symbolLayers).toHaveLength(4);
+    // Tiers: locality > neighbourhood > street. `label-pois-civic` was retired
+    // when the campus label layer landed: Protomaps `pois` names only ~15-20
+    // Brown buildings out of 231 named POIs in the campus tile, so it was the
+    // weakest tier and is strictly superseded by bs-campus-labels (262
+    // buildings). Retiring it also keeps the visible-tier count at 3 once the
+    // app-side campus tier is counted — see campusBuildings.test.ts, which
+    // probes the union of style.json symbols and the app's own layers.
+    expect(symbolLayers).toHaveLength(3);
     for (const probe of [7, 12, 14, 15, 16, 17.5]) {
       const visible = symbolLayers.filter((l) => {
         const min = l.minzoom ?? 0;
@@ -78,13 +106,12 @@ describe("map/style.json (canonical basemap style)", () => {
     }
   });
 
-  it("hides commercial POI clutter (single whitelisted civic POI layer)", () => {
+  it("hides commercial POI clutter (no POI layer at all)", () => {
+    // STRONGER than the previous rule, not weaker. This used to allow exactly
+    // one whitelisted civic-POI layer and assert its filter excluded
+    // restaurant/cafe/bar/shop/fast_food. Now no layer reads `pois`, so
+    // commercial clutter cannot reach the map by any filter mistake.
     const poiLayers = layers.filter((l) => l["source-layer"] === "pois");
-    expect(poiLayers).toHaveLength(1);
-    const filter = JSON.stringify(poiLayers[0]?.filter);
-    for (const kind of ["restaurant", "cafe", "bar", "shop", "fast_food"]) {
-      expect(filter).not.toContain(kind);
-    }
-    expect(filter).toContain("university");
+    expect(poiLayers).toHaveLength(0);
   });
 });

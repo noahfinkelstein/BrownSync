@@ -120,7 +120,7 @@ export function HealthStrip({ className, compact = false, refreshMs }: HealthStr
               ))}
             </ul>
           ) : (
-            <p className="px-3 py-4 text-13 text-text-secondary">
+            <p className="px-3 py-4 text-14 text-text-secondary">
               {phase === "error"
                 ? "The read API didn't answer the health check — it usually recovers within a minute."
                 : "No source runs recorded yet — each poller writes one run row per fetch."}
@@ -157,8 +157,12 @@ function HealthRow({ source, nowMs }: { source: SourceHealth; nowMs: number }) {
           run {formatAgo(source.lastRunAt, nowMs)}
         </span>
       </div>
+      {/* --status-error is an INDICATOR colour: 4.17:1 on bg-raised and
+          3.83:1 on bg-overlay, both under AA for a 12 px line. The status dot
+          beside this already carries the state in colour, so the prose reads
+          in the text triad and colour stops being the only signal. */}
       {source.error && (
-        <p className="truncate pl-3 font-mono text-12 text-status-error" title={source.error}>
+        <p className="truncate pl-3 font-mono text-12 text-text-primary" title={source.error}>
           {source.error}
         </p>
       )}

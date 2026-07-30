@@ -22,6 +22,7 @@ describe("query-param validation", () => {
     ["empty q", "/api/events?q="],
     ["non-ISO at on /api/meetings", "/api/meetings?at=noonish"],
     ["non-ISO at on activity", "/api/places/salomon-center/activity?at=later"],
+    ["non-ISO at on organization", "/api/orgs/brown-lecture-board?at=noonish"],
     ["non-uuid event id", "/api/events/not-a-uuid"],
   ])("rejects %s with a 400 envelope", async (_label, url) => {
     const res = await app.request(url);

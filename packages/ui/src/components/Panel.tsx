@@ -40,7 +40,12 @@ export function Panel({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <Dialog.Portal>
-        {modal && <Dialog.Overlay className="fixed inset-0 z-40 bg-bg-base/60" />}
+        {/* A scrim has to DIM. `bg-bg-base/60` was a 60% veil of the page
+            colour — on a near-black page that dimmed; on white it is a white
+            film over white and the map behind stayed at full strength. Seal
+            brown at 40% keeps the veil inside the brand instead of dropping a
+            neutral grey next to it. */}
+        {modal && <Dialog.Overlay className="fixed inset-0 z-40 bg-brand-brown/40" />}
         <Dialog.Content
           aria-describedby={undefined}
           data-testid={testId}
@@ -52,7 +57,7 @@ export function Panel({
         >
           <div className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
             <div className="min-w-0">
-              <Dialog.Title className="truncate text-15 font-medium tracking-tight text-text-primary">
+              <Dialog.Title className="truncate text-16 font-medium tracking-tight text-text-primary">
                 {title}
               </Dialog.Title>
               {sub && <div className="pt-0.5 font-mono text-12 text-text-secondary">{sub}</div>}

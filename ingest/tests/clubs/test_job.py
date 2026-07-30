@@ -39,17 +39,26 @@ def club_row(
     group_type: str = "Undergraduate student group",
     name: str = "Example Club",
     description: str = "We do things.",
+    contact_emails: str = "contact@brown.edu",
+    advisor: str = "A. Advisor",
     funding_category: str = "Category 2",
     tags: str = "UCS Recognized Undergrad Student Groups",
     website_url: str = "",
     instagram_url: str = "",
+    facebook_url: str = "",
+    linkedin_url: str = "",
+    youtube_url: str = "",
+    twitter_url: str = "",
+    tiktok_url: str = "",
+    other_social_urls: str = "",
     source_url: str = "https://studentactivities.brown.edu/organizations/example-club",
     directory_source_url: str = DIRECTORY,
 ) -> str:
     cells = [
-        group_type, name, description, "contact@brown.edu", "A. Advisor",
-        funding_category, tags, website_url, instagram_url, "", "", "", "", "",
-        "", source_url, directory_source_url,
+        group_type, name, description, contact_emails, advisor,
+        funding_category, tags, website_url, instagram_url, facebook_url,
+        linkedin_url, youtube_url, twitter_url, tiktok_url, other_social_urls,
+        source_url, directory_source_url,
     ]
     return ",".join(
         f'"{cell}"' if ("," in cell or '"' in cell) else cell for cell in cells
@@ -139,8 +148,17 @@ class TestEmission:
             workspace.clubs_csv(
                 club_row(
                     name="Alpha Club",
+                    contact_emails=(
+                        " President@Brown.edu | president@brown.edu | "
+                        "treasurer@brown.edu "
+                    ),
                     website_url="https://alpha.example.org",
                     instagram_url="https://instagram.com/alpha",
+                    facebook_url="https://facebook.com/alpha",
+                    linkedin_url="https://linkedin.com/company/alpha",
+                    youtube_url="https://youtube.com/@alpha",
+                    twitter_url="https://x.com/alpha",
+                    tiktok_url="https://tiktok.com/@alpha",
                 ),
                 club_row(
                     name="Beta Society",
@@ -165,7 +183,15 @@ class TestEmission:
         assert alpha == OrganizationRow(
             id="alpha-club", name="Alpha Club", kind="club", category=None,
             description="We do things.", url="https://alpha.example.org",
-            instagram="https://instagram.com/alpha", default_place_id=None,
+            instagram="https://instagram.com/alpha",
+            contact_emails=["president@brown.edu", "treasurer@brown.edu"],
+            advisor="A. Advisor", funding_category="Category 2",
+            website_url="https://alpha.example.org",
+            facebook_url="https://facebook.com/alpha",
+            linkedin_url="https://linkedin.com/company/alpha",
+            youtube_url="https://youtube.com/@alpha",
+            twitter_url="https://x.com/alpha",
+            tiktok_url="https://tiktok.com/@alpha", default_place_id=None,
             source="studentactivities",
         )
         beta = rows["beta-society"]
@@ -198,19 +224,25 @@ class TestEmission:
             "chinese-students-and-scholars-association-2",
         ]
 
-    def test_contact_data_is_dropped_with_documented_counts(self, workspace: Workspace) -> None:
+    def test_preserved_enrichment_is_not_reported_as_dropped(
+        self, workspace: Workspace
+    ) -> None:
         result = workspace.run(
-            workspace.clubs_csv(club_row(name="Alpha Club")),
+            workspace.clubs_csv(
+                club_row(
+                    name="Alpha Club",
+                    other_social_urls="https://discord.gg/alpha",
+                )
+            ),
             workspace.groups_json("Unrelated Office"),
             workspace.events_csv(),
         )
         published = (workspace.seeds_path).read_text(encoding="utf-8")
-        assert "contact@brown.edu" not in published
-        assert "A. Advisor" not in published
+        assert "contact@brown.edu" in published
+        assert "A. Advisor" in published
         dropped = dict(result.dropped_fields)
-        assert dropped["contact_emails"] == 1
-        assert dropped["advisor"] == 1
-        assert set(dropped) == set(DROPPED_FIELD_COLUMNS)
+        assert dropped == {"other_social_urls": 1}
+        assert DROPPED_FIELD_COLUMNS == ("other_social_urls",)
 
     def test_zero_recurrences_emit(self, workspace: Workspace) -> None:
         result = workspace.run(
@@ -350,6 +382,25 @@ class TestRealExportRegression:
         assert {row.kind for row in rows} == {"club"}
         assert {row.category for row in rows} == {None}
         assert {row.source for row in rows} == {"studentactivities", "gsc"}
+
+    def test_all_measured_source_enrichment_is_preserved(self, result) -> None:
+        job_result, _ = result
+        rows = job_result.rows
+        assert sum(len(row.contact_emails) for row in rows) == 459
+        assert sum(row.advisor is not None for row in rows) == 386
+        assert sum(row.funding_category is not None for row in rows) == 422
+        assert sum(row.website_url is not None for row in rows) == 21
+        assert sum(row.instagram is not None for row in rows) == 337
+        assert sum(row.facebook_url is not None for row in rows) == 41
+        assert sum(row.linkedin_url is not None for row in rows) == 0
+        assert sum(row.youtube_url is not None for row in rows) == 0
+        assert sum(row.twitter_url is not None for row in rows) == 0
+        assert sum(row.tiktok_url is not None for row in rows) == 0
+        assert all(
+            email == email.strip().lower()
+            for row in rows
+            for email in row.contact_emails
+        )
 
     def test_no_livewhale_link_is_claimed(self, result) -> None:
         job_result, workspace = result

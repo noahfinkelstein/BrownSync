@@ -41,8 +41,12 @@ ON CONFLICT (id) DO UPDATE SET
 
 _ORGANIZATIONS_UPSERT = """\
 INSERT INTO organizations (
-    id, name, kind, category, description, url, instagram, default_place_id, source
+    id, name, kind, category, description, url, instagram,
+    contact_emails, advisor, funding_category, website_url, facebook_url,
+    linkedin_url, youtube_url, twitter_url, tiktok_url,
+    default_place_id, source
 ) VALUES (
+    %s, %s, %s, %s, %s, %s, %s, %s, %s,
     %s, %s, %s, %s, %s, %s, %s, %s, %s
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -52,6 +56,15 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     url = EXCLUDED.url,
     instagram = EXCLUDED.instagram,
+    contact_emails = EXCLUDED.contact_emails,
+    advisor = EXCLUDED.advisor,
+    funding_category = EXCLUDED.funding_category,
+    website_url = EXCLUDED.website_url,
+    facebook_url = EXCLUDED.facebook_url,
+    linkedin_url = EXCLUDED.linkedin_url,
+    youtube_url = EXCLUDED.youtube_url,
+    twitter_url = EXCLUDED.twitter_url,
+    tiktok_url = EXCLUDED.tiktok_url,
     default_place_id = EXCLUDED.default_place_id,
     source = EXCLUDED.source
 """
@@ -189,7 +202,10 @@ class PostgresRepository:
                     _ORGANIZATIONS_UPSERT,
                     (
                         row.id, row.name, row.kind, row.category, row.description,
-                        row.url, row.instagram, row.default_place_id, row.source,
+                        row.url, row.instagram, list(row.contact_emails), row.advisor,
+                        row.funding_category, row.website_url, row.facebook_url,
+                        row.linkedin_url, row.youtube_url, row.twitter_url,
+                        row.tiktok_url, row.default_place_id, row.source,
                     ),
                 )
         return len(rows)

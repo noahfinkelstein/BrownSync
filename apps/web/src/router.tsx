@@ -22,6 +22,14 @@ import { NotFoundScreen, ProfilePagePending, RoutePendingFallback } from "./page
 
 const PlacePage = lazyRouteComponent(() => import("./pages/PlacePage"), "PlacePage");
 const OrgPage = lazyRouteComponent(() => import("./pages/OrgPage"), "OrgPage");
+// Directories are route-level lazy chunks: the map screen is the front door
+// and must not pay for them, but they are the answer to "the map is the only
+// way to interact with the info".
+const EventsDirectory = lazyRouteComponent(
+  () => import("./events/EventsDirectory"),
+  "EventsDirectory",
+);
+const ClubsDirectory = lazyRouteComponent(() => import("./orgs/ClubsDirectory"), "ClubsDirectory");
 
 const rootRoute = createRootRoute({ component: App, notFoundComponent: NotFoundScreen });
 
@@ -59,7 +67,35 @@ const orgRoute = createRoute({
   pendingComponent: ProfilePagePending,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, placeRoute, orgRoute]);
+function EventsScreen() {
+  return <EventsDirectory />;
+}
+
+const eventsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/events",
+  component: EventsScreen,
+  pendingComponent: RoutePendingFallback,
+});
+
+function ClubsScreen() {
+  return <ClubsDirectory />;
+}
+
+const clubsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/clubs",
+  component: ClubsScreen,
+  pendingComponent: RoutePendingFallback,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  placeRoute,
+  orgRoute,
+  eventsRoute,
+  clubsRoute,
+]);
 
 export const router = createRouter({
   routeTree,

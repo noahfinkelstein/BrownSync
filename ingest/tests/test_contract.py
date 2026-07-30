@@ -103,9 +103,20 @@ def test_organization_row_mirrors_contract_fields_and_has_no_raw_field() -> None
         "description": None,
         "url": None,
         "instagram": None,
+        "contact_emails": [],
+        "advisor": None,
+        "funding_category": None,
+        "website_url": None,
+        "facebook_url": None,
+        "linkedin_url": None,
+        "youtube_url": None,
+        "twitter_url": None,
+        "tiktok_url": None,
         "default_place_id": None,
         "source": "clubs",
     }
+    other = OrganizationRow(**organization_payload())
+    assert other.contact_emails is not organization.contact_emails
     with pytest.raises(ValidationError, match="raw"):
         OrganizationRow(**organization_payload(raw={"unexpected": True}))
 

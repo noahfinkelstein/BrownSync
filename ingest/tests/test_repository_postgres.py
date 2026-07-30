@@ -61,6 +61,15 @@ create table organizations (
   description   text,
   url           text,
   instagram     text,
+  contact_emails text[] not null default '{}',
+  advisor        text,
+  funding_category text,
+  website_url    text,
+  facebook_url   text,
+  linkedin_url   text,
+  youtube_url    text,
+  twitter_url    text,
+  tiktok_url     text,
   default_place_id text references places(id),
   source        text not null
 );
@@ -277,12 +286,45 @@ def test_organizations_and_course_meetings_refresh_mutable_columns(
     )
     repo.upsert_organizations([org])
     repo.upsert_organizations(
-        [org.model_copy(update={"name": "BOC", "url": "https://boc.brown.edu"})]
+        [
+            org.model_copy(
+                update={
+                    "name": "BOC",
+                    "url": "https://boc.brown.edu",
+                    "contact_emails": ["president@brown.edu"],
+                    "advisor": "A. Advisor",
+                    "funding_category": "Category 2",
+                    "website_url": "https://brownoutingclub.example",
+                    "facebook_url": "https://facebook.com/brownoutingclub",
+                    "linkedin_url": "https://linkedin.com/company/brownoutingclub",
+                    "youtube_url": "https://youtube.com/@brownoutingclub",
+                    "twitter_url": "https://x.com/brownoutingclub",
+                    "tiktok_url": "https://tiktok.com/@brownoutingclub",
+                }
+            )
+        ]
     )
     org_row = admin_connection.execute(
-        "select name, url from organizations where id = %s", ("brown-outing-club",)
+        """
+        select name, url, contact_emails, advisor, funding_category, website_url,
+               facebook_url, linkedin_url, youtube_url, twitter_url, tiktok_url
+        from organizations where id = %s
+        """,
+        ("brown-outing-club",),
     ).fetchone()
-    assert org_row == ("BOC", "https://boc.brown.edu")
+    assert org_row == (
+        "BOC",
+        "https://boc.brown.edu",
+        ["president@brown.edu"],
+        "A. Advisor",
+        "Category 2",
+        "https://brownoutingclub.example",
+        "https://facebook.com/brownoutingclub",
+        "https://linkedin.com/company/brownoutingclub",
+        "https://youtube.com/@brownoutingclub",
+        "https://x.com/brownoutingclub",
+        "https://tiktok.com/@brownoutingclub",
+    )
 
     meeting = CourseMeetingRow(
         id="202710-12345-0",

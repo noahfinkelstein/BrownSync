@@ -35,11 +35,12 @@ pnpm poll all --dry-run                   # three polite live fetches, no DB
 | `src/livewhale/` | `events.brown.edu/live/json/events?max=500` → rows. Schema derived from the recorded real response (loose — unknown fields flow into `raw`). `categories.ts` holds the documented `event_types` → taxonomy table + publisher-group fallback. |
 | `src/athletics/` | `brownbears.com/calendar.ashx/calendar.ics` via node-ical. `source_id` = ICS UID, category `athletics`, all-day dates anchored to America/New_York midnight. |
 | `src/bdh/` | `browndailyherald.com/feed` RSS via fast-xml-parser. Buzz layer: no coords, category null, tags `["news"]`, `start_ts` = pubDate. |
-| `src/sweep.ts` | Cancellation-sweep window logic + truncated-fetch guard (contract §2), pure + unit-tested. |
-| `src/db.ts` | postgres.js upsert on `(source, source_id)`, `last_seen_at` refresh, never deletes; `source_runs` row every run including failures. |
+| `src/sweep.ts` | Cancellation-sweep window logic + truncated-fetch guard (contract §2), pure + unit-tested. `sweepWindowFromShards` for sources that fetch explicit windows. |
+| `src/livewhale/shard.ts` | Adaptive date-window sharding: bounded windows, halve-and-refetch at the server cap, dedupe on `source_id`. Pure + unit-tested. |
+| `src/db.ts` | postgres.js upsert on `(source, source_id)`, `last_seen_at` refresh, never deletes; `source_runs` row every run including failures. `location_raw` is resolved to a `place_id` by the database (`resolve_place`, migration 0007) over the batch's DISTINCT values, and **an existing `place_id` is never overwritten with null** — that bare `place_id = excluded.place_id` was why `/api/events` served 500 rows with zero `placeId`. |
 | `src/dedup/` | Cross-source dedup job (`pnpm poll dedup`): SQL blocking + pg_trgm decision, pure clustering/canonical-pick logic in `cluster.ts`. See below. |
 | `src/runner.ts` / `src/cli.ts` | Per-source orchestration + arg parsing. |
-| `fixtures/` | ONE recorded real response per source (2026-07-28) + sidecar fixtures: a sample `organization_livewhale_groups.json` and a mirror of the real ingestion-emitted `athletics_venues.json`. Tests run exclusively against these — zero network in CI. |
+| `fixtures/` | ONE recorded real response per source (2026-07-28) + sidecar fixtures: a sample `organization_livewhale_groups.json` and a mirror of the real ingestion-emitted `athletics_venues.json`. LiveWhale additionally carries a **shard replay plan** (`livewhale-shards.json`, plus `-a`/`-b`/`-empty` slices of the recorded feed) — all sha256-pinned in `test/shard.test.ts`. Tests run exclusively against these — zero network in CI. |
 
 ## Source-specific decisions
 
@@ -98,7 +99,32 @@ returning >= the requested max (or >= the observed 1000-row cap) is therefore tr
 incomplete: an event tied at the window's end may be absent only because it fell past the
 cap, so the sweep is clamped to `[min, max)` (end-exclusive) and the run is recorded as
 `partial` instead of `ok`. See `isLikelyTruncated` in `src/sweep.ts` and the fixture-at-cap
-tests in `test/sweep.test.ts`.
+tests in `test/sweep.test.ts`. **This is now the fallback path** — the single-fetch path
+every source without a `fetchPlan` still uses.
+
+**Date-window sharding (LiveWhale)** — the rule above made `partial` structural for the
+project's primary source: one unbounded fetch ALWAYS came back at the cap, so `last_ok_at`
+stayed null forever and everything past row 1000 was never fetched at all. `src/livewhale/
+shard.ts` asks for bounded windows instead — 14 days at a time across `[now-7d, now+180d]`,
+in the publisher's local calendar. A window under the cap is PROVABLY complete; a window at
+the cap is halved and refetched; only a window narrowed to a single day that still hits the
+cap is genuinely `partial`. LiveWhale's parameters are **path segments**
+(`/start_date/YYYY-MM-DD/end_date/YYYY-MM-DD`) — `?start_date=` is silently ignored.
+
+Two consequences worth knowing:
+
+- Rows are deduped on `source_id` (`${id}:${date_ts}`), because cross-posted events repeat
+  across groups and halved windows share a boundary day. Not on the bare LiveWhale `id`:
+  a repeating series is pre-expanded into one row per occurrence sharing one `id`, so that
+  would delete every occurrence after the first.
+- The cancellation sweep now covers the union of the windows that were **requested**
+  (`sweepWindowFromShards`), not the span of the rows that came back. A fortnight the feed
+  answers with zero events used to contribute no window at all, so anything stored there was
+  never swept and stayed live forever.
+
+`--fixture` for a sharded source replays a **plan** (`fixtures/livewhale-shards.json`) keyed
+by request order rather than by date, so it stays deterministic as `now` moves. See
+`test/shard.test.ts`.
 
 ## Etiquette (handoff §8)
 

@@ -140,3 +140,71 @@ lane. This file is the register.
   and stay stable; 21 registrar entries also exist as livewhale rows
   (same underlying LiveWhale event) — cross-source duplicates are the
   app lane's `canonical_id` dedup concern (contract §1).
+
+## 7. Per-source health fields (migration 0006) — BLOCKING, app lane, ONE LINE
+
+**Status: API side landed 2026-07-29. Client change outstanding.**
+
+`api_health()` now left-joins `source_registry` and `/api/health` returns three
+new **optional** fields on every `SourceHealth` entry:
+
+| field | type | meaning |
+|---|---|---|
+| `staleAfterSeconds` | `number \| null` | per-source staleness horizon in seconds; `null` = not registered |
+| `enabled` | `boolean` | `false` = ToS gate or recorded refusal — paused, not broken |
+| `label` | `string \| null` | registry display name; `null` = keep the local map |
+
+They are optional in `SourceHealthSchema`, so **the current client keeps
+working untouched** — this is a correctness improvement, not a break.
+
+**The change needed in `apps/web/src/ops/health-model.ts` (owned by the app
+lane; deliberately not edited from the data lane):**
+
+- `effectiveStatus(source, nowMs)` currently applies one global
+  `STALE_AFTER_MS = 45 * 60_000` to every source. With ArcGIS at weekly and
+  dining at daily, every slow-by-design source is permanently yellow. Use
+  `source.staleAfterSeconds * 1000` when present, falling back to the existing
+  constant when it is null — so the change is safe against a registry gap:
+
+  ```ts
+  const staleAfterMs = source.staleAfterSeconds != null
+    ? source.staleAfterSeconds * 1000
+    : STALE_AFTER_MS;
+  ```
+
+- `sourceLabel()` should prefer `source.label` from the wire and keep its local
+  map as fallback.
+- `source.enabled === false` should render as **paused/blocked with a reason**,
+  never as a failure or a stale warning. Two sources ship that way on purpose —
+  `providence_gov` (robots.txt explicitly disallows `/event/`, `/events/`,
+  `/*?*`) and `today_brown` (Shibboleth SSO) — plus `bdh` while its ToS gate
+  holds. The whole point of registering refusals is that they are *reported*.
+- Suggested tests: a weekly source last seen 3 days ago is `ok`; the same
+  source at 3 weeks is `stale`; a source with `enabled: false` is neither.
+
+**Also newly visible:** `/api/health` now returns a row for every registered
+source, including ones with no producer yet (`dining`, `libcal`, `arcgis`,
+`passiogo`, `feed_rank`, …) with `status: "never"`. That is the same category
+the client already renders for `cab`/`clubs`, just more of them.
+
+## 8. Seed bundle manifest enforcement — RESOLVED 2026-07-29 (closes §4)
+
+The blocking item in §4 ("the app-side loader must reject mixed generations")
+is closed. Manifest verification moved out of `db/seed-check.ts` into a shared
+`db/manifest.ts`; **`db/seed.ts` now calls `verifyManifest()` before reading a
+single NDJSON byte and exits 1 with zero writes** on any byte-length or sha256
+mismatch. Covered by `db/test/manifest.test.ts`, which drives the real loader
+against a tampered bundle with a deliberately unreachable `DATABASE_URL` — the
+run dying on the gate without ever mentioning a connection is the proof that
+nothing was written.
+
+Two related notes for the ingestion lane:
+
+- `campus_buildings.geojson` is present in `db/seeds/` but is **not listed in
+  `db/seeds/manifest.json`** (generation `9e8e8a479a97401ab4077c449d7a1871`,
+  7 artifacts). `pnpm db:seed-check` now says so, once, as a warning. The next
+  `run all` that publishes the manifest should cover it.
+- `source_runs.ndjson` is deliberately **outside** the manifest — it is
+  append-only run history with no fixed generation to hash. It used to warn on
+  every single run by construction, which is how real warnings get ignored; it
+  now gets one explanatory summary line instead.

@@ -1,14 +1,19 @@
 import type { CSSProperties } from "react";
 import { cn } from "../cn";
 
-/** Loading placeholder: shimmerless opacity pulse (§6.4). Size with h- and w- classes. */
+/**
+ * Loading placeholder: shimmerless opacity pulse (§6.4). Size with h- and w-
+ * classes.
+ *
+ * `bg-line`, not `bg-bg-overlay`. The pulse runs 0.45 → 0.85 opacity, so the
+ * fill is never fully itself — and `--bg-overlay` at 0.45 over white is
+ * #F7F5F3, a 1.03:1 rectangle. The skeleton was invisible for most of its own
+ * animation, and completely invisible inside a `bg-raised` panel. `--line` is
+ * the darkest non-text surface token and survives the fade at both ends.
+ */
 export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
-    <div
-      aria-hidden
-      className={cn("bs-skeleton rounded-2 bg-bg-overlay", className)}
-      style={style}
-    />
+    <div aria-hidden className={cn("bs-skeleton rounded-2 bg-line", className)} style={style} />
   );
 }
 

@@ -33,7 +33,8 @@ export function ListView({
 }: ListViewProps) {
   const bbox = useViewportBbox(viewport);
   const { selected, clear } = useCategoryFilter();
-  const { events, pending, error, refetch } = useBrowseEvents(bbox, selected);
+  const at = now ? now() : new Date();
+  const { events, pending, error, refetch } = useBrowseEvents(bbox, selected, at);
   const navigate = useNavigate();
   // §6.4 keyboard support: the list is ONE tab stop; ↑/↓ + Home/End rove
   // between rows and Enter opens the row's detail panel (native button).
@@ -42,8 +43,8 @@ export function ListView({
     "vertical",
   );
 
-  const at = now ? now() : new Date();
   const buckets = groupEventsByTime(events, at);
+  const visibleEventCount = buckets.reduce((total, bucket) => total + bucket.events.length, 0);
 
   const openEvent = (event: EventOut) => {
     if (onSelectEvent) {
@@ -59,7 +60,7 @@ export function ListView({
     <div className={cn("flex h-full min-h-0 flex-col bg-bg-raised", className)}>
       <div className="flex shrink-0 items-center justify-between border-b border-line px-3 py-2">
         <span className="font-mono text-12 text-text-secondary">
-          {events.length} event{events.length === 1 ? "" : "s"} in view
+          {visibleEventCount} event{visibleEventCount === 1 ? "" : "s"} in view
         </span>
         <span className="font-mono text-12 text-text-secondary">next 7 days</span>
       </div>

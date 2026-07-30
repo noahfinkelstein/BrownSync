@@ -1,0 +1,35 @@
+{
+  "artifacts": {
+    "athletics_venues.json": {
+      "bytes": 1226,
+      "sha256": "630fe02cd313e769726127924c126d904f07c2b5d3fec12760d4d3ec32e7ad1a"
+    },
+    "brown_owned_buildings.json": {
+      "bytes": 6027,
+      "sha256": "477e4086cbc5a1859df5d53a2d712a9f058dccd84cf0d256e006b7639e2ebd31"
+    },
+    "course_meetings.ndjson": {
+      "bytes": 1614349,
+      "sha256": "23b7ddce129dfc7e3d2b105d5f96dc5a98d2d9c284803a96d5d0dc438705f149"
+    },
+    "events.ndjson": {
+      "bytes": 1798589,
+      "sha256": "04102b4b320f2f398be97f38d4814f66117719083a6fefa56ab6417bf2c968a1"
+    },
+    "organization_livewhale_groups.json": {
+      "bytes": 93,
+      "sha256": "fdc1fc06e0187494a053db78acc0d68ce5ef82469d27a97d517f491e93015dd5"
+    },
+    "organizations.ndjson": {
+      "bytes": 309596,
+      "sha256": "d67448f81ce49a9a94675f3e024700b9adc9d22e9b323316f8cad28b634882a9"
+    },
+    "places.ndjson": {
+      "bytes": 143489,
+      "sha256": "4b522c81b7a0e946a47c60fedd4fa2a74087a859fc36b5334b6223f500670dad"
+    }
+  },
+  "generated_at": "2026-07-29T14:59:22.971433Z",
+  "generation": "9e8e8a479a97401ab4077c449d7a1871",
+  "schema_version": 1
+}

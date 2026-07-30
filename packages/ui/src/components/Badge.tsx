@@ -12,7 +12,15 @@ export function Badge({ variant = "outline", className, children }: BadgeProps) 
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-2 border px-1.5 py-px text-12",
-        variant === "accent" ? "border-accent/50 text-accent" : "border-line text-text-secondary",
+        /* The accent badge carries a faint accent WASH as well as the border.
+           On the old dark page a 50%-alpha red hairline read as a lit edge; on
+           paper it composites to pink and the badge loses its shape at arm's
+           length. `bg-accent/8` composites against whatever surface the badge
+           lands on, so it stays a tint on base, raised and overlay alike —
+           accent-on-tint measures 5.6 / 5.2 / 4.7:1 (a11y-contrast.test.ts). */
+        variant === "accent"
+          ? "border-accent/50 bg-accent/8 text-accent"
+          : "border-line text-text-secondary",
         className,
       )}
     >

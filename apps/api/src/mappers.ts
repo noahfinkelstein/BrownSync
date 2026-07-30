@@ -142,14 +142,27 @@ export function buildCountsByCategory(
   return counts;
 }
 
-const HEALTH_STATUSES = new Set(["ok", "error", "partial"]);
+/**
+ * Statuses api_health() may legitimately return. "never" is now produced by
+ * SQL (migration 0006: a registered source with no runs), not only
+ * synthesized here for a `knownSources` entry — so it must survive the
+ * validation below instead of degrading to "error".
+ */
+const HEALTH_STATUSES = new Set(["ok", "error", "partial", "never"]);
 
 /**
- * api_health() rows (sources that have run at least once) + the known-source
- * roster → HealthOut. Sources with history keep their latest status; known
- * sources with no history become `status: "never"`. Unknown statuses coming
- * out of source_runs degrade to "error" rather than failing response
- * validation.
+ * api_health() rows + the known-source roster → HealthOut.
+ *
+ * Since 0006, api_health() returns the union of "has run" and "is registered"
+ * and carries three registry columns (`stale_after_seconds`, `enabled`,
+ * `label`). They are passed through as OPTIONAL contract fields: a client
+ * that ignores them behaves exactly as before, and a source that has runs but
+ * no registry row reports `enabled: true` with a null horizon and label,
+ * meaning "nothing registered — use your own defaults".
+ *
+ * `knownSources` still backfills `status: "never"` for the MVP roster, so the
+ * ops strip shows every expected feed from day zero even before the registry
+ * is populated.
  */
 export function aggregateHealth(
   rows: readonly SourceHealthRow[],
@@ -168,17 +181,24 @@ export function aggregateHealth(
           lastOkAt: null,
           itemsUpserted: null,
           error: null,
+          staleAfterSeconds: null,
+          enabled: true,
+          label: null,
         };
       }
       return {
         source,
         status: HEALTH_STATUSES.has(row.status)
-          ? (row.status as "ok" | "error" | "partial")
+          ? (row.status as "ok" | "error" | "partial" | "never")
           : ("error" as const),
         lastRunAt: row.last_run_at === null ? null : toIso(row.last_run_at),
         lastOkAt: row.last_ok_at === null ? null : toIso(row.last_ok_at),
         itemsUpserted: row.items_upserted,
         error: row.error,
+        staleAfterSeconds: row.stale_after_seconds ?? null,
+        // Absence from the registry never reads as "switched off".
+        enabled: row.enabled ?? true,
+        label: row.label ?? null,
       };
     }),
   };

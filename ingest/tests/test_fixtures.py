@@ -49,6 +49,9 @@ REQUIRED_MINIMUMS = {
     "livewhale_events": 1,
     "livewhale_groups": 1,
     "overpass_buildings": 1,
+    # The menus API is the real dining source; the CMS landing page and its
+    # bundles are a blocked discovery path kept as declared gaps.
+    "dining_menus": 1,
     "dining_landing": 1,
     "dining_bundle": 1,
     "athletics_ics": 1,

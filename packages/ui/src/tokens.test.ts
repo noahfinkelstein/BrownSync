@@ -67,7 +67,7 @@ describe("styles.css stays in sync with @brownsync/contract", () => {
     }
   });
 
-  it("declares exactly the §6.2 type scale (12/13/15/18/24)", () => {
+  it("declares exactly the §6.2 type scale (12/14/16/19/24/30)", () => {
     for (const size of tokens.type.scale) {
       expect(cssVar(`--text-${size}`)).toBe(`${size}px`);
     }
@@ -76,6 +76,25 @@ describe("styles.css stays in sync with @brownsync/contract", () => {
     for (const size of declared) {
       expect(allowed.has(size), `--text-${size} is outside the type scale`).toBe(true);
     }
+    // Every scale entry must be reachable as a utility — a size present in
+    // the contract but missing from @theme is the silent-inherit bug again,
+    // just one level up.
+    expect(declared.sort((a, b) => a - b)).toEqual([...tokens.type.scale]);
+  });
+
+  it("gives every size the contract's line height", () => {
+    const lineHeights: Record<number, number> = tokens.type.lineHeights;
+    for (const size of tokens.type.scale) {
+      expect(cssVar(`--text-${size}--line-height`), `--text-${size}`).toBe(
+        `${lineHeights[size]}px`,
+      );
+    }
+  });
+
+  it("sets body to the contract's body size", () => {
+    // Not a cosmetic default: `--text-*: initial` means an unresolved size
+    // utility falls through to exactly this declaration.
+    expect(css).toContain(`font-size: var(--text-${tokens.type.body});`);
   });
 
   it("declares the §6.2 font stacks", () => {

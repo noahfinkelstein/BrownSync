@@ -3,14 +3,12 @@ import { formatClock, formatDayLabel, formatDayTime, formatRelative } from "../s
 import { BUCKET_LABELS, bucketOf, groupEventsByTime, isLive } from "../src/browse/grouping";
 import { mkEvent } from "./helpers/fixtures";
 
-/** Local-time helpers: buckets are wall-time buckets (afternoon `now`). */
-const NOW = new Date(2026, 6, 28, 15, 0); // Tue Jul 28 2026 15:00 local
+/** Tue Jul 28 2026 15:00 EDT — fixed instant, independent of the test host. */
+const NOW = new Date("2026-07-28T19:00:00.000Z");
 
 function at(hours: number, minutes = 0, dayOffset = 0): string {
-  const d = new Date(NOW);
-  d.setDate(d.getDate() + dayOffset);
-  d.setHours(hours, minutes, 0, 0);
-  return d.toISOString();
+  // These fixtures stay in July/August, when Providence is UTC−4.
+  return new Date(Date.UTC(2026, 6, 28 + dayOffset, hours + 4, minutes)).toISOString();
 }
 
 describe("groupEventsByTime (handoff §3.2)", () => {
@@ -60,13 +58,13 @@ describe("groupEventsByTime (handoff §3.2)", () => {
   });
 
   it("puts an event within 60 min into Next hour even across midnight", () => {
-    const lateNow = new Date(2026, 6, 28, 23, 45);
+    const lateNow = new Date("2026-07-29T03:45:00.000Z"); // 23:45 EDT
     const e = mkEvent({ id: "mid", title: "Midnight ramble", start: at(0, 30, 1) });
     expect(bucketOf(e, lateNow)).toBe("next-hour");
   });
 
   it("evening now: later-today events all read as Tonight", () => {
-    const eveningNow = new Date(2026, 6, 28, 20, 0);
+    const eveningNow = new Date("2026-07-29T00:00:00.000Z"); // 20:00 EDT
     const e = mkEvent({ id: "late", title: "Late show", start: at(21, 30) });
     expect(bucketOf(e, eveningNow)).toBe("tonight");
   });
@@ -110,25 +108,42 @@ describe("isLive (§6.4 — the one ambient pulse)", () => {
 });
 
 describe("format (§6.4 mono timestamps)", () => {
+  const CAMPUS_CURSOR = new Date("2026-07-30T19:00:00.000Z"); // 15:00 EDT
+  const CAMPUS_EVENING = new Date("2026-07-30T23:04:00.000Z"); // 19:04 EDT
+
+  it("uses campus wall time regardless of the viewer timezone", () => {
+    expect(formatClock(CAMPUS_EVENING)).toBe("19:04");
+    expect(formatDayLabel(CAMPUS_EVENING, CAMPUS_CURSOR)).toBe("Today");
+  });
+
+  it("uses the campus-local evening hour for Tonight", () => {
+    const event = mkEvent({
+      id: "campus-evening",
+      title: "Campus evening event",
+      start: CAMPUS_EVENING.toISOString(),
+    });
+    expect(bucketOf(event, CAMPUS_CURSOR)).toBe("tonight");
+  });
+
   it("formats the clock 24h zero-padded", () => {
-    expect(formatClock(new Date(2026, 6, 28, 19, 4))).toBe("19:04");
-    expect(formatClock(new Date(2026, 6, 28, 9, 0))).toBe("09:00");
+    expect(formatClock(new Date("2026-07-28T23:04:00.000Z"))).toBe("19:04");
+    expect(formatClock(new Date("2026-07-28T13:00:00.000Z"))).toBe("09:00");
   });
 
   it("formats terse relatives", () => {
-    expect(formatRelative(NOW, new Date(2026, 6, 28, 15, 26))).toBe("in 26 min");
-    expect(formatRelative(NOW, new Date(2026, 6, 28, 18, 0))).toBe("in 3 h");
-    expect(formatRelative(NOW, new Date(2026, 6, 28, 14, 48))).toBe("12 min ago");
+    expect(formatRelative(NOW, new Date(at(15, 26)))).toBe("in 26 min");
+    expect(formatRelative(NOW, new Date(at(18, 0)))).toBe("in 3 h");
+    expect(formatRelative(NOW, new Date(at(14, 48)))).toBe("12 min ago");
     expect(formatRelative(NOW, NOW)).toBe("now");
   });
 
   it("labels days relative to now", () => {
-    expect(formatDayLabel(new Date(2026, 6, 28, 19, 0), NOW)).toBe("Today");
-    expect(formatDayLabel(new Date(2026, 6, 29, 10, 0), NOW)).toBe("Tomorrow");
-    expect(formatDayLabel(new Date(2026, 6, 31, 10, 0), NOW)).toBe("Fri Jul 31");
+    expect(formatDayLabel(new Date(at(19, 0)), NOW)).toBe("Today");
+    expect(formatDayLabel(new Date(at(10, 0, 1)), NOW)).toBe("Tomorrow");
+    expect(formatDayLabel(new Date(at(10, 0, 3)), NOW)).toBe("Fri Jul 31");
   });
 
   it("composes day + clock for palette metadata", () => {
-    expect(formatDayTime(new Date(2026, 6, 28, 19, 0).toISOString(), NOW)).toBe("Today 19:00");
+    expect(formatDayTime(at(19, 0), NOW)).toBe("Today 19:00");
   });
 });

@@ -72,7 +72,11 @@ export type MeetingRow = {
   lng: number | null;
 };
 
-/** One row of api_health(). */
+/**
+ * One row of api_health(). The last three columns come from the
+ * `source_registry` left join added in migration 0006; they are null for a
+ * source that has run but is not registered.
+ */
 export type SourceHealthRow = {
   source: string;
   status: string;
@@ -80,6 +84,9 @@ export type SourceHealthRow = {
   last_ok_at: Date | null;
   items_upserted: number | null;
   error: string | null;
+  stale_after_seconds: number | null;
+  enabled: boolean | null;
+  label: string | null;
 };
 
 export type EventsFilter = {

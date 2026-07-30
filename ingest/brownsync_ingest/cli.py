@@ -55,6 +55,11 @@ from brownsync_ingest.brown_owned_buildings import (
     run_brown_owned_buildings_job,
 )
 from brownsync_ingest.cab.job import run_cab_csv_job
+from brownsync_ingest.campus.amenities import run_campus_amenities_job
+from brownsync_ingest.dining.menus import run_dining_job
+from brownsync_ingest.libraries.hours import run_library_hours_job
+from brownsync_ingest.publications.feeds import run_publications_job
+from brownsync_ingest.campus.job import run_campus_buildings_job
 from brownsync_ingest.clubs.job import run_clubs_job
 from brownsync_ingest.common.http import utc_now
 from brownsync_ingest.events.job import run_events_job
@@ -99,6 +104,10 @@ DEFAULT_CALENDAR_CSV = (
     / "brown_academic_calendar_2026_2027.csv"
 )
 
+#: Kept for the record. The block was real but SCOPED TOO WIDELY: the 403 is
+#: on dining.brown.edu (the Pantheon-fronted CMS), not on the menu data. Brown
+#: OIT's service bus answers the same question at 200 with no auth, so dining
+#: is a live source as of 2026-07-29 and `_dining_runner` below replaces this.
 DINING_BLOCKED_REASON = (
     "dining discovery is blocked: dining.brown.edu answers a Pantheon-edge "
     "HTTP 403 to the declared UA, so no discovery requests were sent — see "
@@ -412,6 +421,148 @@ def _events_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutco
     return JobOutcome(artifacts=artifacts, items=items, notes=tuple(notes))
 
 
+
+def _campus_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    # File-only in both modes: campus_buildings.geojson is fetched by the web
+    # map as a static asset, not served from Postgres. Keeping it out of the
+    # database is deliberate — the map then works offline, in fixture mode,
+    # and during an API outage, and the artifact stays reviewable in git.
+    #
+    # Runs AFTER places and cab: conflation reads the published places.ndjson
+    # and label ranks are driven by course_meetings.ndjson meeting counts.
+    result = run_campus_buildings_job(
+        seeds_dir=context.seeds_dir,
+        staging_root=context.staging_root,
+    )
+    conflation = result.conflation
+    notes = (
+        (
+            f"{len(result.buildings)} buildings; "
+            f"{len(conflation.by_code)} bound to curated places, "
+            f"{len(conflation.unmatched_places)} places unmatched"
+        ),
+        (
+            "labels: "
+            + ", ".join(
+                f"{rule}={count}"
+                for rule, count in sorted(
+                    _count_by(b.label_rule for b in result.buildings).items()
+                )
+            )
+        ),
+    )
+    if result.gate_failures:
+        # Hand the failures UP. Returning a bare empty outcome made _run_job see
+        # gate_failures=() — it printed "[campus] ok: 0 items", exited 0, and
+        # `run all` then republished manifest.json at a fresh generation. A
+        # campus drop that failed every gate was indistinguishable from a green
+        # run at the exit-code level. _run_job owns mark_partial, the stderr
+        # report and the ok=False return; every other runner already relies on
+        # that, and campus was the only one that did not.
+        return JobOutcome(gate_failures=result.gate_failures, notes=notes)
+    return JobOutcome(
+        # BOTH artifacts must be declared: the manifest covers exactly what a
+        # job reports, so omitting the landmarks file leaves it published but
+        # unhashed — and db:seed-check then warns about it forever.
+        artifacts=("campus_buildings.geojson", "campus_landmarks.geojson"),
+        items=result.published_count or 0,
+        notes=notes,
+    )
+
+
+def _amenities_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    # File-only, like campus: the amenity points are a static map asset.
+    result = run_campus_amenities_job(
+        seeds_dir=context.seeds_dir, staging_root=context.staging_root
+    )
+    notes = (
+        ", ".join(
+            f"{kind}={count}"
+            for kind, count in sorted(_count_by(a.kind for a in result.amenities).items())
+        ),
+    )
+    if result.gate_failures:
+        return JobOutcome(gate_failures=result.gate_failures, notes=notes)
+    return JobOutcome(
+        artifacts=("campus_amenities.geojson",),
+        items=result.published_count or 0,
+        notes=notes,
+    )
+
+
+def _dining_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    # File-only: the menus are a static daily artifact the web app fetches
+    # directly. The ESB sends no CORS header, so it is fetched here once a day
+    # rather than proxied per visitor (gate G4).
+    result = run_dining_job(
+        seeds_dir=context.seeds_dir, staging_root=context.staging_root
+    )
+    open_locations = [loc for loc in result.locations if loc.is_open_somewhere]
+    notes = (
+        (
+            f"{len(result.locations)} locations, {len(open_locations)} serving "
+            f"({', '.join(loc.location_id for loc in open_locations) or 'none'})"
+        ),
+        *result.diagnostics,
+    )
+    if result.gate_failures:
+        return JobOutcome(gate_failures=result.gate_failures, notes=notes)
+    return JobOutcome(
+        artifacts=("dining_menus.json",),
+        items=result.published_count or 0,
+        notes=notes,
+    )
+
+
+def _publications_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    # File-only. HEADLINE-ONLY by construction: the producer's field allowlist
+    # never reads `description`/`content:encoded`, because the Brown Daily
+    # Herald's Terms of Use prohibit automated indexing of their content
+    # (gate G1). A body-text leak is a test failure, not a review catch.
+    result = run_publications_job(
+        seeds_dir=context.seeds_dir, staging_root=context.staging_root
+    )
+    notes = (
+        ", ".join(
+            f"{source}={count}"
+            for source, count in sorted(_count_by(a.source_id for a in result.articles).items())
+        ),
+        *result.diagnostics,
+    )
+    if result.gate_failures:
+        return JobOutcome(gate_failures=result.gate_failures, notes=notes)
+    return JobOutcome(
+        artifacts=("publications.json",), items=result.published_count or 0, notes=notes
+    )
+
+
+def _libraries_runner(context: JobContext, recorder: SourceRunRecorder) -> JobOutcome:
+    # File-only. LibCal publishes a Sunday-to-Saturday grid per request, so the
+    # recorded fixtures are seven weekly grids rather than one document.
+    result = run_library_hours_job(
+        seeds_dir=context.seeds_dir, staging_root=context.staging_root
+    )
+    open_rows = sum(
+        1 for library in result.libraries for day in library.hours if day.opens is not None
+    )
+    notes = (
+        f"{len(result.libraries)} libraries, {result.published_count or 0} day rows, {open_rows} open",
+        *result.diagnostics,
+    )
+    if result.gate_failures:
+        return JobOutcome(gate_failures=result.gate_failures, notes=notes)
+    return JobOutcome(
+        artifacts=("library_hours.json",), items=result.published_count or 0, notes=notes
+    )
+
+
+def _count_by(values) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
 def default_registry() -> dict[str, JobSpec | BlockedJob]:
     """Existing jobs in bundle order, then the documented blocked gaps."""
     return {
@@ -420,10 +571,21 @@ def default_registry() -> dict[str, JobSpec | BlockedJob]:
         "clubs": JobSpec(run=_clubs_runner),
         "athletics": JobSpec(run=_athletics_runner, postgres_target=False),
         "buildings": JobSpec(run=_buildings_runner, postgres_target=False),
+        # campus runs AFTER places and cab: conflation reads the published
+        # places.ndjson, and label ranks are driven by course_meetings.ndjson
+        # meeting counts (measured prominence, not a judgement call).
+        "campus": JobSpec(run=_campus_runner, postgres_target=False),
+        # amenities runs AFTER campus: label resolution snaps nameless points
+        # to the nearest normalized building.
+        "amenities": JobSpec(run=_amenities_runner, postgres_target=False),
         # events runs AFTER clubs: its org lookup reads the freshly
         # published organization_livewhale_groups.json sidecar
         "events": JobSpec(run=_events_runner),
-        "dining": BlockedJob(reason=DINING_BLOCKED_REASON),
+        "dining": JobSpec(run=_dining_runner, postgres_target=False),
+        # Both are standalone file producers with no ordering dependency on
+        # anything above — they read only their own recorded fixtures.
+        "publications": JobSpec(run=_publications_runner, postgres_target=False),
+        "libraries": JobSpec(run=_libraries_runner, postgres_target=False),
     }
 
 

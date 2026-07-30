@@ -1,0 +1,557 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-07-29T04:40:47.356629Z",
+ "recorded_user_agent": "BrownSync/1.0 (+noah_finkelstein@brown.edu)",
+ "notes": [
+  "user_provided entries are inputs handed over by the user (kind \"user_provided\"): hash-pinned with provenance, never recorded HTTP evidence; they stand in for the capture gaps they name in fills_gaps",
+  "livewhale_events: contact_info values are blanked at capture — they hold staff names/titles and no contract field consumes them",
+  "livewhale_events: the '?max=200' parameter was not honored — the endpoint returned 1000 events",
+  "overpass_buildings: OpenStreetMap data, ODbL licence — attribute OpenStreetMap contributors",
+  "athletics_ics: robots.txt asks Crawl-delay 30 and the feed advertises X-PUBLISHED-TTL PT120M — poll no more often than every 2 hours (probe: reports/sdd/brownsync-ingestion/athletics-probe.md)",
+  "published_contact_data: user_provided files are hash-pinned byte-for-byte as delivered, so they cannot be scrubbed without breaking the pin; entries flagged published_contact_data:true carry publicly published directory contact addresses (club/org contact emails, A-Z directory emails, LiveWhale event contacts). No contract row has a field for them — consumption drops them, tested in tests/clubs and tests/test_fixtures.py. Recorded fixtures stay strictly scrubbed."
+ ],
+ "gaps": [
+  {
+   "source": "cab_home",
+   "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+  },
+  {
+   "source": "cab_bootstrap",
+   "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+  },
+  {
+   "source": "cab_search",
+   "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+  },
+  {
+   "source": "cab_details",
+   "reason": "capture failed after polite retries: CaptureBlockedError: https://cab.brown.edu/ answered with a bot challenge (status 202, x-amzn-waf-action=None); bypassing bot-detection is not permitted, so no fixture was recorded"
+  },
+  {
+   "source": "clubs_undergraduate",
+   "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://studentactivities.brown.edu/student-groups/undergraduate-student-groups'"
+  },
+  {
+   "source": "clubs_graduate",
+   "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://studentactivities.brown.edu/student-groups/undergraduate-student-groups'"
+  },
+  {
+   "source": "dining_landing",
+   "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://dining.brown.edu/'"
+  },
+  {
+   "source": "dining_bundle",
+   "reason": "capture failed after polite retries: HTTPStatusError: Client error '403 Forbidden' for url 'https://dining.brown.edu/'"
+  }
+ ],
+ "fixtures": [
+  {
+   "path": "recorded/athletics/calendar.ics",
+   "source": "athletics_ics",
+   "route": "GET https://brownbears.com/calendar.ashx/calendar.ics",
+   "request_body": null,
+   "request_fingerprint": "8b818bd84201b48bb674fbf91f30c4720ec47162f5847e86cd0c605425963b0d",
+   "retrieved_at": "2026-07-29T04:40:47.353474Z",
+   "status": 200,
+   "content_type": "text/calendar",
+   "sha256": "ded454a16176876a2b2d95ae2ad85c6ab055caf99ac273363f5aae0a53da8620",
+   "bytes": 71149,
+   "scrubbed": false,
+   "expected": {
+    "vevent_count": 170,
+    "distinct_location_count": 50,
+    "body_contains": [
+     "BEGIN:VCALENDAR",
+     "X-WR-CALNAME:Brown University Athletics",
+     "X-PUBLISHED-TTL:PT120M",
+     "Brown University Women's Soccer vs New Haven"
+    ],
+    "calendar_name": "Brown University Athletics",
+    "published_ttl": "PT120M",
+    "sample_summary": "Brown University Women's Soccer vs New Haven"
+   }
+  },
+  {
+   "path": "recorded/livewhale/events.json",
+   "source": "livewhale_events",
+   "route": "GET https://events.brown.edu/live/json/events?max=200",
+   "request_body": null,
+   "request_fingerprint": "8e1a81df79db2c9b5901e4c6dcd8e5a7f1a7a6eeaeb0c5948f3d56654625a079",
+   "retrieved_at": "2026-07-28T21:50:52.944724Z",
+   "status": 200,
+   "content_type": "application/json; charset=UTF-8",
+   "sha256": "436d994044759d566f3dd1b64a567c0bb9c09bbe6e377a8c4f34d9c3bc77f23b",
+   "bytes": 3119877,
+   "scrubbed": true,
+   "expected": {
+    "strict_json": true,
+    "body_contains": [
+     "\"title\"",
+     "2026 Computational Modeling Workshop + Challenge"
+    ],
+    "event_count": 1000,
+    "sample_title": "2026 Computational Modeling Workshop + Challenge",
+    "first_event_fields": [
+     "event_types",
+     "group",
+     "is_canceled",
+     "location_latitude",
+     "location_longitude",
+     "repeats",
+     "title"
+    ]
+   }
+  },
+  {
+   "path": "recorded/livewhale/groups.json",
+   "source": "livewhale_groups",
+   "route": "GET https://events.brown.edu/live/json/groups",
+   "request_body": null,
+   "request_fingerprint": "4bb7c05510d4e21acc8a27ae81923eca3366e1a6857caf7c4de22a0fd082cbb7",
+   "retrieved_at": "2026-07-28T21:50:52.957074Z",
+   "status": 200,
+   "content_type": "application/json; charset=UTF-8",
+   "sha256": "361c1798914e5fc6f9254e3e2faee81f1a693d49a6f93fcbed46740b24a08f1e",
+   "bytes": 39217,
+   "scrubbed": false,
+   "expected": {
+    "strict_json": true,
+    "body_contains": [
+     "\"title\"",
+     "Academic Calendar"
+    ],
+    "group_count": 218,
+    "sample_group": "Academic Calendar",
+    "first_group_fields": [
+     "fullname",
+     "id",
+     "timezone",
+     "title",
+     "web_address"
+    ]
+   }
+  },
+  {
+   "path": "recorded/overpass/college-hill-buildings.json",
+   "source": "overpass_buildings",
+   "route": "POST https://overpass-api.de/api/interpreter",
+   "request_body": "[out:json][timeout:60]; ( way[\"building\"](41.820,-71.410,41.834,-71.393); relation[\"building\"](41.820,-71.410,41.834,-71.393); ); out body geom;",
+   "request_fingerprint": "b75eb8fd5229cc9fbcfff952f8c4980c80bf386679990e4f26600620f0abdfa0",
+   "retrieved_at": "2026-07-28T21:50:52.992088Z",
+   "status": 200,
+   "content_type": "application/json",
+   "sha256": "b72aa2f77672991887b91136e505205414f072e7befd656318e587505deb2687",
+   "bytes": 1937642,
+   "scrubbed": false,
+   "expected": {
+    "element_count": 2155,
+    "way_count": 2150,
+    "relation_count": 5,
+    "body_contains": [
+     "\"elements\"",
+     "Sayles Hall",
+     "Barus"
+    ],
+    "sample_building_name": "Penner Field House"
+   }
+  },
+  {
+   "path": "user_provided/brown_fall_2026_classes_and_locations.csv",
+   "kind": "user_provided",
+   "source": "cab_fall_2026_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-28T00:00:00Z",
+   "provenance": "Authoritative Fall 2026 CAB course/location export supplied by the user on 2026-07-28 because cab.brown.edu answers every route with an AWS WAF bot challenge (status 202) for the mandated UA; bypassing bot detection is not permitted, so live capture stays a declared gap and this export is the Task 6 source of record.",
+   "fills_gaps": [
+    "cab_home",
+    "cab_bootstrap",
+    "cab_search",
+    "cab_details"
+   ],
+   "sha256": "50a20adb13d64f061ff11239a32e9a51b6d33dfc00f86003f1fdec4af975204c",
+   "bytes": 1016538,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "term,term_code,course_code,course_title,section,crn,meeting_schedule,location,location_status,instructor",
+     "AFRI 0090",
+     "TTh 10:30am-11:50am",
+     "CIT Center (Thomas Watson CIT) 227"
+    ],
+    "data_rows": 5275,
+    "raw_data_lines": 5281,
+    "term_code": "202610",
+    "distinct_crns": 5275,
+    "location_status_counts": {
+     "Physical location published": 1501,
+     "TBA": 3328,
+     "Physical location not yet published": 274,
+     "Cross-listed reference": 100,
+     "Online": 72
+    }
+   }
+  },
+  {
+   "path": "user_provided/brown_a_to_z_resources.csv",
+   "kind": "user_provided",
+   "source": "a_to_z_resources_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Campus A-Z resources — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'All 300 entries in Brown's public A-Z directory', snapshot 2026-07-29T13:35:00Z, source Brown A-Z (https://www.brown.edu/a-z), update strategy 'Monthly refresh', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Campus A-Z resources",
+    "row_count": "300",
+    "coverage": "All 300 entries in Brown's public A-Z directory",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Brown A-Z",
+    "source_url": "https://www.brown.edu/a-z",
+    "update_strategy": "Monthly refresh",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "4d7ac0a57e718f44e37bd5dcd905cfabbb36f9fe8e03f6db7b30f6fb38067054",
+   "bytes": 73407,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "content_id,name,email",
+     "https://www.brown.edu/a-z"
+    ],
+    "data_rows": 300
+   },
+   "published_contact_data": true
+  },
+  {
+   "path": "user_provided/brown_academic_calendar_2026_2027.csv",
+   "kind": "user_provided",
+   "source": "academic_calendar_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "2026-2027 academic calendar — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'Summer 2026, Fall 2026, Winter 2027 and Spring 2027', snapshot 2026-07-29T13:35:00Z, source Brown Registrar (https://registrar.brown.edu/academic-calendar/2026-2027-academic-calendar), update strategy 'Refresh after Registrar calendar changes', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "2026-2027 academic calendar",
+    "row_count": "110",
+    "coverage": "Summer 2026, Fall 2026, Winter 2027 and Spring 2027",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Brown Registrar",
+    "source_url": "https://registrar.brown.edu/academic-calendar/2026-2027-academic-calendar",
+    "update_strategy": "Refresh after Registrar calendar changes",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "b17320bf6bdb3417216d6eb088b305d0d7f2f0246fa5555bc14571675ed3ee93",
+   "bytes": 34416,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "academic_term,month,start_date_display"
+    ],
+    "data_rows": 110
+   }
+  },
+  {
+   "path": "user_provided/brown_all_student_groups.csv",
+   "kind": "user_provided",
+   "source": "clubs_directory_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Student groups — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage '424 undergraduate + 33 graduate organizations', snapshot 2026-07-29T13:35:00Z, source Student Activities + Graduate Student Council (https://studentactivities.brown.edu/student-groups/undergraduate-student-groups), update strategy 'Refresh each semester', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Student groups",
+    "row_count": "457",
+    "coverage": "424 undergraduate + 33 graduate organizations",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Student Activities + Graduate Student Council",
+    "source_url": "https://studentactivities.brown.edu/student-groups/undergraduate-student-groups",
+    "update_strategy": "Refresh each semester",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [
+    "clubs_undergraduate",
+    "clubs_graduate"
+   ],
+   "sha256": "50d4382a5e1df925288e8541fd867193f0b7b0ff3d9817f67f5fef48bd87917b",
+   "bytes": 348967,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "group_type,name,description,contact_emails,advisor,funding_category,tags",
+     "Undergraduate student group",
+     "Graduate student group",
+     "Chinese Students and Scholars Association"
+    ],
+    "data_rows": 457,
+    "group_type_counts": {
+     "Undergraduate student group": 424,
+     "Graduate student group": 33
+    },
+    "funding_category_counts": {
+     "Category 2": 275,
+     "Category 1": 140,
+     "": 35,
+     "Student Governance": 7
+    }
+   },
+   "published_contact_data": true
+  },
+  {
+   "path": "user_provided/brown_athletics_calendar.csv",
+   "kind": "user_provided",
+   "source": "athletics_calendar_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Athletics calendar — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'Currently published varsity events in the SIDEARM ICS feed', snapshot 2026-07-29T13:35:00Z, source Brown Bears Athletics (https://brownbears.com/calendar.ashx/calendar.ics), update strategy 'Poll at the feed's two-hour publication interval', license/terms 'Brown Athletics site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Athletics calendar",
+    "row_count": "170",
+    "coverage": "Currently published varsity events in the SIDEARM ICS feed",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Brown Bears Athletics",
+    "source_url": "https://brownbears.com/calendar.ashx/calendar.ics",
+    "update_strategy": "Poll at the feed's two-hour publication interval",
+    "license_or_terms": "Brown Athletics site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "61d9985bd0eda2e93daa08adcd6b6cc11d8a4546ff24e3718fd1a534ae01585a",
+   "bytes": 56202,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "event_id,title,sport"
+    ],
+    "data_rows": 170
+   }
+  },
+  {
+   "path": "user_provided/brown_college_hill_buildings.csv",
+   "kind": "user_provided",
+   "source": "overpass_buildings_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "College Hill building centroids — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'All OSM building ways in the Brown/College Hill bounding box', snapshot 2026-07-29T13:33:11Z, source OpenStreetMap via Overpass API (https://overpass-api.de/), update strategy 'Periodic OSM refresh; retain attribution', license/terms 'OpenStreetMap contributors, ODbL'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "College Hill building centroids",
+    "row_count": "2150",
+    "coverage": "All OSM building ways in the Brown/College Hill bounding box",
+    "snapshot_utc": "2026-07-29T13:33:11Z",
+    "source_name": "OpenStreetMap via Overpass API",
+    "source_url": "https://overpass-api.de/",
+    "update_strategy": "Periodic OSM refresh; retain attribution",
+    "license_or_terms": "OpenStreetMap contributors, ODbL"
+   },
+   "fills_gaps": [],
+   "sha256": "67db2e5f312dbfb56275be5fb957dcf0800dbacc4132add7a9dbe4b62e3f9603",
+   "bytes": 382758,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "osm_type,osm_id,name"
+    ],
+    "data_rows": 2150
+   }
+  },
+  {
+   "path": "user_provided/brown_daily_herald_news.csv",
+   "kind": "user_provided",
+   "source": "bdh_news_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Brown Daily Herald current feed — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'Current 35-item top-stories RSS feed', snapshot 2026-07-29T13:35:00Z, source The Brown Daily Herald (https://www.browndailyherald.com/feed), update strategy 'Poll periodically; retain only metadata and short excerpts', license/terms 'Publisher copyright applies'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Brown Daily Herald current feed",
+    "row_count": "35",
+    "coverage": "Current 35-item top-stories RSS feed",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "The Brown Daily Herald",
+    "source_url": "https://www.browndailyherald.com/feed",
+    "update_strategy": "Poll periodically; retain only metadata and short excerpts",
+    "license_or_terms": "Publisher copyright applies"
+   },
+   "fills_gaps": [],
+   "sha256": "501f3031991fa4d33f8ce0ffaf760085c7a6bba279e1a3c36ad7f315f7f1f88e",
+   "bytes": 26576,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "title,categories,author"
+    ],
+    "data_rows": 35
+   }
+  },
+  {
+   "path": "user_provided/brown_data_sources.csv",
+   "kind": "user_provided",
+   "source": "codex_data_sources_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Codex data-source provenance manifest — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'All 15 datasets (12 exported CSVs + 3 live-source catalog entries) in the 2026-07-29 pack', snapshot 2026-07-29T13:35:00Z, source Codex export session (https://studentactivities.brown.edu/student-groups/undergraduate-student-groups), update strategy 'Re-delivered with each pack refresh', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Codex data-source provenance manifest",
+    "row_count": "15",
+    "coverage": "All 15 datasets (12 exported CSVs + 3 live-source catalog entries) in the 2026-07-29 pack",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Codex export session",
+    "source_url": "https://studentactivities.brown.edu/student-groups/undergraduate-student-groups",
+    "update_strategy": "Re-delivered with each pack refresh",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "45b235ec14990a50e00903fbaad7425fc77d2315e7a2f56d04320b59b71830ef",
+   "bytes": 5539,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "dataset,exported_file,row_count",
+     "brown_all_student_groups.csv"
+    ],
+    "data_rows": 15,
+    "datasets": 15
+   }
+  },
+  {
+   "path": "user_provided/brown_dining_menu_links.csv",
+   "kind": "user_provided",
+   "source": "dining_menu_links_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Dining menu links — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'Seven Brown Dining locations, cross-location search and Faculty Club menus', snapshot 2026-07-29T13:35:00Z, source Brown Dining + Faculty Club (https://menus.dining.brown.edu/), update strategy 'Links are stable; menu contents remain live on Brown sites', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Dining menu links",
+    "row_count": "10",
+    "coverage": "Seven Brown Dining locations, cross-location search and Faculty Club menus",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Brown Dining + Faculty Club",
+    "source_url": "https://menus.dining.brown.edu/",
+    "update_strategy": "Links are stable; menu contents remain live on Brown sites",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "a3df33cbe574a8187149de3b1a3eee9b0ac9e3c62928394b457a6a3e5053339a",
+   "bytes": 1425,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "dining_location,menu_name,menu_url"
+    ],
+    "data_rows": 10
+   }
+  },
+  {
+   "path": "user_provided/brown_event_locations.csv",
+   "kind": "user_provided",
+   "source": "livewhale_event_locations_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Event locations (derived) — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage 'Unique nonblank locations from the 1,000-event LiveWhale snapshot', snapshot 2026-07-29T13:35:00Z, source Derived from Brown Events / LiveWhale JSON (https://events.brown.edu/live/json/events), update strategy 'Rebuild with each event refresh', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Event locations (derived)",
+    "row_count": "153",
+    "coverage": "Unique nonblank locations from the 1,000-event LiveWhale snapshot",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Derived from Brown Events / LiveWhale JSON",
+    "source_url": "https://events.brown.edu/live/json/events",
+    "update_strategy": "Rebuild with each event refresh",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "2378155ee3fe535b7338a170a1dfdf7f6a73333302129d2cc2342c43d83e7ae7",
+   "bytes": 25670,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "location,event_count,latitude"
+    ],
+    "data_rows": 153
+   }
+  },
+  {
+   "path": "user_provided/brown_library_hours.csv",
+   "kind": "user_provided",
+   "source": "library_hours_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Brown Library weekly hours — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage '13 service/location rows across 2026-07-26 through 2026-08-01', snapshot 2026-07-29T13:35:00Z, source Brown University Library (https://lib.brown.edu/using-library/visiting-library/locations-hours), update strategy 'Refresh weekly or daily; hours are subject to change', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Brown Library weekly hours",
+    "row_count": "91",
+    "coverage": "13 service/location rows across 2026-07-26 through 2026-08-01",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Brown University Library",
+    "source_url": "https://lib.brown.edu/using-library/visiting-library/locations-hours",
+    "update_strategy": "Refresh weekly or daily; hours are subject to change",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "c032fcd4bbd5df875e046dd4ea1624da3bba38431cfb10450ca35b9b40261384",
+   "bytes": 26457,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "location,date,day_of_week"
+    ],
+    "data_rows": 91
+   }
+  },
+  {
+   "path": "user_provided/brown_news_archive.csv",
+   "kind": "user_provided",
+   "source": "brown_news_archive_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Brown University news archive — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage '3301 official articles from 2016-01-04 through 2026-07-28', snapshot 2026-07-29T13:35:00Z, source Brown University News (https://www.brown.edu/news/all), update strategy 'Daily metadata refresh', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Brown University news archive",
+    "row_count": "3301",
+    "coverage": "3301 official articles from 2016-01-04 through 2026-07-28",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Brown University News",
+    "source_url": "https://www.brown.edu/news/all",
+    "update_strategy": "Daily metadata refresh",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "f67ae97f10f4862f939ce00706765c2da6dc1846ced55a1184e1fb4af10f9e54",
+   "bytes": 1401077,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "content_id,title,category"
+    ],
+    "data_rows": 3301
+   }
+  },
+  {
+   "path": "user_provided/brown_upcoming_events.csv",
+   "kind": "user_provided",
+   "source": "livewhale_events_csv",
+   "provided_by": "user",
+   "provided_at": "2026-07-29T00:00:00Z",
+   "provenance": "Upcoming public events — collected by Codex via browser, delivered by user 2026-07-29. Codex manifest (brown_data_sources.csv) claims: coverage '1,000 event instances from 2026-07-29 through 2026-11-03', snapshot 2026-07-29T13:35:00Z, source Brown Events / LiveWhale JSON (https://events.brown.edu/live/json/events), update strategy 'Poll no more frequently than every 10 minutes', license/terms 'Brown University site terms apply'. Row count independently re-measured at registration and matching.",
+   "codex_provenance": {
+    "dataset": "Upcoming public events",
+    "row_count": "1000",
+    "coverage": "1,000 event instances from 2026-07-29 through 2026-11-03",
+    "snapshot_utc": "2026-07-29T13:35:00Z",
+    "source_name": "Brown Events / LiveWhale JSON",
+    "source_url": "https://events.brown.edu/live/json/events",
+    "update_strategy": "Poll no more frequently than every 10 minutes",
+    "license_or_terms": "Brown University site terms apply"
+   },
+   "fills_gaps": [],
+   "sha256": "1e6f64deb90d57ad57f8a1a443ff314b12907d9e1279ed824afa95cccad9e8d9",
+   "bytes": 754669,
+   "content_type": "text/csv; charset=utf-8 (with BOM)",
+   "expected": {
+    "body_contains": [
+     "event_id,title,start_date_iso",
+     "https://events.brown.edu/live/json/events",
+     "John Carter Brown Library"
+    ],
+    "data_rows": 1000,
+    "organizer_column": "organizer",
+    "location_column": "location"
+   },
+   "published_contact_data": true
+  }
+ ]
+}

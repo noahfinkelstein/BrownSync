@@ -9,8 +9,6 @@ import { createRouterUrlAdapter } from "./time/routerUrlAdapter";
 import { connectTimeCursorToUrl } from "./time/urlSync";
 import "./styles.css";
 
-document.title = "BrownSync";
-
 // Lane G's cursor store drives every lane-F layer/panel through the seam
 // (data/cursor.ts). One call, app-wide.
 setCursorSource(timeCursor);

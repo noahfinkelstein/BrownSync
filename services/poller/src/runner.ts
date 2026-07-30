@@ -1,12 +1,14 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import type { SeedEvent } from "@brownsync/contract";
 import { athleticsModule } from "./athletics";
 import { bdhModule } from "./bdh";
 import { cancelUnseen, connect, recordSourceRun, type Sql, upsertEvents } from "./db";
 import { createHttpClient, type HttpClient } from "./http";
 import { livewhaleModule } from "./livewhale";
+import { mergeShardRows, shardsAreTruncated, type WindowFetch } from "./livewhale/shard";
 import type { Source } from "./sources";
-import { isLikelyTruncated, type SweepWindow, sweepWindow } from "./sweep";
+import { isLikelyTruncated, type SweepWindow, sweepWindow, sweepWindowFromShards } from "./sweep";
 import type { SourceModule } from "./types";
 
 export const MODULES: Readonly<Record<Source, SourceModule>> = {
@@ -57,6 +59,32 @@ function printSummary(
   if (canceled !== null) console.error(`[${mod.cliName}] canceled ${canceled} unseen in window`);
 }
 
+/**
+ * A recorded replay plan for a SHARDED source (`fixtures/livewhale-shards.json`).
+ *
+ * Responses are keyed by REQUEST ORDER rather than by date, on purpose: the
+ * window planner is anchored on `now`, so a date-keyed fixture would silently
+ * stop matching tomorrow. Order-keyed replay pins the BEHAVIOUR — first window
+ * at the cap, its two halves under the cap and sharing an id, everything after
+ * that empty — and stays deterministic forever.
+ */
+type ShardFixturePlan = {
+  responses: string[];
+  /** Body served for every window past `responses` — normally an empty feed. */
+  default: string;
+};
+
+function shardFixtureFetch(planPath: string): WindowFetch {
+  const plan = JSON.parse(readFileSync(planPath, "utf8")) as ShardFixturePlan;
+  const dir = path.dirname(planPath);
+  let index = 0;
+  return async () => {
+    const file = plan.responses[index] ?? plan.default;
+    index++;
+    return readFileSync(path.join(dir, file), "utf8");
+  };
+}
+
 /** Best-effort failure logging — a broken feed must still leave a source_runs row. */
 async function tryRecordFailure(source: string, startedAt: string, error: string): Promise<void> {
   let sql: Sql | null = null;
@@ -85,11 +113,41 @@ export async function runSource(
   const startedAt = new Date().toISOString();
 
   let rows: SeedEvent[];
+  let window: SweepWindow | null;
+  let truncated: boolean;
   try {
-    const rawText = opts.fixturePath
-      ? readFileSync(opts.fixturePath, "utf8")
-      : (await client.get(mod.endpoint)).body;
-    rows = mod.normalize(rawText);
+    if (mod.fetchPlan && mod.windowEndpoint) {
+      // Sharded: many bounded windows. Truncation now means something real —
+      // a window narrowed all the way to one day that STILL hit the row cap —
+      // instead of being permanently true because one unbounded fetch always
+      // comes back at the cap.
+      const windowEndpoint = mod.windowEndpoint;
+      const fetchWindow: WindowFetch = opts.fixturePath
+        ? shardFixtureFetch(opts.fixturePath)
+        : async (w) => (await client.get(windowEndpoint(w))).body;
+      const shards = await mod.fetchPlan(fetchWindow);
+      rows = mergeShardRows(shards);
+      // The sweep covers what was ASKED FOR, not what came back: a window with
+      // no events is now evidence that its events are gone, which is exactly
+      // what the cancellation sweep needs and never had.
+      window = sweepWindowFromShards(shards.map((s) => s.window));
+      truncated = mod.sweep && shardsAreTruncated(shards);
+      console.error(
+        `[${mod.cliName}] ${shards.length} window(s) fetched, ` +
+          `${shards.reduce((n, s) => n + s.rows.length, 0)} rows before dedupe`,
+      );
+    } else {
+      const rawText = opts.fixturePath
+        ? readFileSync(opts.fixturePath, "utf8")
+        : (await client.get(mod.endpoint)).body;
+      rows = mod.normalize(rawText);
+      window = sweepWindow(rows);
+      // A fetch at the requested max / server row cap is incomplete: the tail
+      // of the window was cut off, so an absent event at the window's end
+      // boundary proves nothing. Clamp the sweep to [start, end) and record
+      // the run as partial. Only meaningful for full-window feeds (mod.sweep).
+      truncated = mod.sweep && isLikelyTruncated(rows.length, mod.requestedMax ?? null);
+    }
   } catch (err) {
     const error = message(err);
     console.error(`[${mod.cliName}] error: ${error}`);
@@ -97,12 +155,6 @@ export async function runSource(
     return { source: mod.source, status: "error", items: 0, canceled: 0, error };
   }
 
-  const window = sweepWindow(rows);
-  // A fetch at the requested max / server row cap is incomplete: the tail of
-  // the window was cut off, so an absent event at the window's end boundary
-  // proves nothing. Clamp the sweep to [start, end) and record the run as
-  // partial instead of ok. Only meaningful for full-window feeds (mod.sweep).
-  const truncated = mod.sweep && isLikelyTruncated(rows.length, mod.requestedMax ?? null);
   const status = truncated ? "partial" : "ok";
   if (truncated) {
     console.error(

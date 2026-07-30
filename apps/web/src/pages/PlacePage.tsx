@@ -12,12 +12,14 @@ import {
 } from "@brownsync/ui";
 import type { ReactNode } from "react";
 import { formatClock, formatDayLabel, formatRelative, isSameDay } from "../browse/format";
-import { isLive } from "../browse/grouping";
+import { bucketOf, isLive } from "../browse/grouping";
 import { useCursorDate } from "../data/cursor";
 import { usePlaceActivity, usePlaceWeekEvents } from "../data/places";
 import { meetingsBucketFor } from "../data/queries";
 import { ApiError } from "../data/search";
 import { PageShell, SectionHeading } from "./PageShell";
+import { PlaceAmenities } from "./PlaceAmenities";
+import { PlaceLibraryHours } from "./PlaceLibraryHours";
 import { PlaceMiniMap } from "./PlaceMiniMap";
 
 /**
@@ -57,8 +59,8 @@ const MEETING_COLUMNS: readonly DataTableColumn<MeetingOut>[] = [
 export function PlacePage({ id, renderMiniMap, onSelectEvent }: PlacePageProps) {
   const { cursor } = useCursorDate();
   const activity = usePlaceActivity(id, meetingsBucketFor(cursor));
-  const week = usePlaceWeekEvents(id);
-  const now = new Date();
+  const week = usePlaceWeekEvents(id, cursor);
+  const now = cursor;
 
   if (activity.isPending) {
     return (
@@ -94,7 +96,7 @@ export function PlacePage({ id, renderMiniMap, onSelectEvent }: PlacePageProps) 
   const { place, events: todayEvents, meetings } = activity.data;
   const todayIds = new Set(todayEvents.map((e) => e.id));
   const laterThisWeek = (week.data ?? []).filter(
-    (e) => !todayIds.has(e.id) && !isSameDay(new Date(e.start), now),
+    (e) => !todayIds.has(e.id) && !isSameDay(new Date(e.start), now) && bucketOf(e, now) !== null,
   );
 
   return (
@@ -107,12 +109,21 @@ export function PlacePage({ id, renderMiniMap, onSelectEvent }: PlacePageProps) 
         <div className="pt-1 font-mono text-12 text-text-secondary">
           {place.aliases.length > 0 ? place.aliases.join(" · ") : place.id}
         </div>
-        {place.address && <div className="pt-0.5 text-13 text-text-secondary">{place.address}</div>}
+        {place.address && <div className="pt-0.5 text-14 text-text-secondary">{place.address}</div>}
       </header>
 
       <div className="mt-4">
         {renderMiniMap ? renderMiniMap(place) : <PlaceMiniMap place={place} />}
       </div>
+
+      {/* "What's in here" — restrooms, hydration, printers, dining, AEDs.
+          Renders nothing at all when the building has no recorded amenities,
+          rather than an empty heading. */}
+      <div className="mt-4">
+        <PlaceAmenities placeId={place.id} />
+      </div>
+
+      <PlaceLibraryHours placeId={place.id} />
 
       <SectionHeading count={meetings.length + todayEvents.length}>Today</SectionHeading>
       {meetings.length > 0 && (

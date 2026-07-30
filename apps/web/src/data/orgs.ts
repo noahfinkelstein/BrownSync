@@ -19,10 +19,10 @@ export function useOrgs() {
 }
 
 /** GET /api/orgs/:id — one org with `upcoming` and `past` events expanded. */
-export function useOrg(id: string) {
+export function useOrg(id: string, at: string) {
   return useQuery({
-    queryKey: ["org", id],
-    queryFn: () => getJson(`/api/orgs/${encodeURIComponent(id)}`, OrgDetailOutSchema),
+    queryKey: ["org", id, at],
+    queryFn: () => getJson(`/api/orgs/${encodeURIComponent(id)}`, OrgDetailOutSchema, { at }),
     enabled: id !== "",
     retry: retryUnlessNotFound,
   });

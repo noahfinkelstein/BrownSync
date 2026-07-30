@@ -120,3 +120,134 @@ describe.skipIf(!url)("db layer against a real migrated database", () => {
     expect(runs[1]).toMatchObject({ status: "error", items_upserted: 0, error: "feed exploded" });
   });
 });
+
+/**
+ * Place resolution through the upsert (migration 0007). This is the direct
+ * regression guard for the bug that left /api/events serving 500 rows with
+ * zero placeId: the poller emits `place_id: null`, and the old conflict clause
+ * wrote that null straight over whatever the seed bundle had resolved.
+ */
+const PLACE_ID = "itest-poller-hall";
+
+describe.skipIf(!url)("upsertEvents resolves and never un-resolves place_id", () => {
+  let sql: Sql;
+
+  const placeOf = async (sourceId: string): Promise<string | null> => {
+    const rows = await sql<{ place_id: string | null }[]>`
+      select place_id from events where source = ${SOURCE} and source_id = ${sourceId}`;
+    return rows[0]?.place_id ?? null;
+  };
+
+  beforeAll(async () => {
+    sql = connect(url);
+    await sql`delete from events where source = ${SOURCE} and source_id like 'resolve-%'`;
+    await sql`
+      insert into places (id, name, aliases, kind, lat, lng)
+      values (${PLACE_ID}, 'Itest Poller Hall', '{IPH}', 'academic', 41.8262, -71.4032)
+      on conflict (id) do update set name = excluded.name, aliases = excluded.aliases`;
+  });
+
+  afterAll(async () => {
+    await sql`delete from events where source = ${SOURCE} and source_id like 'resolve-%'`;
+    await sql`delete from places where id = ${PLACE_ID}`;
+    await sql?.end();
+  });
+
+  it("populates place_aliases from places by trigger, with no writer involvement", async () => {
+    const rows = await sql<{ alias_norm: string }[]>`
+      select alias_norm from place_aliases where place_id = ${PLACE_ID} order by alias_norm`;
+    expect(rows.map((r) => r.alias_norm)).toEqual(["iph", "itest poller hall"]);
+  });
+
+  it("resolves location_raw the poller could not", async () => {
+    await upsertEvents(sql, [
+      SeedEventSchema.parse({
+        source: SOURCE,
+        source_id: "resolve-exact",
+        title: "Resolved by name",
+        start_ts: "2026-08-01T18:00:00Z",
+        location_raw: "Itest Poller Hall",
+      }),
+      SeedEventSchema.parse({
+        source: SOURCE,
+        source_id: "resolve-room",
+        title: "Resolved by alias prefix with a room",
+        start_ts: "2026-08-01T19:00:00Z",
+        location_raw: "IPH 101",
+      }),
+      SeedEventSchema.parse({
+        source: SOURCE,
+        source_id: "resolve-none",
+        title: "Nothing grounds this",
+        start_ts: "2026-08-01T20:00:00Z",
+        location_raw: "zzzz qqqq xyxyx",
+      }),
+    ]);
+    expect(await placeOf("resolve-exact")).toBe(PLACE_ID);
+    expect(await placeOf("resolve-room")).toBe(PLACE_ID);
+    // Fails closed: never guess below the threshold.
+    expect(await placeOf("resolve-none")).toBeNull();
+  });
+
+  it("never overwrites an existing place_id with null — the actual bug", async () => {
+    await sql`
+      insert into events (source, source_id, title, start_ts, place_id)
+      values (${SOURCE}, 'resolve-seeded', 'Seeded with a resolved place',
+              '2026-08-02T18:00:00Z', ${PLACE_ID})`;
+
+    // Exactly what the LiveWhale normalizer emits: place_id null, and a
+    // location string the gazetteer cannot ground.
+    await upsertEvents(sql, [
+      SeedEventSchema.parse({
+        source: SOURCE,
+        source_id: "resolve-seeded",
+        title: "Refreshed by the poller",
+        start_ts: "2026-08-02T18:00:00Z",
+        location_raw: "TBD",
+      }),
+    ]);
+    expect(await placeOf("resolve-seeded")).toBe(PLACE_ID);
+  });
+
+  it("lets an explicit feed place_id win over both resolution and history", async () => {
+    await upsertEvents(sql, [
+      SeedEventSchema.parse({
+        source: SOURCE,
+        source_id: "resolve-explicit",
+        title: "Carries its own place",
+        start_ts: "2026-08-03T18:00:00Z",
+        location_raw: "zzzz qqqq xyxyx",
+        place_id: PLACE_ID,
+      }),
+    ]);
+    expect(await placeOf("resolve-explicit")).toBe(PLACE_ID);
+  });
+
+  it("keeps resolving after the gazetteer grows a new alias", async () => {
+    await upsertEvents(sql, [
+      SeedEventSchema.parse({
+        source: SOURCE,
+        source_id: "resolve-grown",
+        title: "Unresolvable until the alias exists",
+        start_ts: "2026-08-04T18:00:00Z",
+        location_raw: "Poller Annex",
+      }),
+    ]);
+    expect(await placeOf("resolve-grown")).toBeNull();
+
+    // Growing the alias set on `places` must reach the resolver with no
+    // second code path — that is why place_aliases is trigger-maintained.
+    await sql`
+      update places set aliases = '{IPH,"Poller Annex"}' where id = ${PLACE_ID}`;
+    await upsertEvents(sql, [
+      SeedEventSchema.parse({
+        source: SOURCE,
+        source_id: "resolve-grown",
+        title: "Unresolvable until the alias exists",
+        start_ts: "2026-08-04T18:00:00Z",
+        location_raw: "Poller Annex",
+      }),
+    ]);
+    expect(await placeOf("resolve-grown")).toBe(PLACE_ID);
+  });
+});

@@ -1,6 +1,6 @@
 // apps/web/src/time — the time machine (Phase 2 G).
 // Everything on screen filters through one cursor store; scrubbing never
-// refetches. Mount `TimeMachineBar` into the header {SLOT:scrubber} and call
+// refetches. Mount `TimeMachineDock` at the bottom of the app shell and call
 // `connectTimeCursorToUrl(timeCursor, createHistoryUrlAdapter())` once at app
 // bootstrap (or swap in a router-based UrlAdapter — see urlSync.ts).
 
@@ -31,7 +31,7 @@ export {
   type ScrubberScale,
   stepLocalDay,
 } from "./scrubberScale";
-export { TimeMachineBar, type TimeMachineBarProps } from "./TimeMachineBar";
+export { TimeMachineDock, type TimeMachineDockProps } from "./TimeMachineDock";
 export { TimePresets, type TimePresetsProps } from "./TimePresets";
 export { TimeScrubber, type TimeScrubberProps } from "./TimeScrubber";
 export {

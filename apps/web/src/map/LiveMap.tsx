@@ -7,10 +7,15 @@ import { EmptyEvents } from "../ops/states/empty";
 import { ErrorState } from "../ops/states/error";
 import { EventDetailPanel } from "../panels/EventDetailPanel";
 import { EventHoverCard } from "../panels/EventHoverCard";
-import { LayerRail } from "../panels/LayerRail";
-import { ClassActivityLayer } from "./ClassActivityLayer";
+import { HappeningNow } from "../panels/HappeningNow";
+import { LayerPanel } from "../panels/LayerPanel";
+import { CampusAmenityLayers } from "./CampusAmenityLayers";
+import { CampusBuildingLayers } from "./CampusBuildingLayers";
+import { CampusLandmarkLayers } from "./CampusLandmarkLayers";
 import { flyToTarget } from "./camera";
+import type { AmenityKind } from "./campusAmenities";
 import { aggregateMeetingActivity, totalMeetingCount } from "./classesLayer";
+import { DaylightLayer } from "./DaylightLayer";
 import { type EventHover, EventLayers } from "./EventLayers";
 import {
   eventsInWindow,
@@ -19,8 +24,10 @@ import {
   type LayerToggles,
   pulsePositions,
 } from "./eventsLayer";
+import { amenityKindsFor } from "./layerRegistry";
 import { MapView } from "./MapView";
 import { usePulseOverlay } from "./pulse";
+import { useLayerState } from "./useLayerState";
 
 const NO_PULSE: [number, number][] = [];
 
@@ -50,11 +57,22 @@ export function LiveMap({
 }: LiveMapProps = {}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<MaplibreMap | null>(null);
-  const [toggles, setToggles] = useState<LayerToggles>({
-    events: true,
-    classes: true,
-    athletics: true,
-  });
+  // Layer visibility lives in the URL (`?layers=`), so a link carries the
+  // map someone is actually looking at. The three event toggles are derived
+  // from it rather than duplicated in local state.
+  const layers = useLayerState();
+  const toggles: LayerToggles = useMemo(
+    () => ({
+      events: layers.state.events,
+      classes: layers.state.classes,
+      athletics: layers.state.athletics,
+    }),
+    [layers.state],
+  );
+  const amenityKinds = useMemo(
+    () => amenityKindsFor(layers.state) as AmenityKind[],
+    [layers.state],
+  );
   const [hover, setHover] = useState<EventHover | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<EventOut | null>(null);
@@ -98,10 +116,6 @@ export function LiveMap({
     }),
     [inWindow, activities],
   );
-
-  const handleToggle = useCallback((layer: keyof LayerToggles) => {
-    setToggles((t) => ({ ...t, [layer]: !t[layer] }));
-  }, []);
 
   const handleMapLoad = useCallback(
     (m: MaplibreMap) => {
@@ -155,10 +169,27 @@ export function LiveMap({
             onHover={setHover}
             onSelect={handleSelect}
           />
-          <ClassActivityLayer activities={activities} enabled={toggles.classes} />
+          <CampusLandmarkLayers enabled={layers.state.greens} />
+          <DaylightLayer />
+          <CampusBuildingLayers
+            enabled={layers.state.buildings}
+            activities={activities}
+            classesEnabled={toggles.classes}
+          />
+          <CampusAmenityLayers kinds={amenityKinds} />
         </MapView>
 
-        <LayerRail toggles={toggles} onToggle={handleToggle} counts={counts} />
+        <LayerPanel
+          state={layers.state}
+          onToggle={layers.toggle}
+          onReset={layers.reset}
+          isModified={layers.isModified}
+          counts={counts}
+        />
+
+        {/* Bottom-left, opposite the layer panel: what is actually running
+            right now. Rows open the same detail panel a map dot does. */}
+        <HappeningNow onSelect={handleSelect} />
 
         {eventsQuery.isPending && (
           <output

@@ -4,6 +4,7 @@ import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { matchScore, normalizeQuery, rankByMatch, useSearch } from "../src/data/search";
+import { MEETINGS } from "./helpers/fixtures";
 import { createServer, resetSeenRequests, seenRequests } from "./helpers/msw";
 import { makeQueryClient } from "./helpers/render";
 
@@ -88,6 +89,48 @@ describe("useSearch fan-out (no /search route in the contract)", () => {
     await waitFor(() => expect(result.current.pending).toBe(false));
     expect(result.current.groups.courses).toHaveLength(1);
     expect(result.current.groups.courses[0]?.courseCode).toBe("CSCI 0150");
+  });
+
+  it("drops unresolved course meetings before deduplication so every result can navigate", async () => {
+    const { HttpResponse, http } = await import("msw");
+    const base = MEETINGS[0];
+    if (!base) throw new Error("missing meeting fixture");
+    server.use(
+      http.get("*/api/meetings", () =>
+        HttpResponse.json({
+          meetings: [
+            {
+              ...base,
+              id: "csci-0200-unresolved",
+              courseCode: "CSCI 0200",
+              title: "Program Design with Data Structures and Algorithms",
+              locationRaw: "TBD",
+              placeId: null,
+              placeName: null,
+              room: null,
+              lat: null,
+              lng: null,
+            },
+            {
+              ...base,
+              id: "csci-0200-resolved",
+              courseCode: "CSCI 0200",
+              title: "Program Design with Data Structures and Algorithms",
+              placeId: "salomon-center",
+              placeName: "Salomon Center",
+              room: "101",
+            },
+          ],
+        }),
+      ),
+    );
+
+    const { result } = renderHook(() => useSearch("csci 0200"), { wrapper });
+    await waitFor(() => expect(result.current.pending).toBe(false));
+
+    expect(result.current.groups.courses.map((meeting) => meeting.id)).toEqual([
+      "csci-0200-resolved",
+    ]);
   });
 
   it("flags degraded results when a source fails", async () => {

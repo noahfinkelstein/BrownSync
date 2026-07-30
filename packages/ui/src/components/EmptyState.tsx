@@ -22,8 +22,12 @@ export function EmptyState({ icon, title, body, action, className }: EmptyStateP
       )}
     >
       {icon && <div className="mb-2 text-text-secondary">{icon}</div>}
-      <div className="text-15 font-medium tracking-tight text-text-secondary">{title}</div>
-      {body && <div className="max-w-[38ch] text-13 text-text-secondary">{body}</div>}
+      {/* Primary, not secondary: on a dark page the whole block sat at one
+          quiet level and the title still separated from the body by weight
+          alone. On paper the two secondary greys collapse into one grey
+          paragraph, so the title takes the ink and the body keeps secondary. */}
+      <div className="text-16 font-medium tracking-tight text-text-primary">{title}</div>
+      {body && <div className="max-w-[38ch] text-14 text-text-secondary">{body}</div>}
       {action && <div className="mt-3">{action}</div>}
     </div>
   );

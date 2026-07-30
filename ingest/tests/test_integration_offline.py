@@ -43,6 +43,12 @@ SEED_ARTIFACTS = (
     "organization_livewhale_groups.json",
     "athletics_venues.json",
     "brown_owned_buildings.json",
+    "campus_buildings.geojson",
+    "campus_landmarks.geojson",
+    "campus_amenities.geojson",
+    "dining_menus.json",
+    "publications.json",
+    "library_hours.json",
     "events.ndjson",
 )
 DINING_IDS = {
@@ -153,14 +159,14 @@ def events(bundle: BundleRun) -> list[EventRow]:
 
 
 class TestBundleRun:
-    def test_run_all_succeeds_and_reports_the_declared_gaps(
-        self, bundle: BundleRun
-    ) -> None:
+    def test_run_all_succeeds_with_no_blocked_jobs_left(self, bundle: BundleRun) -> None:
+        # clubs became a real job in Task 7; dining became one on 2026-07-29
+        # (the recorded 403 was the marketing CMS, not the menu data). Every
+        # registered job now runs, so `run all` must emit NO gap lines at all.
         assert bundle.code == 0, bundle.err
         gap_lines = [line for line in bundle.out if "GAP" in line]
-        # clubs became a real job in Task 7; dining is the only gap left
-        assert not any("clubs" in line for line in gap_lines)
-        assert any("dining" in line and "403" in line for line in gap_lines)
+        assert gap_lines == []
+        assert any("dining" in line and "serving" in line for line in bundle.out)
 
     def test_every_seed_artifact_is_published(self, bundle: BundleRun) -> None:
         for name in SEED_ARTIFACTS:
@@ -396,7 +402,12 @@ class TestManifestAndRuns:
             "clubs",
             "athletics",
             "buildings",
+            "campus",
+            "amenities",
             "events",
+            "dining",
+            "publications",
+            "libraries",
         ]
         for run in runs:
             assert run["status"] == "ok"

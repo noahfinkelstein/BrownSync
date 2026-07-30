@@ -63,7 +63,7 @@ export function NotFoundScreen() {
           <Link
             to="/"
             className={cn(
-              "inline-flex h-7 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-4 border border-line bg-transparent px-2.5 text-13 font-medium text-text-primary transition-colors duration-150 ease-out hover:bg-bg-overlay",
+              "inline-flex h-7 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-4 border border-line bg-transparent px-2.5 text-14 font-medium text-text-primary transition-colors duration-150 ease-out hover:bg-bg-overlay",
               FOCUS_RING,
             )}
           >

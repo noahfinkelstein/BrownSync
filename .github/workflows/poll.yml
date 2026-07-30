@@ -1,13 +1,26 @@
 name: Poll
 
 # Manual dispatch + cron (flipped live in Phase 3). Cadence per source
-# etiquette (contract §5 allows livewhale <= every 10 min; 15 is polite):
-#   - livewhale       every 15 min   ("*/15 * * * *")
-#   - athletics + bdh hourly         ("37 * * * *" — offset minute so the
-#     hourly run never lands on a */15 tick or the top-of-hour pileup)
+# etiquette; every value here is mirrored as data in `source_registry`
+# (migration 0006), which is the source of truth for cadence and staleness:
+#   - livewhale       every 15 min   ("*/15 * * * *" — contract §5 allows
+#     <= every 10 min; 15 is politer)
+#   - athletics + bdh every 2 hours  ("37 */2 * * *" — the athletics ICS
+#     publishes X-PUBLISHED-TTL PT120M and robots.txt asks for Crawl-delay
+#     30, so an hourly poll refetched an unchanged calendar; the offset
+#     minute keeps it off the */15 ticks and the top-of-hour pileup)
+#   - dedup           hourly         ("52 * * * *")
 # Which sources run is derived from which cron string fired
 # (github.event.schedule), not from wall-clock time — GH cron runs can start
 # minutes late, so time-based gating would misfire.
+#
+# WHY DEDUP HAS ITS OWN CRON. It used to ride the hourly athletics tick,
+# because a scheduled run's source list is per-source and never 'all', so
+# without a rider the cross-source dedup job would simply never run in
+# production. Slowing athletics to 2 hours would therefore have silently
+# halved dedup's cadence too — a cross-source duplicate would survive twice
+# as long, with nothing in the diff to say so. Dedup gets its own entry
+# instead, keeping its hourly cadence independent of any feed's etiquette.
 #
 # Until secrets.DATABASE_URL exists every run no-ops loudly (green with a
 # warning, never red) — see DEPLOY.md step 2.
@@ -26,7 +39,8 @@ on:
         default: all
   schedule:
     - cron: "*/15 * * * *" # livewhale
-    - cron: "37 * * * *" # athletics + bdh
+    - cron: "37 */2 * * *" # athletics + bdh (X-PUBLISHED-TTL PT120M)
+    - cron: "52 * * * *" # dedup (was riding the athletics tick)
 
 concurrency:
   group: poll
@@ -59,8 +73,10 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             list="${INPUT_SOURCE:-all}"
-          elif [ "$CRON" = "37 * * * *" ]; then
+          elif [ "$CRON" = "37 */2 * * *" ]; then
             list="athletics bdh"
+          elif [ "$CRON" = "52 * * * *" ]; then
+            list="dedup"
           else
             list="livewhale"
           fi
@@ -93,14 +109,14 @@ jobs:
 
       - name: Cross-source dedup after a full poll
         # Duplicates only form across feeds, so dedup rides along whenever the
-        # full set was just polled (dispatch source=all) AND after the hourly
-        # cron sweep — by then every source has been refreshed within the hour,
-        # and without a cron rider auto-dedup would never run in production
-        # (scheduled lists are per-source, never 'all'). Dispatching
-        # source=dedup runs it alone via the loop above.
+        # full set was just polled in one go (dispatch source=all). The
+        # SCHEDULED path no longer rides another source's tick — dedup has its
+        # own "52 * * * *" entry, handled by the loop above — so its cadence is
+        # independent of any feed's etiquette. Dispatching source=dedup runs it
+        # alone, also via the loop.
         if: >-
           steps.gate.outputs.ready == 'true' &&
-          (steps.sources.outputs.list == 'all' || github.event.schedule == '37 * * * *')
+          steps.sources.outputs.list == 'all'
         run: pnpm poll dedup
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

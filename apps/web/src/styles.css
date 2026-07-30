@@ -1,5 +1,5 @@
 /* The design-system stylesheet is the app stylesheet: §6 tokens as custom
-   properties + the Tailwind theme (bg-bg-base, text-13, font-mono, …). */
+   properties + the Tailwind theme (bg-bg-base, text-14, font-mono, …). */
 @import "@brownsync/ui/styles.css";
 
 body {
@@ -7,12 +7,17 @@ body {
 }
 
 /*
- * Map chrome (§6.3): attribution small, dark, bottom-right. MapLibre ships a
- * light default; re-skin to the token palette — custom properties from
- * @brownsync/ui only, no raw hex (Phase 3 token hygiene).
+ * Map chrome (§6.3): attribution small, bottom-right.
+ *
+ * The chrome is light now but the basemap under it is still dark by design
+ * (see tokens.map) — so this chip is the one place in the app where a light
+ * surface floats on a dark one. It is opaque rather than 78% translucent for
+ * exactly that reason: a 22%-transparent white chip over #0D1319 water resolved
+ * to roughly #C6C4C1, which dropped --text-secondary from 7.8:1 to 4.0:1 and
+ * put the attribution under AA. Custom properties only, no raw hex.
  */
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  background: color-mix(in srgb, var(--bg-base) 78%, transparent);
+  background: var(--bg-base);
   border-radius: 4px;
   /* --text-secondary, not faint: attribution is 12 px TEXT (WCAG AA §6.1). */
   color: var(--text-secondary);
@@ -30,7 +35,12 @@ body {
 }
 
 .maplibregl-ctrl-attrib-button {
-  filter: invert(0.65);
+  /* MapLibre's "i" glyph ships dark, for the light chip it was designed
+     against. The old `invert(0.65)` existed to lift it onto a dark chip; the
+     chip is white again, so inverting now hides the glyph on its own
+     background. `none` rather than deleting the rule, so the next person sees
+     that the default is deliberate. */
+  filter: none;
 }
 
 /*

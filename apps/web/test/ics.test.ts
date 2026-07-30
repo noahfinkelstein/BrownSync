@@ -38,14 +38,49 @@ describe("ICS building blocks", () => {
   });
 
   it("folds long lines with leading-space continuations", () => {
+    // RFC 5545 constrains OCTETS, not JS string length. The assertion used to
+    // be `line.length <= 74`, which is neither the spec's unit nor its number
+    // — and it passed happily while the implementation emitted ~148-octet
+    // lines for emoji.
+    const octets = (line: string): number => new TextEncoder().encode(line).length;
     const long = `SUMMARY:${"x".repeat(200)}`;
     const folded = foldIcsLine(long);
     for (const [i, line] of folded.split("\r\n").entries()) {
-      expect(line.length).toBeLessThanOrEqual(74);
+      expect(octets(line)).toBeLessThanOrEqual(75);
       if (i > 0) expect(line.startsWith(" ")).toBe(true);
     }
     expect(folded.split("\r\n").join("").replaceAll("\r\n ", "")).toContain("SUMMARY:");
     expect(foldIcsLine("SUMMARY:short")).toBe("SUMMARY:short");
+  });
+
+  it("ignores extra positional arguments, so Array#map cannot poison the limit", () => {
+    // `lines.map(foldIcsLine)` passes (element, index, array). With an
+    // optional second parameter that index lands in `limit`: index 0 gives a
+    // limit of 0 and folds every character onto its own line, which is
+    // exactly what shipped for one commit.
+    const line = "SUMMARY:BEGIN";
+    expect(["a", line].map((l) => foldIcsLine(l))).toEqual(["a", line]);
+    // The default must survive being called the way map calls it.
+    expect(foldIcsLine(line, undefined)).toBe(line);
+  });
+
+  it("never splits a code point, and measures multi-byte characters honestly", () => {
+    // THE bug. Slicing by code unit at an odd offset splits a surrogate pair,
+    // leaving a lone surrogate that is not encodable as UTF-8 — one emoji in
+    // an event title was enough. And an emoji is 4 octets to 2 code units, so
+    // the old fold ran to roughly double the limit before breaking.
+    const octets = (line: string): number => new TextEncoder().encode(line).length;
+    const folded = foldIcsLine(`SUMMARY:${"🎉".repeat(60)}`);
+    for (const line of folded.split("\r\n")) {
+      expect(octets(line)).toBeLessThanOrEqual(75);
+      // The real check, and sufficient on its own: a lone surrogate is not
+      // encodable as UTF-8, so encode→decode replaces it with U+FFFD and the
+      // round-trip stops being an identity.
+      expect(new TextDecoder().decode(new TextEncoder().encode(line))).toBe(line);
+    }
+    // Nothing lost: unfolding restores every emoji.
+    const unfolded = folded.replaceAll("\r\n ", "");
+    expect([...unfolded.matchAll(/🎉/gu)]).toHaveLength(60);
   });
 });
 

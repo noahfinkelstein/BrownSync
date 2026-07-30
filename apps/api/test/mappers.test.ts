@@ -149,10 +149,81 @@ describe("aggregateHealth", () => {
         last_ok_at: null,
         items_upserted: 2,
         error: null,
+        stale_after_seconds: null,
+        enabled: null,
+        label: null,
       },
     ]);
     const manual = out.sources.find((s) => s.source === "manual");
     expect(manual).toMatchObject({ status: "error", itemsUpserted: 2 });
     expect(out.sources).toHaveLength(KNOWN_SOURCES.length + 1);
+  });
+
+  // --- source_registry passthrough (migration 0006) ------------------------
+
+  it("passes the registry's per-source staleness horizon and label through", () => {
+    const out = aggregateHealth(healthRows);
+    const livewhale = out.sources.find((s) => s.source === "livewhale");
+    expect(livewhale).toMatchObject({
+      staleAfterSeconds: 2400,
+      enabled: true,
+      label: "LiveWhale events",
+    });
+  });
+
+  it("reports a running-but-unregistered source as enabled with no horizon", () => {
+    // The client must fall back to its own default here, not treat a missing
+    // registry row as "switched off".
+    const out = aggregateHealth(healthRows);
+    expect(out.sources.find((s) => s.source === "cab")).toMatchObject({
+      staleAfterSeconds: null,
+      enabled: true,
+      label: null,
+    });
+  });
+
+  it("reports a recorded refusal instead of omitting it", () => {
+    const out = aggregateHealth(healthRows);
+    const refusal = out.sources.find((s) => s.source === "providence_gov");
+    expect(refusal).toMatchObject({
+      status: "never",
+      enabled: false,
+      label: "City of Providence events",
+    });
+  });
+
+  it("keeps a SQL-produced 'never' instead of degrading it to 'error'", () => {
+    // Before 0006, "never" only ever came from the knownSources backfill, so
+    // the status allowlist did not include it; api_health() now emits it for
+    // any registered source with no runs.
+    const out = aggregateHealth([
+      {
+        source: "libcal",
+        status: "never",
+        last_run_at: null,
+        last_ok_at: null,
+        items_upserted: null,
+        error: null,
+        stale_after_seconds: 10800,
+        enabled: true,
+        label: "LibCal library hours",
+      },
+    ]);
+    expect(out.sources.find((s) => s.source === "libcal")).toMatchObject({
+      status: "never",
+      staleAfterSeconds: 10800,
+    });
+  });
+
+  it("synthesizes known-source rows with neutral registry defaults", () => {
+    const out = aggregateHealth([]);
+    for (const source of out.sources) {
+      expect(source).toMatchObject({
+        status: "never",
+        staleAfterSeconds: null,
+        enabled: true,
+        label: null,
+      });
+    }
   });
 });

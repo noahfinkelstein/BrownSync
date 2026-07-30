@@ -13,7 +13,14 @@
       "!reports",
       "!supabase",
       "!**/dist",
-      "!pnpm-lock.yaml"
+      "!pnpm-lock.yaml",
+      "!cab_*_batches*",
+      "!fall_2026_cab_*",
+      "!scrape-work",
+      "!sheet-work",
+      "!ingestion-worktree",
+      "!cab_*.js",
+      "!brownsync_public_data*"
     ]
   },
   "formatter": {

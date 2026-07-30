@@ -67,7 +67,12 @@ export function Scrubber({
             style={{ left: `${pct(t)}%` }}
           />
         ))}
-        <Slider.Range className="absolute h-full bg-text-faint" />
+        {/* Seal brown, not `--text-faint`. The filled range is the one part of
+            the track that identifies the control's value, so it owes WCAG
+            1.4.11 3:1 — faint clears that by 0.8 and reads as a smudge on
+            paper. Brown is 7.5:1, structural rather than signal, and leaves
+            the accent free for the NOW marker below. */}
+        <Slider.Range className="absolute h-full bg-brand-brown-soft" />
         {now != null && (
           <span
             aria-hidden

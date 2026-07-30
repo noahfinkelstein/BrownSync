@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from brownsync_ingest.cli import (
     BlockedJob,
+    DINING_BLOCKED_REASON,
     JobContext,
     JobOutcome,
     JobSpec,
@@ -95,24 +96,39 @@ def run_cli(
 class TestDefaultRegistry:
     def test_covers_existing_jobs_in_bundle_order_then_blocked_gaps(self) -> None:
         registry = default_registry()
-        # clubs became a real job in Task 7 (user-provided CSV); dining stays
-        # the sole documented blocked gap.
+        # clubs became a real job in Task 7 (user-provided CSV). Dining became
+        # one on 2026-07-29: the recorded block named dining.brown.edu's 403,
+        # but that is the marketing CMS — Brown OIT's service bus answers the
+        # menus at 200 with no auth. There is now NO blocked job in the
+        # registry, so the BlockedJob path is covered by a synthetic entry
+        # below rather than by a real source.
         assert list(registry) == [
             "places",
             "cab",
             "clubs",
             "athletics",
             "buildings",
+            # campus runs after places + cab: conflation reads places.ndjson
+            # and label ranks come from course_meetings.ndjson meeting counts.
+            "campus",
+            # amenities runs after campus: nameless amenity points snap to the
+            # nearest normalized building for their label.
+            "amenities",
             "events",
             "dining",
+            "publications",
+            "libraries",
         ]
+        assert not any(isinstance(spec, BlockedJob) for spec in registry.values())
         assert isinstance(registry["places"], JobSpec)
         assert isinstance(registry["cab"], JobSpec)
         assert isinstance(registry["clubs"], JobSpec)
         assert isinstance(registry["athletics"], JobSpec)
         assert isinstance(registry["buildings"], JobSpec)
+        assert isinstance(registry["campus"], JobSpec)
+        assert isinstance(registry["amenities"], JobSpec)
         assert isinstance(registry["events"], JobSpec)
-        assert isinstance(registry["dining"], BlockedJob)
+        assert isinstance(registry["dining"], JobSpec)
 
     def test_events_runs_after_clubs_which_publishes_its_org_sidecar(
         self,
@@ -124,18 +140,24 @@ class TestDefaultRegistry:
         registry = default_registry()
         assert registry["athletics"].postgres_target is False
         assert registry["buildings"].postgres_target is False
+        # campus_buildings.geojson is fetched by the web map as a static asset,
+        # never served from Postgres — so the map works offline, in fixture
+        # mode, and during an API outage.
+        assert registry["campus"].postgres_target is False
         assert registry["places"].postgres_target is True
         assert registry["cab"].postgres_target is True
         assert registry["events"].postgres_target is True
         # organizations upsert to Postgres; the sidecar stays a file (hybrid)
         assert registry["clubs"].postgres_target is True
 
-    def test_blocked_reasons_are_the_documented_ones(self) -> None:
+    def test_the_recorded_dining_block_is_kept_but_no_longer_applied(self) -> None:
+        # The constant stays as provenance — it explains why dining was absent
+        # for months — but nothing in the registry uses it any more. Deleting
+        # it would erase the reason someone might re-add the block.
+        assert "403" in DINING_BLOCKED_REASON
+        assert "ingest/dining/NOTES.md" in DINING_BLOCKED_REASON
         registry = default_registry()
-        dining = registry["dining"].reason
-        assert "dining" in dining
-        assert "403" in dining
-        assert "ingest/dining/NOTES.md" in dining
+        assert isinstance(registry["dining"], JobSpec)
 
 
 class TestSingleJob:
@@ -194,11 +216,17 @@ class TestSingleJob:
     def test_blocked_job_named_explicitly_fails_with_documented_reason(
         self, tmp_path: Path
     ) -> None:
+        # No real source is blocked any more, so this exercises the BlockedJob
+        # path with a synthetic entry. The machinery still has to work: the
+        # next source that gets refused (providenceri.gov, today.brown.edu)
+        # will use it.
         context = make_context(tmp_path)
-        code, out, err = run_cli("dining", context)
+        reason = "example is blocked: robots.txt disallows /events/ — never crawled"
+        registry = {"example": BlockedJob(reason=reason)}
+        code, out, err = run_cli("example", context, registry)
         assert code == 2
         assert any("blocked" in line for line in err)
-        assert any("403" in line for line in err)
+        assert any("robots.txt" in line for line in err)
         assert read_runs(context) == []
 
 

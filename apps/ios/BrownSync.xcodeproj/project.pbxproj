@@ -1,0 +1,707 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		061E4AAA5108E65BC0971480 /* OpenAPIGenerationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F5B3FD1E09518413EF5024 /* OpenAPIGenerationTests.swift */; };
+		0C8F10D6F91B97E3384630F8 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37EE3A8BED6A7DFB0CE3A167 /* RootView.swift */; };
+		19992AD248180E3D90B88467 /* CampusBuildingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B932AC3002EE71FFE319A469 /* CampusBuildingsTests.swift */; };
+		1B3CED1EE255F9007E97A71B /* StyleLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E0437C85B5978BB6BDA694 /* StyleLoaderTests.swift */; };
+		1D48E570C548101BD5065A49 /* Tokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4588A6F424F02ADBF68D5B /* Tokens.swift */; };
+		33DACCA274210DFDD145E622 /* MapViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E465559EB47E0AA8A04F60 /* MapViewRepresentable.swift */; };
+		45780085643222EF01DDE5D0 /* campus-landmarks.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 62B102B0A90C0A5FC8C5F15E /* campus-landmarks.geojson */; };
+		507CB7343F85E9C6DB5FCC7F /* MapSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F255DEEEA568D28FE4E5E40D /* MapSmokeTests.swift */; };
+		5EBF28B393CA2379DA36121D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7126575AE80ED94E2BFA043B /* Supabase */; };
+		648DD07F2EEBDA8C8AA9CD4E /* MapLoadStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF3609E1C664779AC7E9A65 /* MapLoadStatusTests.swift */; };
+		6EF0127B58125961492008DD /* campus-buildings.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 2C397C1FD48AC0F1BFF0F3C1 /* campus-buildings.geojson */; };
+		7EEAA628473DC7B61AA5B192 /* BrownSyncAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 81C02007F8EC68F4F91186A4 /* BrownSyncAPI */; };
+		84FE86B98D388229F438370E /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 02750EAE20D5698CE4836D98 /* MapLibre */; };
+		9FC230C42F5609C5FAAB6A44 /* BrownSyncApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E47F4AEC73C8A3DA7C51ED4 /* BrownSyncApp.swift */; };
+		A65552E0F9FAFBA2A1C844FF /* BrownSyncAPI in Frameworks */ = {isa = PBXBuildFile; productRef = A6C5B745407C1BD654CE93C1 /* BrownSyncAPI */; };
+		C84E17EC52F45FA3E5529399 /* style.json in Resources */ = {isa = PBXBuildFile; fileRef = B798C52C3C3D1C1957BCC0ED /* style.json */; };
+		C922C88E0F73E508EADB594B /* CampusBuildings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB583C16E427944AEAFC7807 /* CampusBuildings.swift */; };
+		CB9A2A4E6F92315552FC0778 /* StyleLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E3FA91BCA9183B831B9A37 /* StyleLoader.swift */; };
+		CD8B51A136D7C783D9F77533 /* providence.pmtiles in Resources */ = {isa = PBXBuildFile; fileRef = 5DD3F5053710ADD46DAE7700 /* providence.pmtiles */; };
+		EDB427DA331A0569CC69216B /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = BE82842265DC22254CA69F8F /* GoogleSignIn */; };
+		EFA3BD15EF640E3638540092 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A21742B97E8825CFC97D7773 /* PrivacyInfo.xcprivacy */; };
+		F9DAD0C92DDB983599915DD3 /* DesignTokensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34555891AC273531CBD318D /* DesignTokensTests.swift */; };
+		FAE6FA2EBF1B1EDE09977B36 /* glyphs in Resources */ = {isa = PBXBuildFile; fileRef = CA3B4FD010229E65394EBFDB /* glyphs */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		406B4C39CABF0C47C147C8A0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AFBE752DF9FEE31DE1774F54 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8ECE02825BB280CD3D418765;
+			remoteInfo = BrownSync;
+		};
+		DADB55CB1D588ACDE4E368A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AFBE752DF9FEE31DE1774F54 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8ECE02825BB280CD3D418765;
+			remoteInfo = BrownSync;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		10E3FA91BCA9183B831B9A37 /* StyleLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleLoader.swift; sourceTree = "<group>"; };
+		274BE82B5CEA16D70A87788D /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		2C397C1FD48AC0F1BFF0F3C1 /* campus-buildings.geojson */ = {isa = PBXFileReference; path = "campus-buildings.geojson"; sourceTree = "<group>"; };
+		2C4588A6F424F02ADBF68D5B /* Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.swift; sourceTree = "<group>"; };
+		371CCE6E766CE28D552AC3CF /* BrownSync.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BrownSync.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		37EE3A8BED6A7DFB0CE3A167 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		3E47F4AEC73C8A3DA7C51ED4 /* BrownSyncApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrownSyncApp.swift; sourceTree = "<group>"; };
+		525502D09E99DC59A3015C9D /* BrownSyncUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BrownSyncUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5DD3F5053710ADD46DAE7700 /* providence.pmtiles */ = {isa = PBXFileReference; path = providence.pmtiles; sourceTree = "<group>"; };
+		62B102B0A90C0A5FC8C5F15E /* campus-landmarks.geojson */ = {isa = PBXFileReference; path = "campus-landmarks.geojson"; sourceTree = "<group>"; };
+		6CF3609E1C664779AC7E9A65 /* MapLoadStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapLoadStatusTests.swift; sourceTree = "<group>"; };
+		71E0437C85B5978BB6BDA694 /* StyleLoaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleLoaderTests.swift; sourceTree = "<group>"; };
+		8A6D782B75A44EE2E9B3D3D6 /* BrownSyncAPI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BrownSyncAPI; path = packages/BrownSyncAPI; sourceTree = SOURCE_ROOT; };
+		93F5B3FD1E09518413EF5024 /* OpenAPIGenerationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAPIGenerationTests.swift; sourceTree = "<group>"; };
+		A21742B97E8825CFC97D7773 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A34555891AC273531CBD318D /* DesignTokensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokensTests.swift; sourceTree = "<group>"; };
+		B798C52C3C3D1C1957BCC0ED /* style.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = style.json; sourceTree = "<group>"; };
+		B7E465559EB47E0AA8A04F60 /* MapViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewRepresentable.swift; sourceTree = "<group>"; };
+		B932AC3002EE71FFE319A469 /* CampusBuildingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusBuildingsTests.swift; sourceTree = "<group>"; };
+		CA3B4FD010229E65394EBFDB /* glyphs */ = {isa = PBXFileReference; lastKnownFileType = folder; name = glyphs; path = Resources/glyphs; sourceTree = SOURCE_ROOT; };
+		CB583C16E427944AEAFC7807 /* CampusBuildings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusBuildings.swift; sourceTree = "<group>"; };
+		EF2EEDA3CEDB50E29692F0E3 /* BrownSyncTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BrownSyncTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F255DEEEA568D28FE4E5E40D /* MapSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapSmokeTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9210030A98E085AC9A14301A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7EEAA628473DC7B61AA5B192 /* BrownSyncAPI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B176BB8988D220BE15EE4E00 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A65552E0F9FAFBA2A1C844FF /* BrownSyncAPI in Frameworks */,
+				84FE86B98D388229F438370E /* MapLibre in Frameworks */,
+				5EBF28B393CA2379DA36121D /* Supabase in Frameworks */,
+				EDB427DA331A0569CC69216B /* GoogleSignIn in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1C4B1083FD77B0B4C548C4F7 /* BrownSync */ = {
+			isa = PBXGroup;
+			children = (
+				29B8CFBB108FB3CAB2EFFBD9 /* App */,
+				FA4076ACDF79F671F580C5AC /* Map */,
+			);
+			name = BrownSync;
+			path = Sources/BrownSync;
+			sourceTree = "<group>";
+		};
+		211479F8CCA1ABA7E58B40E7 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2C397C1FD48AC0F1BFF0F3C1 /* campus-buildings.geojson */,
+				62B102B0A90C0A5FC8C5F15E /* campus-landmarks.geojson */,
+				A21742B97E8825CFC97D7773 /* PrivacyInfo.xcprivacy */,
+				5DD3F5053710ADD46DAE7700 /* providence.pmtiles */,
+				B798C52C3C3D1C1957BCC0ED /* style.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		29B8CFBB108FB3CAB2EFFBD9 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				3E47F4AEC73C8A3DA7C51ED4 /* BrownSyncApp.swift */,
+				37EE3A8BED6A7DFB0CE3A167 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		8BA21E618D81A92BFF27ADA7 = {
+			isa = PBXGroup;
+			children = (
+				CA3B4FD010229E65394EBFDB /* glyphs */,
+				1C4B1083FD77B0B4C548C4F7 /* BrownSync */,
+				D6DAC76FD2DAFECABF0AB7AF /* BrownSyncTests */,
+				B73EDD44A3098F41B2328C88 /* BrownSyncUITests */,
+				DE39CE1A2CFE9A62B354BA4A /* Generated */,
+				F9BBB58BDFCBC1A45414C60A /* Packages */,
+				211479F8CCA1ABA7E58B40E7 /* Resources */,
+				D21D179FDBC2772D878F79BA /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B73EDD44A3098F41B2328C88 /* BrownSyncUITests */ = {
+			isa = PBXGroup;
+			children = (
+				F255DEEEA568D28FE4E5E40D /* MapSmokeTests.swift */,
+			);
+			name = BrownSyncUITests;
+			path = Tests/BrownSyncUITests;
+			sourceTree = "<group>";
+		};
+		D21D179FDBC2772D878F79BA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				371CCE6E766CE28D552AC3CF /* BrownSync.app */,
+				EF2EEDA3CEDB50E29692F0E3 /* BrownSyncTests.xctest */,
+				525502D09E99DC59A3015C9D /* BrownSyncUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D6DAC76FD2DAFECABF0AB7AF /* BrownSyncTests */ = {
+			isa = PBXGroup;
+			children = (
+				B932AC3002EE71FFE319A469 /* CampusBuildingsTests.swift */,
+				A34555891AC273531CBD318D /* DesignTokensTests.swift */,
+				6CF3609E1C664779AC7E9A65 /* MapLoadStatusTests.swift */,
+				93F5B3FD1E09518413EF5024 /* OpenAPIGenerationTests.swift */,
+				71E0437C85B5978BB6BDA694 /* StyleLoaderTests.swift */,
+			);
+			name = BrownSyncTests;
+			path = Tests/BrownSyncTests;
+			sourceTree = "<group>";
+		};
+		DE39CE1A2CFE9A62B354BA4A /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				274BE82B5CEA16D70A87788D /* .gitkeep */,
+				2C4588A6F424F02ADBF68D5B /* Tokens.swift */,
+			);
+			path = Generated;
+			sourceTree = "<group>";
+		};
+		F9BBB58BDFCBC1A45414C60A /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				8A6D782B75A44EE2E9B3D3D6 /* BrownSyncAPI */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		FA4076ACDF79F671F580C5AC /* Map */ = {
+			isa = PBXGroup;
+			children = (
+				CB583C16E427944AEAFC7807 /* CampusBuildings.swift */,
+				B7E465559EB47E0AA8A04F60 /* MapViewRepresentable.swift */,
+				10E3FA91BCA9183B831B9A37 /* StyleLoader.swift */,
+			);
+			path = Map;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8ECE02825BB280CD3D418765 /* BrownSync */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E8E00AA6F2905239A6AC179 /* Build configuration list for PBXNativeTarget "BrownSync" */;
+			buildPhases = (
+				27F3A06935927D17428F8FC7 /* Sources */,
+				D6AEC1108817173FBE79434A /* Resources */,
+				B176BB8988D220BE15EE4E00 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BrownSync;
+			packageProductDependencies = (
+				A6C5B745407C1BD654CE93C1 /* BrownSyncAPI */,
+				02750EAE20D5698CE4836D98 /* MapLibre */,
+				7126575AE80ED94E2BFA043B /* Supabase */,
+				BE82842265DC22254CA69F8F /* GoogleSignIn */,
+			);
+			productName = BrownSync;
+			productReference = 371CCE6E766CE28D552AC3CF /* BrownSync.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E0F254453A08E6AE4C83617B /* BrownSyncTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 32FB1D8A64D35F4431CAA079 /* Build configuration list for PBXNativeTarget "BrownSyncTests" */;
+			buildPhases = (
+				1FF18DE52D58CF8DE8AC3EE0 /* Sources */,
+				9210030A98E085AC9A14301A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1196DFF3A1A38BAE82A2C154 /* PBXTargetDependency */,
+			);
+			name = BrownSyncTests;
+			packageProductDependencies = (
+				81C02007F8EC68F4F91186A4 /* BrownSyncAPI */,
+			);
+			productName = BrownSyncTests;
+			productReference = EF2EEDA3CEDB50E29692F0E3 /* BrownSyncTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E84C50DF99D8E9FA5A816B9F /* BrownSyncUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 20C3E2D28585E9E948818F82 /* Build configuration list for PBXNativeTarget "BrownSyncUITests" */;
+			buildPhases = (
+				3D5379D72C92B915A27B1E0F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				90807EB12E490412148D2298 /* PBXTargetDependency */,
+			);
+			name = BrownSyncUITests;
+			packageProductDependencies = (
+			);
+			productName = BrownSyncUITests;
+			productReference = 525502D09E99DC59A3015C9D /* BrownSyncUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AFBE752DF9FEE31DE1774F54 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					E84C50DF99D8E9FA5A816B9F = {
+						TestTargetID = 8ECE02825BB280CD3D418765;
+					};
+				};
+			};
+			buildConfigurationList = 8F20966637FF9E6C71C38F28 /* Build configuration list for PBXProject "BrownSync" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8BA21E618D81A92BFF27ADA7;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D62CD1AF3031BC2D8674A183 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				9B4FAE1713B3A4EC735267E1 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
+				F730B40EDFC751DFDA14168E /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				4EB79DDE8F37BF7F3968C3BD /* XCLocalSwiftPackageReference "packages/BrownSyncAPI" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D21D179FDBC2772D878F79BA /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8ECE02825BB280CD3D418765 /* BrownSync */,
+				E0F254453A08E6AE4C83617B /* BrownSyncTests */,
+				E84C50DF99D8E9FA5A816B9F /* BrownSyncUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D6AEC1108817173FBE79434A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EFA3BD15EF640E3638540092 /* PrivacyInfo.xcprivacy in Resources */,
+				6EF0127B58125961492008DD /* campus-buildings.geojson in Resources */,
+				45780085643222EF01DDE5D0 /* campus-landmarks.geojson in Resources */,
+				FAE6FA2EBF1B1EDE09977B36 /* glyphs in Resources */,
+				CD8B51A136D7C783D9F77533 /* providence.pmtiles in Resources */,
+				C84E17EC52F45FA3E5529399 /* style.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1FF18DE52D58CF8DE8AC3EE0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				19992AD248180E3D90B88467 /* CampusBuildingsTests.swift in Sources */,
+				F9DAD0C92DDB983599915DD3 /* DesignTokensTests.swift in Sources */,
+				648DD07F2EEBDA8C8AA9CD4E /* MapLoadStatusTests.swift in Sources */,
+				061E4AAA5108E65BC0971480 /* OpenAPIGenerationTests.swift in Sources */,
+				1B3CED1EE255F9007E97A71B /* StyleLoaderTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		27F3A06935927D17428F8FC7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9FC230C42F5609C5FAAB6A44 /* BrownSyncApp.swift in Sources */,
+				C922C88E0F73E508EADB594B /* CampusBuildings.swift in Sources */,
+				33DACCA274210DFDD145E622 /* MapViewRepresentable.swift in Sources */,
+				0C8F10D6F91B97E3384630F8 /* RootView.swift in Sources */,
+				CB9A2A4E6F92315552FC0778 /* StyleLoader.swift in Sources */,
+				1D48E570C548101BD5065A49 /* Tokens.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3D5379D72C92B915A27B1E0F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				507CB7343F85E9C6DB5FCC7F /* MapSmokeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1196DFF3A1A38BAE82A2C154 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8ECE02825BB280CD3D418765 /* BrownSync */;
+			targetProxy = DADB55CB1D588ACDE4E368A6 /* PBXContainerItemProxy */;
+		};
+		90807EB12E490412148D2298 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8ECE02825BB280CD3D418765 /* BrownSync */;
+			targetProxy = 406B4C39CABF0C47C147C8A0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1A87E012C5B3915BF9BAC20E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		2EF0D0B092A16079622772AD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahfinkelstein.BrownSyncTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BrownSync.app/BrownSync";
+			};
+			name = Debug;
+		};
+		40CB70AC6DD9EFF72F0483FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahfinkelstein.BrownSyncUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = BrownSync;
+			};
+			name = Debug;
+		};
+		4B0F9FFFC00EEE62B9FFBF4A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahfinkelstein.BrownSyncTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BrownSync.app/BrownSync";
+			};
+			name = Release;
+		};
+		61E3F4BCDAB9EB41F715E0D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahfinkelstein.BrownSyncUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = BrownSync;
+			};
+			name = Release;
+		};
+		6E2543465EB16C4D1B94AE5B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/BrownSync/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahfinkelstein.BrownSync;
+				PRODUCT_NAME = BrownSync;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		77BD1517B3EC6EFC844564AA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/BrownSync/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.noahfinkelstein.BrownSync;
+				PRODUCT_NAME = BrownSync;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		DEBDC96CD9192F0DA49C5DD9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		20C3E2D28585E9E948818F82 /* Build configuration list for PBXNativeTarget "BrownSyncUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				40CB70AC6DD9EFF72F0483FF /* Debug */,
+				61E3F4BCDAB9EB41F715E0D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		32FB1D8A64D35F4431CAA079 /* Build configuration list for PBXNativeTarget "BrownSyncTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2EF0D0B092A16079622772AD /* Debug */,
+				4B0F9FFFC00EEE62B9FFBF4A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8E8E00AA6F2905239A6AC179 /* Build configuration list for PBXNativeTarget "BrownSync" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6E2543465EB16C4D1B94AE5B /* Debug */,
+				77BD1517B3EC6EFC844564AA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8F20966637FF9E6C71C38F28 /* Build configuration list for PBXProject "BrownSync" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DEBDC96CD9192F0DA49C5DD9 /* Debug */,
+				1A87E012C5B3915BF9BAC20E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		4EB79DDE8F37BF7F3968C3BD /* XCLocalSwiftPackageReference "packages/BrownSyncAPI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = packages/BrownSyncAPI;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9B4FAE1713B3A4EC735267E1 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
+			requirement = {
+				kind = exactVersion;
+				version = 6.28.0;
+			};
+		};
+		D62CD1AF3031BC2D8674A183 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
+		F730B40EDFC751DFDA14168E /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 2.54.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		02750EAE20D5698CE4836D98 /* MapLibre */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9B4FAE1713B3A4EC735267E1 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
+			productName = MapLibre;
+		};
+		7126575AE80ED94E2BFA043B /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F730B40EDFC751DFDA14168E /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		81C02007F8EC68F4F91186A4 /* BrownSyncAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrownSyncAPI;
+		};
+		A6C5B745407C1BD654CE93C1 /* BrownSyncAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BrownSyncAPI;
+		};
+		BE82842265DC22254CA69F8F /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D62CD1AF3031BC2D8674A183 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AFBE752DF9FEE31DE1774F54 /* Project object */;
+}

@@ -1,0 +1,702 @@
+# BrownSync curated campus gazetteer — schema v1.
+#
+# Every entry's `name` must also appear in `aliases`; normalized aliases are
+# globally unique across the catalog (the loader fails closed on collisions).
+# `osm` is the exact OpenStreetMap `name` tag to merge geometry from (defaults
+# to `name`); entries without an OSM match must carry curated lat/lng.
+# Geometry, addresses, and osm ids merged from OSM are ODbL-licensed.
+schema_version: 1
+attribution: "Building footprints and addresses © OpenStreetMap contributors, licensed under the Open Database License (ODbL) 1.0 — https://www.openstreetmap.org/copyright"
+places:
+  # ---- dining (canonical six) ----
+  - name: Sharpe Refectory
+    kind: dining
+    aliases: [Sharpe Refectory, The Ratty, Ratty, Refectory]
+  - name: Andrews Commons
+    kind: dining
+    aliases: [Andrews Commons]
+  - name: Verney-Woolley Dining Hall
+    kind: dining
+    osm: Verney-Woolley Hall
+    aliases: [Verney-Woolley Dining Hall, Verney-Woolley Hall, V-Dub, The V-Dub, VDub]
+  - name: Blue Room
+    kind: dining
+    aliases: [Blue Room, The Blue Room]
+    lat: 41.826845
+    lng: -71.402913
+  - name: Ivy Room
+    kind: dining
+    aliases: [Ivy Room, The Ivy Room]
+    lat: 41.825115
+    lng: -71.400836
+  - id: josiahs
+    name: "Josiah's"
+    kind: dining
+    aliases: ["Josiah's", "Jo's"]
+    lat: 41.823295
+    lng: -71.399789
+
+  # ---- athletics ----
+  - name: Meehan Auditorium
+    kind: athletic
+    aliases: [Meehan Auditorium, Meehan]
+  - name: Pizzitola Sports Center
+    kind: athletic
+    osm: Pizzitola Gymnasium
+    aliases: [Pizzitola Sports Center, Pizzitola, Pizzitola Gymnasium, Pizzitola Memorial Sports Center]
+  - name: Olney-Margolies Athletic Center
+    kind: athletic
+    aliases: [Olney-Margolies Athletic Center, OMAC]
+  - name: Nelson Fitness Center
+    kind: athletic
+    aliases: [Nelson Fitness Center]
+  - name: Pembroke Field House
+    kind: athletic
+    aliases: [Pembroke Field House]
+  - name: Penner Field House
+    kind: athletic
+    aliases: [Penner Field House]
+  # Enrichment (Codex drop): LiveWhale publishes Brown Stadium home games as
+  # "Providence, R.I., Richard Gouse Field at Brown Stadium" — the same venue
+  # string the athletics sidecar (Task 8) already maps to brown-stadium.
+  - name: Brown Stadium
+    kind: athletic
+    aliases: [Brown Stadium, Richard Gouse Field, Richard Gouse Field at Brown Stadium, "Providence, R.I., Richard Gouse Field at Brown Stadium"]
+    lat: 41.839800
+    lng: -71.390500
+  - name: Stevenson-Pincince Field
+    kind: athletic
+    aliases: [Stevenson-Pincince Field, Stevenson Pincince, Pincince Field]
+    lat: 41.830700
+    lng: -71.398500
+  # Task 8 (athletics ICS evidence): Brown field hockey's home venue on the
+  # Erickson Athletic Complex, adjacent to Stevenson Field (EAP: enter at
+  # 235 Lloyd Avenue, "between Stevenson Field and the Goldberger Family
+  # Field"). Coordinates are the centroid of OSM way 141129272
+  # (leisure=pitch, "Goldberger Family Field", Stimson Avenue) — a pitch,
+  # not a building, so it is absent from the buildings-only Overpass fixture.
+  - name: Goldberger Family Field
+    kind: athletic
+    aliases: [Goldberger Family Field, Goldberger Field]
+    lat: 41.830826
+    lng: -71.395228
+  # Task 8 (athletics ICS evidence): Brown swimming/diving and water polo
+  # venue, part of the 2012 Nelson Fitness Center building program on the
+  # Erickson Athletic Complex (EAP: behind the OMAC, side entrance at
+  # 235 Hope Street). OSM has no separate element for the aquatics center,
+  # so it merges the Nelson Fitness Center footprint it physically occupies.
+  - id: coleman-aquatics-center
+    name: Katherine Moran Coleman Aquatics Center
+    kind: athletic
+    osm: Nelson Fitness Center
+    aliases: [Katherine Moran Coleman Aquatics Center, Coleman Aquatics Center]
+
+  # ---- libraries ----
+  - name: John D. Rockefeller Jr. Library
+    kind: library
+    aliases: [John D. Rockefeller Jr. Library, Rockefeller Library, The Rock]
+  - name: Sciences Library
+    kind: library
+    aliases: [Sciences Library, Science Library, SciLi]
+  - name: John Hay Library
+    kind: library
+    aliases: [John Hay Library, Hay Library, The Hay]
+  # Enrichment (Codex drop): 116 LiveWhale events (organizer: John Carter
+  # Brown Library) use the bare address "94 George Street"; the recorded
+  # Overpass fixture grounds it — way/166668948 carries name="John Carter
+  # Brown Library", addr "94 George Street", operator="Brown University".
+  # Without the alias the string trigram-trapped to 67-george-street.
+  - name: John Carter Brown Library
+    kind: library
+    aliases: [John Carter Brown Library, JCB, JCB Library, 94 George Street]
+  - name: Annmary Brown Memorial
+    kind: library
+    aliases: [Annmary Brown Memorial]
+
+  # ---- academic ----
+  - name: "Barus & Holley"
+    kind: academic
+    aliases: ["Barus & Holley", Barus and Holley, "B&H", BH]
+  - name: Barus Building
+    kind: academic
+    aliases: [Barus Building]
+  - name: Applied Math Building
+    kind: academic
+    aliases: [Applied Math Building]
+  - name: Arnold Lab
+    kind: academic
+    aliases: [Arnold Lab, Arnold Laboratory]
+  - name: Biomedical Center
+    kind: academic
+    aliases: [Biomedical Center, Bio-Med Center]
+  - name: Blistein House
+    kind: academic
+    aliases: [Blistein House]
+  # Enrichment (Codex drop): way/177016146 carries addr "155 Angell Street".
+  - name: Churchill House
+    kind: academic
+    aliases: [Churchill House, 155 Angell Street, "155 Angell Street, Providence"]
+  # Enrichment (Codex drop): way/177016118 carries addr "345 Brook Street";
+  # the LiveWhale string embeds a room and the full address parenthetically.
+  - name: Engineering Research Center
+    kind: academic
+    aliases: [Engineering Research Center, ERC, 345 Brook Street, 345 Brook St, "Engineering Research Center, RM 125 (345 Brook St Providence, RI)"]
+  - name: Friedman Hall
+    kind: academic
+    aliases: [Friedman Hall]
+  - name: GeoChem Building
+    kind: academic
+    aliases: [GeoChem Building, Geo-Chem, GeoChem, Geo-Chemistry Building]
+  - name: German Department
+    kind: academic
+    aliases: [German Department, German Studies, 190 Hope Street]
+  - name: Giddings House
+    kind: academic
+    aliases: [Giddings House]
+  - name: Grimshaw-Gudewicz Biomedical Building
+    kind: academic
+    aliases: [Grimshaw-Gudewicz Biomedical Building, Grimshaw-Gudewicz Building]
+  # Enrichment (Codex drop): 22 LiveWhale events titled "Tisch Career Center"
+  # geocode inside this footprint (way/177016150, addr "167 Angell Street"),
+  # and a sibling event string spells out "Lizzie and Jonathan Tisch Center
+  # for Career Exploration ... 167 Angell Street" — the center's own address.
+  - name: Hemisphere Building
+    kind: academic
+    aliases: [Hemisphere Building, 167 Angell Street, Tisch Career Center, Lizzie and Jonathan Tisch Center for Career Exploration, "Lizzie and Jonathan Tisch Center for Career Exploration at Brown, Kobliner Conference Space: 1st Floor, 167 Angell Street, Providence, Rhode Island 02912, United States"]
+  - name: Hirschfeld House
+    kind: academic
+    aliases: [Hirschfeld House, 163 George Street]
+  - name: Kassar House
+    kind: academic
+    aliases: [Kassar House, Kassar]
+  - name: Lincoln Field Building
+    kind: academic
+    aliases: [Lincoln Field Building]
+  - name: Lindemann Performing Arts Center
+    kind: academic
+    aliases: [Lindemann Performing Arts Center, The Lindemann]
+  - name: List Art Building
+    kind: academic
+    aliases: [List Art Building, List Art Center]
+  - name: Lyman Hall
+    kind: academic
+    aliases: [Lyman Hall]
+  - name: MacMillan Hall
+    kind: academic
+    aliases: [MacMillan Hall, Starr Auditorium]
+  - name: Manning Hall
+    kind: academic
+    aliases: [Manning Hall, Manning Chapel]
+  - name: Marston Hall
+    kind: academic
+    aliases: [Marston Hall]
+  - name: Maxcy Hall
+    kind: academic
+    aliases: [Maxcy Hall]
+  - name: Medical Research Lab
+    kind: academic
+    aliases: [Medical Research Lab, Medical Research Laboratory]
+  - name: Meiklejohn House
+    kind: academic
+    aliases: [Meiklejohn House, 159 George St-Meiklejohn House]
+  - name: Mencoff Hall
+    kind: academic
+    aliases: [Mencoff Hall, 68 Waterman Mencoff Hall]
+  - name: Metcalf Research Building
+    kind: academic
+    aliases: [Metcalf Research Building, Metcalf Research Lab]
+  - name: Modern Culture and Media
+    kind: academic
+    osm: Brown University Department of Modern Culture and Media
+    aliases: [Modern Culture and Media, MCM, Brown University Department of Modern Culture and Media, 155 George Street]
+  - name: Morrison-Gerard Chamber Music Studios
+    kind: academic
+    aliases: [Morrison-Gerard Chamber Music Studios]
+  # Enrichment (Codex drop): 34 LiveWhale events (organizer: Nelson Center
+  # for Entrepreneurship) use the bare address — way/185225893 is named
+  # "Nelson Center for Entrepreneurship" with addr "1 Euclid Avenue".
+  - name: Nelson Center for Entrepreneurship
+    kind: academic
+    aliases: [Nelson Center for Entrepreneurship, "1 Euclid Ave, Nelson Ctr Entr", 1 Euclid Avenue, "1 Euclid Ave, Providence RI 02906"]
+  - name: Nightingale-Brown House
+    kind: academic
+    osm: "Nightingale–Brown House"
+    aliases: [Nightingale-Brown House, John Nicholas Brown Center]
+  - name: Orwig Music Hall
+    kind: academic
+    aliases: [Orwig Music Hall, Orwig Music Building, Grant Recital Hall, Grant Recital]
+  - name: Page-Robinson Hall
+    kind: academic
+    aliases: [Page-Robinson Hall, J. Walter Wilson, JWW, 69 Brown Street]
+  # Enrichment (Codex drop): way/177011608 carries addr "172 Meeting Street".
+  # Only the full LiveWhale string is aliased — a bare "172 Meeting Street"
+  # alias proved to trigram-trap the street-only string "Meeting street",
+  # which must stay unresolved (no building evidence).
+  - name: Pembroke Hall
+    kind: academic
+    aliases: [Pembroke Hall, "Pembroke Hall, 172 Meeting Street, Providence, RI"]
+  - name: Perry and Marty Granoff Center for the Creative Arts
+    kind: academic
+    aliases: [Perry and Marty Granoff Center for the Creative Arts, Granoff Center, Granoff Center for the Creative Arts]
+  - name: Peter Green House
+    kind: academic
+    aliases: [Peter Green House, 79 Brown St-Peter Green Hse]
+  - name: Prince Engineering Lab
+    kind: academic
+    aliases: [Prince Engineering Lab, Prince Lab]
+  - name: Rhode Island Hall
+    kind: academic
+    aliases: [Rhode Island Hall, RI Hall]
+  - name: Robinson Hall
+    kind: academic
+    aliases: [Robinson Hall]
+  - name: Rochambeau House
+    kind: academic
+    aliases: [Rochambeau House, 84 Prospect St-Rochambeau Hse]
+  - name: Salomon Center for Teaching
+    kind: academic
+    aliases: [Salomon Center for Teaching, Salomon Center, Salomon]
+  - name: Sayles Hall
+    kind: academic
+    aliases: [Sayles Hall, Sayles]
+  - name: Sharpe House
+    kind: academic
+    aliases: [Sharpe House]
+  - name: Sidney Frank Hall
+    kind: academic
+    aliases: [Sidney Frank Hall, Sidney E. Frank Hall, S. Frank Hall for Life Science]
+  - name: Smith Buonanno Hall
+    kind: academic
+    aliases: [Smith Buonanno Hall, Smith Buonanno, Smith-B]
+  # Enrichment (Codex drop): the LiveWhale variant "Stephen Robert ’62 Hall,
+  # 280 Brook Street" geocodes inside way/660704097 (addr "280 Brook Street").
+  - name: Stephen Robert Hall
+    kind: academic
+    aliases: [Stephen Robert Hall, 280 Brook Street, "Stephen Robert '62 Hall", "Stephen Robert '62 Hall, 280 Brook Street"]
+  - name: T.F. Green Hall
+    kind: academic
+    aliases: [T.F. Green Hall, TF Green Hall]
+  # Task 10 review: the export writes this building as its street address
+  # ("94 Waterman Street- CSSJ 110"); without the address aliases the
+  # trigram stage mis-bound those rows to 85 Waterman Street (0.727) with a
+  # corrupted room. The OSM footprint already carries the address
+  # "94 Waterman Street, Providence, RI".
+  # Enrichment (Codex drop): 22 LiveWhale events use the center's renamed
+  # long form ("Ruth J. Simmons Center ...") with its 94 Waterman St address;
+  # they geocode inside the CSSJ footprint way/177075305.
+  - name: Center for the Study of Slavery and Justice
+    kind: academic
+    osm: The Center for the Study of Slavery and Justice (CSSJ)
+    aliases: [Center for the Study of Slavery and Justice, CSSJ, 94 Waterman Street, 94 Waterman Street - CSSJ, Ruth J. Simmons Center for the Study of Slavery & Justice, "Ruth J. Simmons Center for the Study of Slavery & Justice, 94 Waterman St., Providence, RI 02906"]
+  - name: Theatre Arts Building
+    kind: academic
+    aliases: [Theatre Arts Building, 50 John Street]
+  - name: Urban Environmental Lab
+    kind: academic
+    aliases: [Urban Environmental Lab, UEL]
+  - name: Watson Center for Information Technology
+    kind: academic
+    aliases: [Watson Center for Information Technology, CIT, CIT Center, Thomas Watson CIT]
+  # Enrichment (Codex drop): way/177075426 carries addr "111 Thayer Street" —
+  # the bare address (31 LiveWhale events) trigram-trapped to 135-thayer-street
+  # before the exact alias. The school's renamed long form and its Joukowsky
+  # Forum hall both carry the same 111 Thayer address in the drop.
+  - name: Watson Institute for International Studies
+    kind: academic
+    aliases: [Watson Institute for International Studies, Watson Institute, 111 Thayer St-Watson Institute, 111 Thayer Street, Watson School of International and Public Affairs, "Watson School of International and Public Affairs, 111 Thayer Street", Joukowsky Forum, "Joukowsky Forum, 111 Thayer Street"]
+  - name: Wilbour Hall
+    kind: academic
+    aliases: [Wilbour Hall]
+  - name: 180 George Street
+    kind: academic
+    osm: 180 George
+    aliases: [180 George Street, 180 George]
+  - name: 182 George Street
+    kind: academic
+    osm: 182 George
+    aliases: [182 George Street, 182 George]
+  - name: Wilson Hall
+    kind: academic
+    aliases: [Wilson Hall]
+    lat: 41.826200
+    lng: -71.402500
+  # Enrichment (Codex drop): a LiveWhale event names the building in full —
+  # "Building for Environmental Research and Teaching (BERT)" — and geocodes
+  # inside way/176918226 (OSM name "BERT", addr "85 Waterman Street"), so the
+  # entry now claims that named footprint instead of curated coordinates.
+  - name: 85 Waterman Street
+    kind: academic
+    osm: BERT
+    aliases: [85 Waterman Street, 85 Waterman, BERT, Building for Environmental Research and Teaching, Building for Environmental Research and Teaching (BERT)]
+  # Task 10 review: 26 published ENGL/LITR rows read "70 Brown Street NNN".
+  # Without this entry the trigram stage bound them to Page-Robinson Hall
+  # via its "69 Brown Street" alias (0.684) — a different building across
+  # the street. 70 Brown Street is its own OSM university building
+  # (way/1073442221) in the recorded Overpass fixture.
+  # Enrichment (Codex drop): LiveWhale address variants geocode 0.4m from
+  # the way/1073442221 footprint boundary.
+  - name: 70 Brown Street
+    kind: academic
+    aliases: [70 Brown Street, 70 Brown St, "70 Brown St., Providence", "70 Brown St., Providence, RI 02912"]
+  # Task 10 review: "155 South Main Street - Packet NNN" rows mis-bound to
+  # 121 South Main Street (0.75), a different building ~150m away. The OSM
+  # fixture grounds The Packet Building at 155 South Main Street
+  # (way/141567737); Brown teaches in its leased "Packet" rooms.
+  - id: packet-building
+    name: The Packet Building
+    kind: academic
+    aliases: [The Packet Building, Packet Building, 155 South Main Street, 155 South Main Street - Packet]
+
+  # ---- admin ----
+  - name: University Hall
+    kind: admin
+    aliases: [University Hall, UH]
+  - name: Maddock Alumni Center
+    kind: admin
+    aliases: [Maddock Alumni Center]
+  - name: Horace Mann House
+    kind: admin
+    aliases: [Horace Mann House, 47 George St-Horace Mann]
+  - name: Corliss-Brackett House
+    kind: admin
+    osm: "Corliss–Brackett House"
+    aliases: [Corliss-Brackett House, 45 Prospect St-CorlissBrackett]
+  # Enrichment (Codex drop): 6 Cogut Institute events geocode inside the
+  # way/177016154 footprint under "Cogut Institute, Andrews House".
+  - name: Andrews House
+    kind: admin
+    aliases: [Andrews House, Cogut Institute, "Cogut Institute, Andrews House"]
+  - name: Norwood House
+    kind: admin
+    aliases: [Norwood House]
+  - name: Prospect House
+    kind: admin
+    aliases: [Prospect House]
+  - name: Department of Public Safety
+    kind: admin
+    aliases: [Department of Public Safety, DPS, Public Safety]
+  - name: 121 South Main Street
+    kind: admin
+    aliases: [121 South Main Street, 121 South Main]
+
+  # ---- student life / other ----
+  # Enrichment (Codex drop): way/166668949 carries addr "75 Waterman Street"
+  # (the bare address was an ambiguous trigram tie before the exact alias);
+  # the two Petteruti Lounge long forms name the campus center and address.
+  - name: "Stephen Robert '62 Campus Center"
+    kind: other
+    aliases: ["Stephen Robert '62 Campus Center", Faunce House, Faunce, Campus Center, 75 Waterman Street, Petteruti Lounge, "Stephen Robert '62 Campus Center, Petteruti Lounge, Room 201, 75 Waterman Street, Providence, RI 02912", "Petteruti Lounge, 75 Waterman Street, Providence, RI 02912 - Stephen Robert '62 Campus Center"]
+  - name: Alumnae Hall
+    kind: other
+    aliases: [Alumnae Hall]
+  - name: Faculty Club
+    kind: other
+    aliases: [Faculty Club, Brown Faculty Club]
+  - name: Brown RISD Hillel
+    kind: other
+    osm: Hillel House
+    aliases: [Brown RISD Hillel, Hillel House, Hillel]
+  - name: Sarah Doyle Center for Women and Gender
+    kind: other
+    aliases: [Sarah Doyle Center for Women and Gender, Sarah Doyle Center]
+  - name: Brown Center for Students of Color
+    kind: other
+    aliases: [Brown Center for Students of Color, BCSC]
+  - name: Swearer Center for Public Service
+    kind: other
+    aliases: [Swearer Center for Public Service, Swearer Center]
+  - name: Carrie Tower
+    kind: other
+    aliases: [Carrie Tower]
+  - name: Soldiers Memorial Gate
+    kind: other
+    aliases: [Soldiers Memorial Gate]
+
+  # ---- residence halls ----
+  - name: Andrews Hall
+    kind: residence
+    aliases: [Andrews Hall]
+  - name: Archibald-Bronson House
+    kind: residence
+    aliases: [Archibald-Bronson House, Archibald House, Bronson House]
+  - name: Barbour Hall
+    kind: residence
+    aliases: [Barbour Hall, Barbour Hall Apartments]
+  - name: Buxton House
+    kind: residence
+    aliases: [Buxton House]
+  - name: Caswell Hall
+    kind: residence
+    aliases: [Caswell Hall]
+  - name: Champlin Hall
+    kind: residence
+    aliases: [Champlin Hall]
+  - name: Chapin House
+    kind: residence
+    aliases: [Chapin House]
+  - name: Chen Family Hall
+    kind: residence
+    aliases: [Chen Family Hall]
+  - name: Diman House
+    kind: residence
+    aliases: [Diman House]
+  - name: Emery Hall
+    kind: residence
+    aliases: [Emery Hall]
+  - name: Everett-Poland Building
+    kind: residence
+    aliases: [Everett-Poland Building, Everett House, Poland House]
+  - name: Goddard House
+    kind: residence
+    osm: Goddard
+    aliases: [Goddard House, Goddard]
+  - name: Graduate Center A
+    kind: residence
+    aliases: [Graduate Center A, Grad Center A]
+  - name: Graduate Center B
+    kind: residence
+    aliases: [Graduate Center B, Grad Center B]
+  - name: Graduate Center C
+    kind: residence
+    aliases: [Graduate Center C, Grad Center C]
+  - name: Graduate Center D
+    kind: residence
+    aliases: [Graduate Center D, Grad Center D]
+  - name: Grant-Fulton
+    kind: residence
+    aliases: [Grant-Fulton]
+  - name: Harkness House
+    kind: residence
+    aliases: [Harkness House]
+  - name: Hegeman Hall
+    kind: residence
+    aliases: [Hegeman Hall]
+  - name: Hope College
+    kind: residence
+    aliases: [Hope College]
+  - name: Jameson-Mead Building
+    kind: residence
+    aliases: [Jameson-Mead Building, Jameson House, Mead House]
+  - name: King House
+    kind: residence
+    aliases: [King House]
+  - name: Littlefield Hall
+    kind: residence
+    aliases: [Littlefield Hall]
+  - name: Machado House
+    kind: residence
+    aliases: [Machado House]
+  - name: Marcy House
+    kind: residence
+    aliases: [Marcy House]
+  - name: Metcalf Hall
+    kind: residence
+    aliases: [Metcalf Hall]
+  - name: Miller Hall
+    kind: residence
+    aliases: [Miller Hall]
+  - name: Minden Hall
+    kind: residence
+    aliases: [Minden Hall]
+  - name: Morriss Hall
+    kind: residence
+    aliases: [Morriss Hall]
+  - name: New Pembroke 1
+    kind: residence
+    aliases: [New Pembroke 1]
+  - name: New Pembroke 2
+    kind: residence
+    aliases: [New Pembroke 2]
+  - name: New Pembroke 3
+    kind: residence
+    aliases: [New Pembroke 3]
+  - name: New Pembroke 4
+    kind: residence
+    aliases: [New Pembroke 4]
+  - name: North House
+    kind: residence
+    aliases: [North House]
+  - name: Olney House
+    kind: residence
+    aliases: [Olney House]
+  - name: Perkins Hall
+    kind: residence
+    aliases: [Perkins Hall]
+  - name: Sears House
+    kind: residence
+    aliases: [Sears House]
+  - name: Slater Hall
+    kind: residence
+    aliases: [Slater Hall]
+  # Enrichment (Codex drop): way/923913054 carries addr "450 Brook Street".
+  - name: Sternlicht Commons
+    kind: residence
+    osm: "Wellness Center & Residence Hall"
+    aliases: [Sternlicht Commons, Health and Wellness Center, "Wellness Center & Residence Hall", 450 Brook Street, 450 Brook St]
+  - name: Vartan Gregorian Quad A
+    kind: residence
+    aliases: [Vartan Gregorian Quad A, Gregorian Quad A]
+  - name: Vartan Gregorian Quad B
+    kind: residence
+    aliases: [Vartan Gregorian Quad B, Gregorian Quad B]
+  - name: Wayland House
+    kind: residence
+    osm: Wayland
+    aliases: [Wayland House, Wayland]
+  - name: West House
+    kind: residence
+    aliases: [West House]
+  - name: William and Ami Danoff Hall
+    kind: residence
+    aliases: [William and Ami Danoff Hall, Danoff Hall]
+  - name: Woolley Hall
+    kind: residence
+    aliases: [Woolley Hall]
+  - name: Young Orchard 2
+    kind: residence
+    aliases: [Young Orchard 2]
+  - name: Young Orchard 4
+    kind: residence
+    aliases: [Young Orchard 4]
+  - name: Young Orchard 10
+    kind: residence
+    aliases: [Young Orchard 10]
+
+  # ---- Task 6B: class venues proven by the Fall 2026 CAB export ----
+  # Every entry is grounded in the recorded Overpass fixture (by OSM name or,
+  # via the `addr:` fallback key, by an unnamed footprint's address tags),
+  # except the two curated-coordinate entries at the end of the section.
+  - name: 67 George Street
+    kind: academic
+    osm: 67 George
+    aliases: [67 George Street, 67 George]
+  - name: 135 Thayer Street
+    kind: academic
+    osm: "addr:135 Thayer Street"
+    aliases: [135 Thayer Street]
+  - id: 2-stimson-avenue
+    name: 2 Stimson Avenue
+    kind: academic
+    osm: "addr:2 Stimson Avenue"
+    aliases: [2 Stimson Avenue]
+  - name: 59 Charlesfield Street
+    kind: academic
+    osm: "addr:59 Charlesfield Street"
+    aliases: [59 Charlesfield Street]
+  - id: 8-fones-alley
+    name: 8 Fones Alley
+    kind: academic
+    osm: "addr:8 Fones Alley"
+    aliases: [8 Fones Alley]
+  - name: 271 Thayer Street
+    kind: other
+    osm: "addr:271 Thayer Street"
+    aliases: [271 Thayer Street]
+  - name: Steinert Hall
+    kind: academic
+    osm: Steinert
+    aliases: [Steinert Hall, Steinert]
+  - name: Feinstein Building
+    kind: academic
+    osm: Feinstein
+    aliases: [Feinstein Building, Feinstein, 130 Hope St (Feinstein Bldg.)]
+  - name: Gerard House
+    kind: academic
+    aliases: [Gerard House]
+  - name: Shirley Miller House
+    kind: academic
+    aliases: [Shirley Miller House, S. Miller House, 59 George St- S. Miller House]
+  - name: Walter Hall
+    kind: academic
+    aliases: [Walter Hall, 80 Waterman St - Walter Hall]
+  - name: Nicholson House
+    kind: academic
+    aliases: [Nicholson House]
+  # The CAB venue "101 Thayer Street (VGQ 1st fl)" is the Gregorian Quad
+  # classroom suite; both constituent OSM footprints (Quad A and Quad B)
+  # carry the address 101 Thayer Street and no complex-level element exists,
+  # so the complex gets curated coordinates at the midpoint of the two
+  # fixture centroids rather than a guessed single footprint.
+  - name: Vartan Gregorian Quad
+    kind: academic
+    aliases: [Vartan Gregorian Quad, VGQ, 101 Thayer Street (VGQ 1st fl)]
+    lat: 41.823440
+    lng: -71.399645
+  # 222 Richmond Street sits outside the College Hill capture bbox; the
+  # coordinates are OSM way/141567787 per Nominatim (2026-07-29 lookup).
+  - name: Warren Alpert Medical School
+    kind: academic
+    aliases: [Warren Alpert Medical School, Alpert Medical School, 222 Richmond (Alpert Med)]
+    lat: 41.818885
+    lng: -71.408416
+
+  # ---- outdoor spaces (curated coordinates; no OSM building footprint) ----
+  # Enrichment (Codex drop): the George Street gate entrance string names the
+  # Main Green itself (its geocode drifts into the adjacent JCB footprint).
+  - name: The College Green
+    kind: outdoor
+    aliases: [The College Green, College Green, Main Green, "Main Green @ George St Gate Entrance"]
+    lat: 41.826300
+    lng: -71.403200
+  - name: The Quiet Green
+    kind: outdoor
+    aliases: [The Quiet Green, Quiet Green]
+    lat: 41.826700
+    lng: -71.404500
+  - name: Wriston Quadrangle
+    kind: outdoor
+    aliases: [Wriston Quadrangle, Wriston Quad]
+    lat: 41.824700
+    lng: -71.402500
+  - name: Pembroke Green
+    kind: outdoor
+    aliases: [Pembroke Green]
+    lat: 41.829600
+    lng: -71.400800
+  - name: Ruth J. Simmons Quadrangle
+    kind: outdoor
+    aliases: [Ruth J. Simmons Quadrangle, Simmons Quadrangle, Lincoln Field]
+    lat: 41.825900
+    lng: -71.401300
+
+  # ---- Enrichment round: event venues proven by the Codex drop ----
+  # (fixtures/user_provided/brown_event_locations.csv, 2026-07-29). Each
+  # footprint-backed entry was grounded by point-in-polygon of the LiveWhale
+  # coordinates against the recorded Overpass fixture; curated-coordinate
+  # entries pin the LiveWhale coordinates verbatim because the venue has no
+  # usable footprint in the fixture (outside the bbox, or an unnamed way
+  # without full address tags).
+  - name: Chace Center
+    kind: other
+    aliases: [Chace Center, Chase Center/RISD Museum]
+  - name: Wexford Innovation Complex
+    kind: other
+    aliases: [Wexford Innovation Complex, 225 Dyer Street, 225 Dyer St]
+  - name: 51 Prospect Street
+    kind: other
+    osm: "addr:51 Prospect Street"
+    aliases: [51 Prospect Street, "51 Prospect Street, Providence Rhode Island"]
+  - name: International House of Rhode Island
+    kind: other
+    osm: "addr:8 Stimson Avenue"
+    aliases: [International House of Rhode Island, International House, 8 Stimson Avenue]
+  - name: South Street Landing
+    kind: admin
+    aliases: [South Street Landing]
+    lat: 41.818344
+    lng: -71.406139
+  - name: 70 Ship Street
+    kind: academic
+    aliases: [70 Ship Street]
+    lat: 41.818841
+    lng: -71.410200
+  - name: Van Wickle Gates
+    kind: outdoor
+    aliases: [Van Wickle Gates, Van Wickle Gates and Memorial Park]
+    lat: 41.826124
+    lng: -71.404571
+  - name: Stonewall House
+    kind: other
+    aliases: [Stonewall House]
+    lat: 41.824775
+    lng: -71.403111

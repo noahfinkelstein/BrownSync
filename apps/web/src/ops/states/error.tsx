@@ -36,10 +36,10 @@ export function ErrorState({
       )}
     >
       <StatusDot status="error" className="mb-1" />
-      <div className="text-15 font-medium tracking-tight text-text-primary">
+      <div className="text-16 font-medium tracking-tight text-text-primary">
         Couldn’t load {what}
       </div>
-      <div className="max-w-[40ch] text-13 text-text-secondary">
+      <div className="max-w-[40ch] text-14 text-text-secondary">
         {keptLastGood
           ? "The read API didn’t respond — showing the last good data until it’s back."
           : "The read API didn’t respond. It usually recovers on its own within a minute."}

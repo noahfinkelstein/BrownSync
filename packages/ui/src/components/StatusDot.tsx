@@ -2,6 +2,16 @@ import { cn } from "../cn";
 
 export type SourceStatus = "ok" | "stale" | "error";
 
+/**
+ * INDICATOR colours, not text colours.
+ *
+ * Re-derived for white, the ramp clears WCAG 1.4.11's 3:1 non-text bar on all
+ * three surfaces (3.8 – 4.6:1) but only `--status-error` on `--bg-base` reaches
+ * AA text at all, and only by 0.003. Anything that has to be READ — the reason
+ * a source failed, a "canceled" label — takes `--text-primary` next to one of
+ * these dots. `packages/ui/src/contrast.test.ts` scans for `text-status-*` to
+ * keep that true.
+ */
 const STATUS_COLOR: Record<SourceStatus, string> = {
   ok: "var(--status-ok)",
   stale: "var(--status-stale)",

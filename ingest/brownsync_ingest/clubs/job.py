@@ -23,10 +23,12 @@ Emission rules (measured; task-7-brief.md):
   shared directory URL) > None; instagram: ``instagram_url`` or None;
 - description: stripped, empty -> None;
 - source: ``studentactivities`` (undergraduate) / ``gsc`` (graduate);
-- published directory contact data (``contact_emails``, ``advisor``) and
-  socials without a contract column (``facebook_url`` etc.) are DROPPED
-  with per-column counts — contract v1 has no field for them and inventing
-  fields is forbidden;
+- published directory contact data, funding metadata, and the six named
+  social columns are preserved on the organization contract. Contact email
+  cells are pipe-split, trimmed, lower-cased, and de-duplicated
+  case-insensitively in source order;
+- ``other_social_urls`` still has no fixed source-owned contract column and is
+  DROPPED with a per-column count (it is empty in the pinned export);
 - default_place_id: only through the linked LiveWhale group with >= 3
   resolved venue observations and >= 75% winner share (``default_place.py``);
 - recurring events: only with full temporal evidence (``recurrences.py``) —
@@ -76,16 +78,9 @@ SOURCE_BY_GROUP_TYPE = {
     "Graduate student group": "gsc",
 }
 
-# Export columns with NO contract organization field: dropped, counted,
-# reported — never silently and never invented into the row.
+# Export columns with NO source-owned contract organization field: dropped,
+# counted, reported — never silently and never invented into the row.
 DROPPED_FIELD_COLUMNS: tuple[str, ...] = (
-    "contact_emails",
-    "advisor",
-    "facebook_url",
-    "linkedin_url",
-    "youtube_url",
-    "twitter_url",
-    "tiktok_url",
     "other_social_urls",
 )
 
@@ -113,6 +108,30 @@ def _organization_url(record: ClubRecord) -> str | None:
     if record.source_url and record.source_url != record.directory_source_url:
         return record.source_url
     return None
+
+
+def _optional(value: str) -> str | None:
+    """Trim one optional CSV cell; empty/whitespace means absence."""
+    return value.strip() or None
+
+
+def _contact_emails(value: str) -> list[str]:
+    """Canonical claim addresses from the export's measured pipe separator.
+
+    Lower-case is the deterministic casing policy. De-duplication uses
+    ``casefold`` so differently-cased copies of one address cannot result in
+    multiple claim signals, while first appearance keeps output order stable.
+    """
+    emails: list[str] = []
+    seen: set[str] = set()
+    for part in value.split("|"):
+        canonical = part.strip().lower()
+        key = canonical.casefold()
+        if not canonical or key in seen:
+            continue
+        seen.add(key)
+        emails.append(canonical)
+    return emails
 
 
 def _gates(
@@ -203,7 +222,16 @@ def run_clubs_job(
                 ).category,
                 description=record.description.strip() or None,
                 url=_organization_url(record),
-                instagram=record.instagram_url or None,
+                instagram=_optional(record.instagram_url),
+                contact_emails=_contact_emails(record.contact_emails),
+                advisor=_optional(record.advisor),
+                funding_category=_optional(record.funding_category),
+                website_url=_optional(record.website_url),
+                facebook_url=_optional(record.facebook_url),
+                linkedin_url=_optional(record.linkedin_url),
+                youtube_url=_optional(record.youtube_url),
+                twitter_url=_optional(record.twitter_url),
+                tiktok_url=_optional(record.tiktok_url),
                 default_place_id=(
                     evidence.winner_place_id
                     if evidence is not None and evidence.awarded

@@ -7,7 +7,10 @@
  * contract schemas the seed loader (seed.ts) uses, then cross-checked:
  *
  * - manifest.json: schema-valid; every listed artifact exists with matching
- *   byte length and sha256 (a partial or tampered publish fails here);
+ *   byte length and sha256 (a partial or tampered publish fails here) — the
+ *   verification itself lives in db/manifest.ts and is shared with the
+ *   LOADER (seed.ts), so a bundle this sweep rejects is by construction a
+ *   bundle the loader refuses to write;
  * - places.ndjson: schema-valid, unique ids, centroid sanity;
  * - course_meetings.ndjson: schema-valid, unique ids, start < end, every
  *   non-null place_id resolves to a place with a usable centroid
@@ -31,7 +34,6 @@
  * Prints a place-resolution/renderability summary; exits 1 on any failure.
  * Run by CI's offline `ci` job — and safe to run any time seeds change.
  */
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,16 +44,16 @@ import {
   type SeedCourseMeeting,
   SeedCourseMeetingSchema,
   SeedEventSchema,
-  SeedManifestSchema,
   SeedOrganizationSchema,
   type SeedPlace,
   SeedPlaceSchema,
   SeedSourceRunSchema,
 } from "@brownsync/contract";
+import { resolveSeedsDir, UNMANAGED_REASON, verifyManifest } from "./manifest";
 import { readNdjsonFile } from "./ndjson";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const seedsDir = path.join(here, "seeds");
+const seedsDir = resolveSeedsDir(path.join(here, "seeds"));
 
 /** Retired Fall 2026 guess code — reconciled to 202610 by migration 0003. */
 const RETIRED_SRCDB = "202710";
@@ -87,61 +89,24 @@ async function readJson(file: string): Promise<unknown | null> {
 }
 
 async function checkManifest(): Promise<void> {
-  const raw = await readJson("manifest.json");
-  if (raw === null) {
+  const result = await verifyManifest(seedsDir);
+  if (!result.present && result.failures.length === 0) {
     fail("manifest.json: missing — the published seed set must carry its manifest");
     return;
   }
-  const parsed = SeedManifestSchema.safeParse(raw);
-  if (!parsed.success) {
-    fail(`manifest.json: contract violation — ${parsed.error.message}`);
-    return;
-  }
-  let verified = 0;
-  for (const [file, meta] of Object.entries(parsed.data.artifacts)) {
-    let buf: Buffer;
-    try {
-      buf = await readFile(path.join(seedsDir, file));
-    } catch {
-      fail(`manifest.json: lists ${file}, but the file is missing from db/seeds/`);
-      continue;
-    }
-    if (buf.byteLength !== meta.bytes) {
-      fail(`${file}: manifest says ${meta.bytes} bytes, file has ${buf.byteLength}`);
-      continue;
-    }
-    const digest = createHash("sha256").update(buf).digest("hex");
-    if (digest !== meta.sha256) {
-      fail(`${file}: sha256 mismatch — manifest ${meta.sha256}, file ${digest}`);
-      continue;
-    }
-    verified++;
-  }
-  const known = [
-    "places.ndjson",
-    "organizations.ndjson",
-    "events.ndjson",
-    "course_meetings.ndjson",
-    "source_runs.ndjson",
-    "athletics_venues.json",
-    "organization_livewhale_groups.json",
-    "brown_owned_buildings.json",
-  ];
-  for (const file of known) {
-    if (parsed.data.artifacts[file] !== undefined) continue;
-    if ((await readJsonExists(file)) === true) {
-      warn(`manifest.json: ${file} exists in db/seeds/ but is not covered by the manifest`);
-    }
-  }
-  summary.push(`manifest          ${verified} artifact(s) verified (bytes + sha256)`);
-}
-
-async function readJsonExists(file: string): Promise<boolean> {
-  try {
-    await readFile(path.join(seedsDir, file));
-    return true;
-  } catch {
-    return false;
+  for (const f of result.failures) fail(f);
+  // Coverage gaps are warnings, never failures: a managed artifact the
+  // manifest does not list is a publish defect worth surfacing, but the rows
+  // themselves are still contract-checked below.
+  for (const w of result.warnings) warn(w);
+  if (!result.present) return;
+  summary.push(`manifest          ${result.verified} artifact(s) verified (bytes + sha256)`);
+  // Unmanaged artifacts get an explanatory line rather than a warning. See
+  // db/manifest.ts UNMANAGED_ARTIFACTS: warning about a file that can never
+  // be in the manifest is noise by construction, and noise is how real
+  // warnings get ignored.
+  for (const file of result.unmanagedPresent) {
+    summary.push(`                  ${file} present, unmanaged by design — ${UNMANAGED_REASON}`);
   }
 }
 

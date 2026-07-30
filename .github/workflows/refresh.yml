@@ -1,0 +1,157 @@
+name: Refresh data artifacts
+
+# Scheduled REFRESH of the file-based data artifacts — the ones the web app
+# fetches as static assets rather than reading from Postgres:
+#
+#   dining_menus.json         Brown OIT ESB          daily
+#   campus_amenities.geojson  Facilities ArcGIS      weekly
+#   campus_buildings.geojson  Facilities ArcGIS      weekly
+#   campus_landmarks.geojson  Facilities ArcGIS      weekly
+#   publications.json         student-press RSS      daily
+#   library_hours.json        Brown Library          daily
+#
+# `poll.yml` is the sibling for DB-backed sources (LiveWhale, athletics, BDH).
+# The split is not arbitrary: those upsert rows into Postgres and need
+# DATABASE_URL, these rebuild committed files and need a pull request.
+#
+# THIS WORKFLOW FETCHES FROM LIVE SERVERS, AND THAT IS NOT A VIOLATION OF THE
+# "CI NEVER TOUCHES A LIVE SERVER" RULE. That rule governs *tests*: they must
+# replay recorded, hash-pinned fixtures so a red build always means our code
+# broke, never that someone else's server had a bad minute. Re-recording those
+# fixtures is the one job that must go out to the network — otherwise the
+# pinned data ages forever. The refreshed fixtures land in a PR, where the
+# normal offline suite runs against them before anything merges.
+#
+# Cadence is etiquette, not preference:
+#   - the ESB is an INTERNAL Brown service bus that happens to be publicly
+#     reachable (gate G4, OIT acknowledgment still open) — once a day, from
+#     one machine, with a declared UA. Never per-visitor.
+#   - the ArcGIS layers change on the order of months; weekly is already
+#     generous and keeps 8 requests off the daily budget.
+
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: "Capture group to refresh"
+        type: choice
+        options:
+          - daily
+          - arcgis
+        default: daily
+  schedule:
+    # 09:12 UTC ≈ 05:12 America/New_York — before breakfast service, and off
+    # the top of the hour so we are not in the global cron stampede.
+    - cron: "12 9 * * *"
+    # Sundays only, for the slow-moving Facilities layers.
+    - cron: "42 9 * * 0"
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decide what to refresh
+        id: plan
+        # Derived from WHICH cron fired, never from wall-clock time: a GH cron
+        # run can start many minutes late, so time-based gating misfires.
+        run: |
+          set -euo pipefail
+          case "${{ github.event.schedule }}" in
+            "42 9 * * 0") group=arcgis ;;
+            "12 9 * * *") group=daily ;;
+            *)            group="${{ inputs.group || 'daily' }}" ;;
+          esac
+          echo "group=$group" >> "$GITHUB_OUTPUT"
+          if [ "$group" = "arcgis" ]; then
+            echo "capture=arcgis"          >> "$GITHUB_OUTPUT"
+            echo "jobs=campus amenities"   >> "$GITHUB_OUTPUT"
+          else
+            echo "capture=dining publications libraries" >> "$GITHUB_OUTPUT"
+            echo "jobs=dining publications libraries"    >> "$GITHUB_OUTPUT"
+          fi
+          echo "refreshing group=$group"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Re-record fixtures from the live sources
+        working-directory: ingest
+        # A blocked source becomes an explicit gap in the manifest rather than
+        # a failed run — bot challenges are never bypassed, and a 403 must not
+        # take the other sources' refresh down with it.
+        run: |
+          uv run python -m brownsync_ingest.fixtures_capture \
+            --groups ${{ steps.plan.outputs.capture }} \
+            --cache-dir "${RUNNER_TEMP}/capture-cache"
+
+      - name: Rebuild the affected artifacts
+        working-directory: ingest
+        run: |
+          set -euo pipefail
+          for job in ${{ steps.plan.outputs.jobs }}; do
+            uv run ingest run "$job" --out ndjson \
+              --seeds-dir ../db/seeds --staging-root ../reports/tmp
+          done
+
+      - name: Offline suite must pass against the NEW fixtures
+        working-directory: ingest
+        # The gate that makes this safe to automate. Every producer's
+        # fail-closed gates and every fixture-integrity assertion run against
+        # the freshly recorded bytes; a source that changed shape fails here
+        # instead of shipping a malformed artifact.
+        run: uv run pytest -q
+
+      - name: Manifest and seed QA
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @brownsync/contract build
+          pnpm db:seed-check
+
+      - name: Open a pull request if anything actually changed
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git add -A ingest/fixtures db/seeds
+          if git diff --cached --quiet; then
+            echo "no change — upstream data is identical, nothing to open"
+            exit 0
+          fi
+          branch="refresh/${{ steps.plan.outputs.group }}-$(date -u +%Y%m%d-%H%M)"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -m "chore(data): refresh ${{ steps.plan.outputs.group }} artifacts"
+          git push origin "$branch"
+          gh pr create \
+            --title "chore(data): refresh ${{ steps.plan.outputs.group }} artifacts" \
+            --body "Automated refresh of the \`${{ steps.plan.outputs.group }}\` capture group.
+
+          The offline suite and \`db:seed-check\` already passed against these
+          bytes in the workflow run that produced them — every producer gate is
+          fail-closed, so a source that changed shape would have failed there
+          rather than reaching this PR.
+
+          Review the artifact diff for anything that looks like upstream
+          breakage rather than genuine change (a hall vanishing, a label
+          becoming an asset code, a count collapsing)." \
+            --base main --head "$branch"

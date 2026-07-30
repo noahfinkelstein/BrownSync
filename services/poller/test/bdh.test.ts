@@ -44,11 +44,49 @@ describe("normalizeBdh (recorded fixture)", () => {
     expect(new Set(rows.map((r) => r.source_id)).size).toBe(rows.length);
   });
 
-  it("strips article HTML into a bounded plain-text teaser", () => {
+  // The BDH's Terms of Use prohibit automated indexing/data-mining of their
+  // content, and their <description> carries the FULL article body in CDATA
+  // (5.5 kB for a single item in this fixture). These four tests are the
+  // regression guard for gate G1 in BROWNSYNC_V2_PLAN.md. Do not relax them
+  // without written permission from herald@browndailyherald.com.
+  it("never stores the article body as a description", () => {
     for (const row of rows) {
-      if (row.description) {
-        expect(row.description).not.toMatch(/<[a-z]+[^>]*>/i);
-        expect(row.description.length).toBeLessThanOrEqual(500);
+      expect(row.description).toBeNull();
+    }
+  });
+
+  it("keeps only a metadata allowlist in raw — never the item, never the body", () => {
+    const allowed = new Set(["guid", "link", "pubDate", "categories", "author"]);
+    for (const row of rows) {
+      const raw = row.raw as Record<string, unknown> | null;
+      expect(raw).not.toBeNull();
+      for (const key of Object.keys(raw ?? {})) {
+        expect(allowed.has(key), `unexpected key in bdh raw: ${key}`).toBe(true);
+      }
+      expect(raw).not.toHaveProperty("description");
+      expect(raw).not.toHaveProperty("content:encoded");
+    }
+  });
+
+  it("retains bibliographic metadata that is fact, not expression", () => {
+    const first = rows[0]?.raw as Record<string, unknown>;
+    expect(first.author).toBe("Ivy Huang");
+    expect(first.categories).toEqual(["University News", "homepage"]);
+    expect(first.pubDate).toBe("Fri, 10 Jul 2026 00:36:45 -0400");
+  });
+
+  it("carries no article prose anywhere in the serialized row", () => {
+    // The fixture's first article contains this sentence; a byte-level check
+    // catches body text leaking through any field, present or future.
+    const bodyFragment = "asymmetric patterns of generative AI use";
+    expect(fixtureText).toContain(bodyFragment);
+    for (const row of rows) {
+      expect(JSON.stringify(row)).not.toContain(bodyFragment);
+    }
+    // No row should carry a paragraph-sized string at all.
+    for (const row of rows) {
+      for (const value of Object.values(row.raw as Record<string, unknown>)) {
+        if (typeof value === "string") expect(value.length).toBeLessThan(300);
       }
     }
   });
@@ -66,7 +104,9 @@ describe("normalizeBdh (recorded fixture)", () => {
 
   it("survives hostile numeric character references (one bad article must not kill the run)", () => {
     // `&amp;#x110000;` in the XML is the literal text `&#x110000;` after XML
-    // parsing — it reaches decodeEntities via stripHtml on the description.
+    // parsing. decodeEntities' overflow/surrogate handling is covered directly
+    // in util.test.ts; here we only assert the run survives a hostile item and
+    // that the body is still not retained.
     const xml = `<?xml version="1.0"?><rss version="2.0"><channel>
       <item>
         <title>Overflow &amp;#x110000; attack</title>
@@ -78,6 +118,20 @@ describe("normalizeBdh (recorded fixture)", () => {
     </channel></rss>`;
     const out = normalizeBdh(xml);
     expect(out.length).toBe(1);
-    expect(out[0]?.description).toBe("Body with � and � refs");
+    expect(out[0]?.description).toBeNull();
+    expect(JSON.stringify(out[0])).not.toContain("Body with");
+  });
+
+  it("tolerates an item with no categories or author", () => {
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel>
+      <item><title>Bare</title><guid>bare</guid><link>https://x.test/b</link>
+        <pubDate>Tue, 28 Jul 2026 12:00:00 -0400</pubDate></item>
+    </channel></rss>`;
+    const out = normalizeBdh(xml);
+    expect(out.length).toBe(1);
+    const raw = out[0]?.raw as Record<string, unknown>;
+    expect(raw).not.toHaveProperty("categories");
+    expect(raw).not.toHaveProperty("author");
+    expect(raw.guid).toBe("bare");
   });
 });

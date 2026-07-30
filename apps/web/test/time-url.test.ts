@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTimeCursor } from "../src/time/cursor";
+import { createRouterUrlAdapter } from "../src/time/routerUrlAdapter";
 import {
   connectTimeCursorToUrl,
   createHistoryUrlAdapter,
@@ -26,6 +27,72 @@ type FakeAdapter = UrlAdapter & {
   /** Simulate external navigation (back/forward). */
   emit(value: string | null): void;
 };
+
+type RouterSearch = Record<string, unknown>;
+
+function fakeRouter(initialSearch: RouterSearch = {}) {
+  const listeners = new Set<(event: unknown) => void>();
+  const historyListeners = new Set<(event: unknown) => void>();
+  const pending: Array<{ search: RouterSearch; finish: () => void }> = [];
+  const searchString = (search: RouterSearch): string => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(search)) {
+      if (value !== undefined && value !== null) params.set(key, String(value));
+    }
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  };
+  const router = {
+    state: { location: { search: initialSearch } },
+    history: {
+      location: { search: searchString(initialSearch) },
+      subscribe(listener: (event: unknown) => void): () => void {
+        historyListeners.add(listener);
+        return () => historyListeners.delete(listener);
+      },
+    },
+    navigate(options: { search: (previous: RouterSearch) => RouterSearch }): Promise<void> {
+      const search = options.search(router.state.location.search);
+      router.state.location.search = search;
+      router.history.location.search = searchString(search);
+      for (const listener of historyListeners) {
+        listener({ action: { type: "REPLACE" }, location: router.history.location });
+      }
+      let finish = () => {};
+      const navigation = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      pending.push({ search, finish });
+      return navigation;
+    },
+    subscribe(_event: "onResolved", listener: (event: unknown) => void): () => void {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    async resolveOwn(index = 0): Promise<void> {
+      const navigation = pending[index];
+      if (!navigation) throw new Error(`missing pending navigation ${index}`);
+      // TanStack's navigate promise can resolve before React's Transitioner
+      // emits onResolved in a later layout effect.
+      navigation.finish();
+      await Promise.resolve();
+      for (const listener of listeners) {
+        listener({ type: "onResolved", toLocation: { search: navigation.search } });
+      }
+    },
+    emitExternal(search: RouterSearch, action = "BACK"): void {
+      router.state.location.search = search;
+      router.history.location.search = searchString(search);
+      for (const listener of historyListeners) {
+        listener({ action: { type: action }, location: router.history.location });
+      }
+      for (const listener of listeners) {
+        listener({ type: "onResolved", toLocation: { search } });
+      }
+    },
+  };
+  return router;
+}
 
 function fakeAdapter(initial: string | null = null): FakeAdapter {
   let value = initial;
@@ -182,6 +249,41 @@ describe("connectTimeCursorToUrl — URL drives store", () => {
     connectTimeCursorToUrl(store, adapter);
 
     adapter.emit(null);
+    expect(store.isLive).toBe(true);
+  });
+});
+
+describe("createRouterUrlAdapter", () => {
+  it("suppresses a delayed echo from its own write without swallowing external navigation", async () => {
+    const router = fakeRouter();
+    const adapter = createRouterUrlAdapter(router as never);
+    const store = createTimeCursor();
+    connectTimeCursorToUrl(store, adapter);
+
+    const first = new Date("2026-07-28T20:15:00Z");
+    const newer = new Date("2026-07-29T20:15:00Z");
+    store.setAt(first);
+    vi.advanceTimersByTime(DEBOUNCE);
+    expect(adapter.read()).toBe("2026-07-28T20:15Z");
+
+    // The user steps again before the router finishes resolving the first
+    // debounced write. Its delayed onResolved event must not rewind the store.
+    store.setAt(newer);
+    await router.resolveOwn();
+    expect(store.now().getTime()).toBe(newer.getTime());
+
+    // A genuine navigation still owns the cursor.
+    router.emitExternal({ at: "2026-07-31T08:00Z" });
+    expect(store.now().toISOString()).toBe("2026-07-31T08:00:00.000Z");
+  });
+
+  it("applies unrelated in-app replacements that remove the cursor parameter", () => {
+    const router = fakeRouter({ at: "2026-07-28T20:15Z" });
+    const store = createTimeCursor();
+    connectTimeCursorToUrl(store, createRouterUrlAdapter(router as never));
+    expect(store.isLive).toBe(false);
+
+    router.emitExternal({ event: "fixture-event" }, "REPLACE");
     expect(store.isLive).toBe(true);
   });
 });

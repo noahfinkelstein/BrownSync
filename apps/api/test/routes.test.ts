@@ -160,6 +160,21 @@ describe("GET /api/orgs and /api/orgs/:id", () => {
     expect(body.past).toEqual([]);
   });
 
+  it("splits organization events at the requested cursor", async () => {
+    let captured: Date | undefined;
+    const app = createApp(
+      fakeQueries({
+        eventsByOrg: async (_id, pivot) => {
+          captured = pivot;
+          return { upcoming: [], past: [] };
+        },
+      }),
+    );
+    const res = await app.request(`/api/orgs/${orgRow.id}?at=2026-09-20T12:30:00-04:00`);
+    expect(res.status).toBe(200);
+    expect(captured?.toISOString()).toBe("2026-09-20T16:30:00.000Z");
+  });
+
   it("404s for an unknown org", async () => {
     const app = createApp(fakeQueries());
     const res = await app.request("/api/orgs/illuminati");

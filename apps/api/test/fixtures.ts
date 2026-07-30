@@ -82,6 +82,9 @@ export const healthRows: SourceHealthRow[] = [
     last_ok_at: new Date("2026-07-28T12:00:00Z"),
     items_upserted: 321,
     error: null,
+    stale_after_seconds: 2400,
+    enabled: true,
+    label: "LiveWhale events",
   },
   {
     source: "cab",
@@ -90,6 +93,23 @@ export const healthRows: SourceHealthRow[] = [
     last_ok_at: new Date("2026-07-27T11:00:00Z"),
     items_upserted: null,
     error: "HTTP 500 from cab.brown.edu",
+    // Runs, but not in source_registry: the registry columns come back null
+    // and must read as "use your own defaults", never as "switched off".
+    stale_after_seconds: null,
+    enabled: null,
+    label: null,
+  },
+  {
+    // A recorded refusal: registered, never ran, and never will.
+    source: "providence_gov",
+    status: "never",
+    last_run_at: null,
+    last_ok_at: null,
+    items_upserted: null,
+    error: null,
+    stale_after_seconds: null,
+    enabled: false,
+    label: "City of Providence events",
   },
 ];
 

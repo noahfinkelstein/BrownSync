@@ -193,7 +193,23 @@ def test_organizations_upsert_uses_exactly_the_contract_columns() -> None:
     repo = PostgresRepository(connection)
 
     count = repo.upsert_organizations(
-        [organization("brown-outing-club", category="club", url="https://boc.brown.edu")]
+        [
+            organization(
+                "brown-outing-club",
+                category="club",
+                url="https://boc.brown.edu",
+                contact_emails=["president@brown.edu"],
+                advisor="A. Advisor",
+                funding_category="Category 2",
+                website_url="https://brownoutingclub.example",
+                instagram="https://instagram.com/brownoutingclub",
+                facebook_url="https://facebook.com/brownoutingclub",
+                linkedin_url="https://linkedin.com/company/brownoutingclub",
+                youtube_url="https://youtube.com/@brownoutingclub",
+                twitter_url="https://x.com/brownoutingclub",
+                tiktok_url="https://tiktok.com/@brownoutingclub",
+            )
+        ]
     )
 
     assert count == 1
@@ -201,16 +217,25 @@ def test_organizations_upsert_uses_exactly_the_contract_columns() -> None:
     assert "raw" not in sql
     assert inserted_columns(sql) == [
         "id", "name", "kind", "category", "description", "url", "instagram",
+        "contact_emails", "advisor", "funding_category", "website_url",
+        "facebook_url", "linkedin_url", "youtube_url", "twitter_url", "tiktok_url",
         "default_place_id", "source",
     ]
     assert params == (
         "brown-outing-club", "Brown Outing Club", "club", "club", None,
-        "https://boc.brown.edu", None, None, "clubs",
+        "https://boc.brown.edu", "https://instagram.com/brownoutingclub",
+        ["president@brown.edu"], "A. Advisor", "Category 2",
+        "https://brownoutingclub.example", "https://facebook.com/brownoutingclub",
+        "https://linkedin.com/company/brownoutingclub",
+        "https://youtube.com/@brownoutingclub", "https://x.com/brownoutingclub",
+        "https://tiktok.com/@brownoutingclub", None, "clubs",
     )
     assert "ON CONFLICT (id) DO UPDATE SET" in sql
     assignments = refresh_assignments(sql)
     assert set(assignments) == {
         "name", "kind", "category", "description", "url", "instagram",
+        "contact_emails", "advisor", "funding_category", "website_url",
+        "facebook_url", "linkedin_url", "youtube_url", "twitter_url", "tiktok_url",
         "default_place_id", "source",
     }
     assert all(value == f"EXCLUDED.{name}" for name, value in assignments.items())

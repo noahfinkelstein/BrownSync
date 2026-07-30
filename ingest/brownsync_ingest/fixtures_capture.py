@@ -24,14 +24,14 @@ The fixture integrity gate lives in ``tests/test_fixtures.py``.
 from __future__ import annotations
 
 import argparse
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 import hashlib
 import json
 from pathlib import Path
 import re
 import sys
 from typing import Any, Callable
-from urllib.parse import urlencode, urljoin
+from urllib.parse import quote, urlencode, urljoin
 
 from bs4 import BeautifulSoup
 import httpx
@@ -57,6 +57,12 @@ OVERPASS_QUERY = (
     'relation["building"](41.820,-71.410,41.834,-71.393); ); out body geom;'
 )
 DINING_LANDING = "https://dining.brown.edu/"
+#: Brown OIT's enterprise service bus. Publicly reachable and unauthenticated,
+#: but it is an INTERNAL bus that happens to be exposed — it sends no CORS
+#: header, which is the tell that it was never meant for browser use. Hence a
+#: once-a-day server-side job with a declared UA, never a per-request proxy.
+#: See gate G4 in BROWNSYNC_V2_PLAN.md — OIT acknowledgment is still pending.
+DINING_MENUS = "https://esb-level1.brown.edu/services/oit/sys/brown-dining/v1/menus"
 ATHLETICS_ICS = "https://brownbears.com/calendar.ashx/calendar.ics"
 
 CAB_SEARCH_SUBJECTS = ("CSCI", "ENGN", "HIST")
@@ -682,13 +688,42 @@ def _overpass_expected(body: bytes) -> dict[str, Any]:
 
 
 def capture_dining(session: CaptureSession) -> None:
-    landing = session.capture(
-        source="dining_landing",
-        relpath="recorded/dining/landing.html",
+    """Record the OIT dining API, and the marketing site only if it answers.
+
+    The marketing site (`dining.brown.edu`) sits behind a Pantheon edge that
+    answers 403 to a declared UA. That was previously recorded as the reason
+    dining was blocked outright — but the 403 is on the CMS, not the data.
+    The menus themselves come from OIT's service bus and answer 200 with no
+    auth, so dining is a real source and the block was scoped too widely.
+    """
+    session.capture(
+        source="dining_menus",
+        relpath="recorded/dining/menus.json",
         method="GET",
-        url=DINING_LANDING,
-        expected=lambda body: {"body_contains": ["Dining"]},
+        url=DINING_MENUS,
+        expected=_dining_expected,
     )
+    session.note(
+        "dining_menus: Brown OIT ESB, public and unauthenticated but CORS-less — "
+        "one request per day from a server-side job, never proxied per visitor. "
+        "Gate G4 (OIT acknowledgment) is still open."
+    )
+    try:
+        landing = session.capture(
+            source="dining_landing",
+            relpath="recorded/dining/landing.html",
+            method="GET",
+            url=DINING_LANDING,
+            expected=lambda body: {"body_contains": ["Dining"]},
+        )
+    except Exception as error:  # noqa: BLE001
+        # Expected: the Pantheon edge 403s a declared UA. Not fatal any more —
+        # the menus are already recorded above. Both sources must be declared:
+        # the bundles are only discoverable FROM the landing page, so an
+        # un-gapped `dining_bundle` would read as a silent absence.
+        session.gap("dining_landing", f"{type(error).__name__}: {error}")
+        session.gap("dining_bundle", "unreachable: bundles are discovered from the landing page, which is blocked")
+        return
     soup = BeautifulSoup(_text(landing), "html.parser")
     bundles = _find_dining_bundles(soup)
     if not bundles:
@@ -706,6 +741,24 @@ def capture_dining(session: CaptureSession) -> None:
             )
         except httpx.HTTPError as error:
             session.gap("dining_bundle", f"bundle fetch failed after retries: {bundle_url}: {error}")
+
+
+def _dining_expected(body: bytes) -> dict[str, Any]:
+    parsed = _json_facts(body)
+    locations = parsed if isinstance(parsed, list) else []
+    dated = {
+        day
+        for location in locations
+        for day in (location.get("meals") or {})
+    }
+    return {
+        "location_count": len(locations),
+        "location_ids": sorted(str(location.get("locationId")) for location in locations),
+        "dated_menu_days": len(dated),
+        # Locations close for the summer, so per-location meal counts move.
+        # The ids and the envelope shape are the stable facts.
+        "body_contains": ['"locationId"', '"stations"', '"allergens"'],
+    }
 
 
 def _find_dining_bundles(soup: BeautifulSoup) -> list[str]:
@@ -768,6 +821,247 @@ def _athletics_ics_expected(body: bytes) -> dict[str, Any]:
     return facts
 
 
+# -- arcgis ----------------------------------------------------------------
+
+ARCGIS_HOST = "https://services1.arcgis.com/HMLBxPKXzqtpFXfq/arcgis/rest/services"
+ARCGIS_QUERY = "query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson"
+
+#: Brown Facilities' public, unauthenticated FeatureServer layers.
+#:
+#: (source id, service name, LAYER INDEX, stored filename).
+#:
+#: The layer index is NOT always 0 and cannot be guessed:
+#: `BlueLightEmergencyPhone_view` publishes its only layer at **id 8**, and
+#: asking for `/0/query` returns a bare 400 with no hint as to why. Every
+#: index here was read from that service's own `FeatureServer?f=json`.
+#:
+#: Amenity notes that shaped this list:
+#:   - `AED_NEW_view_for_base_map` carries a `narcan` Y/N column, so Narcan
+#:     locations come from the AED layer rather than the separate `Narcan_2_*`
+#:     views. Those views report 41 points where the AED table flags 43; one
+#:     table cannot disagree with itself, two can.
+#:   - `All_Building_Resources` is the union behind the `Hydration_Station_view`,
+#:     `Printers_view` and `Menstrual_Products_view` layers — the same 127 rows
+#:     with different filters applied. Capturing the union once means the
+#:     hydration/printer/menstrual/lactation/dining counts can never drift
+#:     apart from each other.
+#:   - `elevator_locations_view` and `EVChargers_view` are deliberately absent:
+#:     their only populated attributes are `OBJECTID`/`Shape_Leng`, so they
+#:     carry no label and nothing to show in a popover.
+ARCGIS_LAYERS: tuple[tuple[str, str, int, str], ...] = (
+    ("arcgis_buildings", "Active_Buildings_2_view", 0, "recorded/arcgis/active-buildings.geojson"),
+    ("arcgis_green_spaces", "Green_Spaces_view", 0, "recorded/arcgis/Green_Spaces_view.geojson"),
+    ("arcgis_athletic_fields", "Athletic_Fields_view", 0, "recorded/arcgis/Athletic_Fields_view.geojson"),
+    (
+        "arcgis_blue_light",
+        "BlueLightEmergencyPhone_view",
+        8,
+        "recorded/arcgis/BlueLightEmergencyPhone_view.geojson",
+    ),
+    ("arcgis_aed", "AED_NEW_view_for_base_map", 0, "recorded/arcgis/AED_NEW_view_for_base_map.geojson"),
+    ("arcgis_building_resources", "All_Building_Resources", 0, "recorded/arcgis/All_Building_Resources.geojson"),
+    ("arcgis_bike_racks", "BikeRacks_view", 0, "recorded/arcgis/BikeRacks_view.geojson"),
+    (
+        "arcgis_restrooms",
+        "All_Restrooms_(Includes_Sub_Types)_VIEW",
+        0,
+        "recorded/arcgis/All_Restrooms_VIEW.geojson",
+    ),
+)
+
+
+def capture_arcgis(session: CaptureSession) -> None:
+    blocked: list[str] = []
+    for source, service, layer, relpath in ARCGIS_LAYERS:
+        # Service names carry literal parentheses ("All_Restrooms_(Includes…)")
+        # which must be percent-encoded or the path 404s.
+        url = f"{ARCGIS_HOST}/{quote(service, safe='')}/FeatureServer/{layer}/{ARCGIS_QUERY}"
+        try:
+            session.capture(
+                source=source, relpath=relpath, method="GET", url=url, expected=_arcgis_expected
+            )
+        except Exception as error:  # noqa: BLE001
+            # One dead layer must not cost the other seven their capture. The
+            # group-level handler upstream turns a single raise into a gap for
+            # every source in the group, including the ones already recorded.
+            session.gap(source, f"{type(error).__name__}: {error}")
+            blocked.append(source)
+    if blocked:
+        print(f"  {len(blocked)} arcgis layer(s) recorded as gaps: {', '.join(blocked)}")
+    session.note(
+        "arcgis_*: Brown University Facilities Management public ArcGIS FeatureServer. "
+        "Unauthenticated and CORS-open, but the service's licenceInfo is NOT a grant to "
+        "redistribute — carry the attribution string and confirm terms before production."
+    )
+
+
+def _arcgis_expected(body: bytes) -> dict[str, Any]:
+    parsed = _json_facts(body)
+    features = parsed.get("features", []) or []
+    geometry_types = sorted({
+        (feature.get("geometry") or {}).get("type", "null") for feature in features
+    })
+    # `body_contains` anchors the facts to the STORED BYTES, so a fixture that
+    # is silently replaced by a different layer fails the integrity gate rather
+    # than being trusted. Anchors are restricted to plain alphanumeric values
+    # so JSON escaping can never make a present string look absent.
+    anchors: list[str] = ['"features"']
+    for feature in features:
+        for value in (feature.get("properties") or {}).values():
+            if not isinstance(value, str):
+                continue
+            candidate = value.strip()
+            if 6 <= len(candidate) <= 40 and candidate.replace(" ", "").isalnum():
+                if candidate not in anchors:
+                    anchors.append(candidate)
+                break
+        if len(anchors) >= 3:
+            break
+    return {
+        "feature_count": len(features),
+        "geometry_types": geometry_types,
+        "property_keys": sorted({key for feature in features for key in (feature.get("properties") or {})}),
+        "body_contains": anchors,
+    }
+
+
+# -- publications ----------------------------------------------------------
+
+#: Student-press RSS. The URLs are NOT the obvious ones and were found by
+#: probing: BDH runs SNworks, whose feed lives at `/plugin/feeds/top-stories.xml`
+#: rather than `/feed/`. Sources that could not be recorded are declared as
+#: gaps by `brownsync_ingest.publications.feeds.GAPS`, which carries the
+#: verbatim failure for each — see that module before re-adding one.
+PUBLICATION_FEEDS: tuple[tuple[str, str, str], ...] = (
+    (
+        "publications_bdh",
+        "https://www.browndailyherald.com/plugin/feeds/top-stories.xml",
+        "recorded/publications/browndailyherald.xml",
+    ),
+    (
+        "publications_bpr",
+        "https://brownpoliticalreview.org/feed/",
+        "recorded/publications/brownpoliticalreview.xml",
+    ),
+    # Widened set. Brown's own feed is at the SITE ROOT — `/news/rss.xml`,
+    # `/news/rss`, `/news/feed` all hard-404 and `brown.edu/news` publishes no
+    # `<link rel="alternate">` to discover it from.
+    (
+        "publications_brown",
+        "https://www.brown.edu/rss.xml",
+        "recorded/publications/extended/brownuniversity.xml",
+    ),
+    (
+        "publications_ricurrent",
+        "https://rhodeislandcurrent.com/feed/",
+        "recorded/publications/extended/rhodeislandcurrent.xml",
+    ),
+)
+
+
+def capture_publications(session: CaptureSession) -> None:
+    from brownsync_ingest.publications.feeds import GAPS as PUBLICATION_GAPS
+    from brownsync_ingest.publications.sources import EXTENDED_GAPS
+
+    for source, url, relpath in PUBLICATION_FEEDS:
+        try:
+            session.capture(
+                source=source, relpath=relpath, method="GET", url=url, expected=_feed_expected
+            )
+        except Exception as error:  # noqa: BLE001
+            session.gap(source, f"{type(error).__name__}: {error}")
+    for key, reason in PUBLICATION_GAPS.items():
+        session.gap(f"publications_{key}", reason)
+    # Sources probed and refused. Two of these answered 200 and are gaps
+    # anyway — Google News for its own licence text, Reddit because
+    # robots.txt is a blanket Disallow and we never knocked.
+    for key, reason in EXTENDED_GAPS.items():
+        session.gap(f"publications_{key}", reason)
+    session.note(
+        "publications_*: HEADLINE-ONLY. The Brown Daily Herald's Terms of Use prohibit "
+        "automated indexing of their content, and post- rides the same SNworks install. "
+        "The producer stores title/url/timestamp/section/author and NEVER body text; "
+        "`test_feeds.py` asserts that at the byte level. Gate G1."
+    )
+
+
+def _feed_expected(body: bytes) -> dict[str, Any]:
+    # ElementTree, not BeautifulSoup(..., "xml"): that feature needs lxml,
+    # which is not a dependency, and BeautifulSoup raises FeatureNotFound
+    # rather than degrading. The producer parses with ElementTree too, so the
+    # facts recorded here are the facts it will actually read.
+    import xml.etree.ElementTree as ElementTree
+
+    root = ElementTree.fromstring(_text(body))
+    items = [
+        element
+        for element in root.iter()
+        if element.tag.rsplit("}", 1)[-1] in {"item", "entry"}
+    ]
+
+    def title_of(item: ElementTree.Element) -> str | None:
+        for child in item:
+            if child.tag.rsplit("}", 1)[-1] == "title":
+                return (child.text or "").strip() or None
+        return None
+
+    return {
+        "item_count": len(items),
+        "sample_titles": [t for item in items[:3] if (t := title_of(item))],
+        # Structural anchors only. Headlines turn over hourly, so anchoring on
+        # one would fail the integrity gate on every refresh for no reason.
+        "body_contains": ["<title>", "<link"],
+    }
+
+
+# -- libraries -------------------------------------------------------------
+
+#: Brown Library's hours live in a Springshare LibCal widget, not on the page
+#: that displays them: `lib.brown.edu/.../locations-hours` loads
+#: `libcal.brown.edu/js/hours_grid.js`, which fetches this endpoint one WEEK at
+#: a time. `iid` is Brown's LibCal institution id; `lid=0` means every location.
+LIBCAL_GRID = "https://libcal.brown.edu/widget/hours/grid?iid=1403&lid=0&date={date}"
+
+#: How many consecutive weeks to record. Seven covers the ~6-week horizon the
+#: widget itself paginates through, which is as far ahead as Brown publishes.
+LIBCAL_WEEKS = 7
+
+
+def capture_libraries(session: CaptureSession, *, start: date | None = None) -> None:
+    # Anchored to the Sunday on or before the start date: the widget returns a
+    # Sunday-to-Saturday grid regardless of which day you ask for, so asking
+    # mid-week silently records the same week twice.
+    today = start or datetime.now(UTC).date()
+    sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+    for week in range(LIBCAL_WEEKS):
+        stamp = sunday + timedelta(weeks=week)
+        try:
+            session.capture(
+                source="libraries_hours",
+                relpath=f"recorded/libraries/hours-grid-{stamp.isoformat()}.html",
+                method="GET",
+                url=LIBCAL_GRID.format(date=stamp.isoformat()),
+                expected=_libcal_expected,
+            )
+        except Exception as error:  # noqa: BLE001
+            session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+    session.note(
+        "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
+        "Seven weekly grids per refresh — the widget itself paginates a week at a time."
+    )
+
+
+def _libcal_expected(body: bytes) -> dict[str, Any]:
+    text = _text(body)
+    soup = BeautifulSoup(text, "html.parser")
+    return {
+        "row_count": len(soup.find_all("tr")),
+        # The grid is a table keyed on location names; `Rockefeller` is the one
+        # row that has never not been there.
+        "body_contains": ["<table", "Rockefeller"],
+    }
+
+
 # -- entry point -----------------------------------------------------------
 
 GROUPS: dict[str, Callable[[CaptureSession], None]] = {
@@ -777,6 +1071,9 @@ GROUPS: dict[str, Callable[[CaptureSession], None]] = {
     "overpass": capture_overpass,
     "dining": capture_dining,
     "athletics": capture_athletics,
+    "arcgis": capture_arcgis,
+    "publications": capture_publications,
+    "libraries": capture_libraries,
 }
 
 GROUP_SOURCES: dict[str, tuple[str, ...]] = {
@@ -784,8 +1081,11 @@ GROUP_SOURCES: dict[str, tuple[str, ...]] = {
     "clubs": ("clubs_undergraduate", "clubs_graduate"),
     "livewhale": ("livewhale_events", "livewhale_groups"),
     "overpass": ("overpass_buildings",),
-    "dining": ("dining_landing", "dining_bundle"),
+    "dining": ("dining_menus", "dining_landing", "dining_bundle"),
     "athletics": ("athletics_ics",),
+    "arcgis": tuple(source for source, _, _, _ in ARCGIS_LAYERS),
+    "publications": tuple(source for source, _, _ in PUBLICATION_FEEDS),
+    "libraries": ("libraries_hours",),
 }
 
 

@@ -6,7 +6,7 @@
      import "@brownsync/ui/styles.css";
    It pulls in Tailwind v4, the fonts, and registers every token both as a
    plain custom property (for the map style / deck.gl) and as a Tailwind
-   theme value (bg-bg-base, text-accent, font-mono, text-13, rounded-4 …). */
+   theme value (bg-bg-base, text-accent, font-mono, text-14, rounded-4 …). */
 
 @import "tailwindcss";
 @import "@fontsource-variable/instrument-sans";
@@ -17,43 +17,58 @@
 @source "./";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* §6.1 — background stack */
-  --bg-base: #0b0e12;
-  --bg-raised: #11151b;
-  --bg-overlay: #171c24;
-  --line: #232a35;
+  /* §6.1 — background stack (light, on warm paper rather than neutral grey:
+     a cold grey next to seal brown reads slightly green) */
+  --bg-base: #ffffff;
+  --bg-raised: #f8f6f3;
+  --bg-overlay: #f0ece6;
+  --line: #dfd8cf;
 
-  /* §6.1 — text triad */
-  --text-primary: #e8ecf1;
-  --text-secondary: #8b94a3;
-  --text-faint: #566070;
+  /* §6.1 — text triad. --text-faint is BELOW AA on purpose and is banned for
+     text app-wide; it exists for hairlines and aria-hidden geometry. */
+  --text-primary: #1c1614;
+  --text-secondary: #5c5048;
+  --text-faint: #8c8078;
 
-  /* §6.1 — THE signal color. Live/now indicators + primary actions ONLY. */
-  --accent: #d96c3d;
+  /* Brown University institutional colours — structural chrome. */
+  --brand-brown: #4e3629;
+  --brand-brown-soft: #6b4f3e;
+  /* Type/signal ON brown. Brown red is 1.73:1 on seal brown — the app accent
+     vanishes there, so brown chrome gets its own lifted signal colour. */
+  --on-brown: #ffffff;
+  --on-brown-muted: #d6c8bc;
+  --accent-on-brown: #ff8a80;
+
+  /* §6.1 — THE signal color: Brown red. Live/now + primary actions ONLY. */
+  --accent: #c00404;
 
   /* §6.3 — cartography */
   --map-road: #1c222b;
   --map-water: #0d1319;
   --map-green: #131a16;
 
-  /* Contract §4 — category palette (OKLCH L≈0.72 C≈0.09, tuned on dark) */
-  --cat-academic: #73abda;
-  --cat-class: #61b1cf;
-  --cat-club: #5eb7a7;
-  --cat-arts: #b296d2;
-  --cat-athletics: #d78d92;
-  --cat-food: #bfa060;
-  --cat-social: #ce8eb2;
-  --cat-career: #57b5bf;
-  --cat-wellness: #81b482;
-  --cat-admin: #94a0dd;
+  /* Contract §4 — category palette, re-derived for a LIGHT background.
+     The old ramp sat at OKLCH L≈0.72, which is ~2:1 on white — invisible.
+     Hue is preserved from the dark palette and saturation raised (paper
+     tolerates far more chroma than a near-black panel), then lightness walked
+     down until every entry clears 4.5:1 on #ffffff. All ten stay distinct. */
+  --cat-academic: #1378ce;
+  --cat-class: #147ea6;
+  --cat-club: #1e8573;
+  --cat-arts: #8742d7;
+  --cat-athletics: #df323e;
+  --cat-food: #966e1d;
+  --cat-social: #d3348d;
+  --cat-career: #19828d;
+  --cat-wellness: #2c862e;
+  --cat-admin: #3451e4;
 
   /* Source-health status ramp (reuses category chroma; not a new palette) */
-  --status-ok: #81b482;
-  --status-stale: #bfa060;
-  --status-error: #d78d92;
+  --status-ok: #2c862e;
+  --status-stale: #966e1d;
+  --status-error: #df323e;
 
   /* §6.1 geometry + §6.4 motion */
   --radius-max: 6px;
@@ -68,20 +83,27 @@
   --font-display: "Instrument Sans Variable", "Instrument Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
 
-  /* §6.2 — type scale 12/13/15/18/24 only. */
+  /* §6.2 — type scale 12/14/16/19/24/30 only.
+     `--text-*: initial` DELETES Tailwind's stock ramp, so `text-sm` or an
+     off-scale `text-13` generates no CSS at all and silently inherits the
+     body size — it looks plausible and survives review. Hence the source
+     scan in apps/web/test/type-scale.test.ts. */
   --text-*: initial;
   --text-12: 12px;
   --text-12--line-height: 16px;
-  --text-13: 13px;
-  --text-13--line-height: 18px;
-  --text-15: 15px;
-  --text-15--line-height: 20px;
-  --text-18: 18px;
-  --text-18--line-height: 24px;
-  --text-18--letter-spacing: -0.01em;
+  --text-14: 14px;
+  --text-14--line-height: 20px;
+  --text-16: 16px;
+  --text-16--line-height: 22px;
+  --text-19: 19px;
+  --text-19--line-height: 26px;
+  --text-19--letter-spacing: -0.01em;
   --text-24: 24px;
   --text-24--line-height: 30px;
   --text-24--letter-spacing: -0.02em;
+  --text-30: 30px;
+  --text-30--line-height: 36px;
+  --text-30--letter-spacing: -0.02em;
 
   /* §6.1 — radius hard-capped at 6px: rounded-2 / rounded-4 / rounded-6. */
   --radius-*: initial;
@@ -93,6 +115,11 @@
 @theme inline {
   /* Only token colors exist; the stock Tailwind palette is deleted. */
   --color-*: initial;
+  --color-brand-brown: var(--brand-brown);
+  --color-brand-brown-soft: var(--brand-brown-soft);
+  --color-on-brown: var(--on-brown);
+  --color-on-brown-muted: var(--on-brown-muted);
+  --color-accent-on-brown: var(--accent-on-brown);
   --color-bg-base: var(--bg-base);
   --color-bg-raised: var(--bg-raised);
   --color-bg-overlay: var(--bg-overlay);
@@ -124,7 +151,7 @@
     background: var(--bg-base);
     color: var(--text-primary);
     font-family: var(--font-display);
-    font-size: var(--text-13);
+    font-size: var(--text-14);
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -144,7 +171,7 @@
 @layer components {
   /* Panel carries the ONLY shadow in the app (§6.1). */
   .bs-panel {
-    box-shadow: -24px 0 48px -12px rgb(0 0 0 / 0.55);
+    box-shadow: -18px 0 40px -16px rgb(28 22 20 / 0.18);
   }
   .bs-panel[data-state="open"] {
     animation: bs-panel-in var(--motion-slow) var(--motion-ease);

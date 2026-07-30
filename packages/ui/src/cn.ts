@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 
 /** Class-name combiner. No tailwind-merge on purpose: the custom scale
- *  (text-13, rounded-4 …) would confuse its conflict resolution — callers
+ *  (text-14, rounded-4 …) would confuse its conflict resolution — callers
  *  compose, they don't override. */
 export function cn(...inputs: ClassValue[]): string {
   return clsx(inputs);

@@ -5,7 +5,9 @@ import {
   PlaceOutSchema,
 } from "@brownsync/contract";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { z } from "zod";
+import { eventsWindowFor } from "./queries";
 import { getJson, retryUnlessNotFound } from "./search";
 
 /**
@@ -46,16 +48,25 @@ export function usePlaceActivity(id: string, at?: string) {
 }
 
 /**
- * Everything at a place over the API's default window (now → +7 days).
+ * Everything at a place over the cursor's shared campus window.
  * The contract has no place filter on /events, so this fetches the campus
- * week (≤500 rows, cached once under ["events","week"]) and filters client-side.
+ * week (≤500 rows, cached once per window) and filters client-side.
  */
-export function usePlaceWeekEvents(id: string) {
-  return useQuery({
-    queryKey: ["events", "week"],
-    queryFn: () => getJson("/api/events", EventsEnvelope),
+export function usePlaceWeekEvents(id: string, cursor: Date) {
+  const window = eventsWindowFor(cursor);
+  const query = useQuery({
+    queryKey: ["events", "week", window.from],
+    queryFn: () =>
+      getJson("/api/events", EventsEnvelope, {
+        from: window.from,
+        to: window.to,
+      }),
     staleTime: 60_000,
     retry: retryUnlessNotFound,
-    select: (d): EventOut[] => d.events.filter((e) => e.placeId === id),
   });
+  const events = useMemo(
+    (): EventOut[] => (query.data?.events ?? []).filter((event) => event.placeId === id),
+    [query.data, id],
+  );
+  return { ...query, data: events };
 }

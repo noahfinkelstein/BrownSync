@@ -68,9 +68,18 @@ export function SegmentedControl<V extends string>({
             className={cn(
               "rounded-2 px-2 font-mono text-12 uppercase tracking-[0.08em] transition-colors duration-150 ease-out",
               density === "comfortable" ? "h-7" : "h-6",
+              /*
+                Filled seal brown, not a tinted surface. `bg-bg-overlay` marked
+                the active segment by being one step off the track; that step
+                was 8% of the range on a near-black page and is 4% on paper —
+                #F0ECE6 inside a #FFFFFF track is not a state, it is a smudge,
+                and this control is how you know whether you are looking at the
+                map or the list. Brown is structure (11.2:1 with a white label),
+                which keeps the accent reserved for live/now + primary action.
+              */
               selected
-                ? "bg-bg-overlay text-text-primary"
-                : "text-text-secondary hover:text-text-primary",
+                ? "bg-brand-brown text-bg-base"
+                : "text-text-secondary hover:bg-bg-overlay hover:text-text-primary",
               FOCUS_RING,
             )}
           >

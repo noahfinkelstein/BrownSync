@@ -12,6 +12,17 @@ Run `0003_term_checks.sql` from the repo root — it re-applies `migrations/0003
 (cwd-relative) to prove the Fall 2026 term-code reconciliation (202710 → 202610) is
 idempotent.
 
+`manifest.ts` is the **bundle integrity gate**, shared by both entry points. `verifyManifest()`
+checks every artifact `db/seeds/manifest.json` lists against its published byte length and
+sha256; `seed.ts` calls it **before reading a single NDJSON byte** and exits 1 with zero
+writes on a mismatch, so a mixed generation (places from one ingestion run, events from the
+next) can never partially load — nothing else detects one, because every line still
+validates. `MANIFEST_ARTIFACTS` are the files that must be manifest-covered;
+`UNMANAGED_ARTIFACTS` (`source_runs.ndjson`) are append-only run history with no fixed
+generation to hash, and get an explanatory line rather than a warning that would fire on
+every run forever. `BROWNSYNC_SEEDS_DIR` points either script at another bundle — `test/`
+uses it to drive the real loader against a deliberately tampered one.
+
 `seed-check.ts` (`pnpm db:seed-check`) is the **offline** QA sweep over the published
 `db/seeds/` artifacts — no database, no network. It loads every artifact through the same
 contract schemas `seed.ts` uses (shared reader in `ndjson.ts`), verifies `manifest.json`

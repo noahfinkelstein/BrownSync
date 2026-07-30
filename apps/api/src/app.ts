@@ -1,12 +1,24 @@
 import {
   EventDetailOutSchema,
   HealthOutSchema,
+  MeOutSchema,
   NowOutSchema,
   OrgDetailOutSchema,
   PlaceActivityOutSchema,
 } from "@brownsync/contract";
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
+import {
+  type AccountDeleter,
+  type AuthEnv,
+  type Authenticator,
+  createRecentAuthenticationMiddleware,
+  createUnavailableAccountDeleter,
+  createUnavailableAuthenticator,
+  createUserWriteRateLimitMiddleware,
+  type RateLimiterBinding,
+} from "./auth";
 import { errorEnvelope, isDbUnavailable } from "./errors";
 import {
   aggregateHealth,
@@ -18,6 +30,7 @@ import {
 } from "./mappers";
 import type { Queries } from "./queries";
 import {
+  ErrorEnvelopeSchema,
   EventsResponseSchema,
   eventByIdRoute,
   eventsRoute,
@@ -42,6 +55,69 @@ const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
+export function createCorsOriginResolver(
+  configuredOrigins: string | undefined,
+): (origin: string) => string | null {
+  const extraOrigins = new Set(
+    (configuredOrigins ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0),
+  );
+  return (origin) => (LOCALHOST_ORIGIN.test(origin) || extraOrigins.has(origin) ? origin : null);
+}
+
+const meJson = <S>(schema: S, description: string) => ({
+  content: { "application/json": { schema } },
+  description,
+});
+
+const meRoute = createRoute({
+  method: "get",
+  path: "/api/me",
+  summary: "Authenticated BrownSync identity",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: meJson(MeOutSchema, "Verified Brown Google identity"),
+    401: meJson(ErrorEnvelopeSchema, "Missing or invalid bearer token"),
+    403: meJson(ErrorEnvelopeSchema, "Brown Google membership required"),
+    503: meJson(ErrorEnvelopeSchema, "Authentication temporarily unavailable"),
+  },
+});
+
+const accountRoute = createRoute({
+  method: "delete",
+  path: "/api/account",
+  summary: "Delete the authenticated BrownSync account",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    204: { description: "Account deleted" },
+    401: meJson(ErrorEnvelopeSchema, "Missing or invalid bearer token"),
+    403: meJson(
+      ErrorEnvelopeSchema,
+      "Brown Google membership and recent OAuth authentication required",
+    ),
+    429: meJson(ErrorEnvelopeSchema, "Authenticated write rate limit exceeded"),
+    503: meJson(ErrorEnvelopeSchema, "Account service temporarily unavailable"),
+  },
+});
+
+function deleteOnly(middleware: MiddlewareHandler<AuthEnv>): MiddlewareHandler<AuthEnv> {
+  return async (c, next) => {
+    if (c.req.method !== "DELETE") {
+      await next();
+      return;
+    }
+    return middleware(c, next);
+  };
+}
+
+export type CreateAppOptions = {
+  authenticator?: Authenticator;
+  userWriteLimiter?: RateLimiterBinding;
+  accountDeleter?: AccountDeleter;
+};
+
 /**
  * Contract Out-schema validation of response bodies — on everywhere except
  * production, so a mapper/SQL drift fails loudly in dev/test instead of
@@ -57,8 +133,8 @@ function validated<T>(schema: { parse: (input: unknown) => T }, body: T): T {
  * in production, fakes in tests). All handlers are pure orchestration:
  * validate → query → map → validate response.
  */
-export function createApp(queries: Queries) {
-  const app = new OpenAPIHono({
+export function createApp(queries: Queries, options: CreateAppOptions = {}) {
+  const app = new OpenAPIHono<AuthEnv>({
     defaultHook: (result, c) => {
       if (!result.success) {
         const detail = result.error.issues
@@ -71,20 +147,26 @@ export function createApp(queries: Queries) {
       }
     },
   });
+  app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
+    type: "http",
+    scheme: "bearer",
+    bearerFormat: "JWT",
+  });
 
   // CORS for local dev (web app on any localhost port); extra origins via
   // env CORS_ORIGINS="https://brownsync.example,https://…" for deploys.
-  const extraOrigins = new Set(
-    (process.env.CORS_ORIGINS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0),
-  );
+  app.use("/api/*", async (c, next) => {
+    await next();
+    if (c.res.headers.has("Access-Control-Allow-Origin") && c.res.headers.has("Retry-After")) {
+      c.res.headers.set("Access-Control-Expose-Headers", "Retry-After");
+    } else if (!c.res.headers.has("Access-Control-Allow-Origin")) {
+      c.res.headers.delete("Access-Control-Expose-Headers");
+    }
+  });
   app.use(
     "/api/*",
     cors({
-      origin: (origin) =>
-        LOCALHOST_ORIGIN.test(origin) || extraOrigins.has(origin) ? origin : null,
+      origin: createCorsOriginResolver(process.env.CORS_ORIGINS),
     }),
   );
 
@@ -100,6 +182,32 @@ export function createApp(queries: Queries) {
   });
 
   app.notFound((c) => c.json(errorEnvelope("not_found", "No such route."), 404));
+
+  app.use("/api/me", options.authenticator ?? createUnavailableAuthenticator());
+  app.openapi(meRoute, (c) => {
+    const user = c.get("user");
+    return c.json(validated(MeOutSchema, user), 200);
+  });
+
+  app.use("/api/account", deleteOnly(options.authenticator ?? createUnavailableAuthenticator()));
+  app.use("/api/account", deleteOnly(createRecentAuthenticationMiddleware()));
+  app.use("/api/account", deleteOnly(createUserWriteRateLimitMiddleware(options.userWriteLimiter)));
+  app.openapi(accountRoute, async (c) => {
+    const accountDeleter = options.accountDeleter ?? createUnavailableAccountDeleter();
+    let result: Awaited<ReturnType<AccountDeleter>>;
+    try {
+      result = await accountDeleter(c.get("user"));
+    } catch {
+      result = "unavailable";
+    }
+    if (result !== "deleted") {
+      return c.json(
+        errorEnvelope("account_service_unavailable", "Account service temporarily unavailable."),
+        503,
+      );
+    }
+    return c.body(null, 204);
+  });
 
   app.openapi(eventsRoute, async (c) => {
     const query = c.req.valid("query");
@@ -168,11 +276,13 @@ export function createApp(queries: Queries) {
 
   app.openapi(orgByIdRoute, async (c) => {
     const { id } = c.req.valid("param");
+    const { at } = c.req.valid("query");
     const orgRow = await queries.orgById(id);
     if (orgRow === null) {
       return c.json(errorEnvelope("not_found", `No org ${id}.`), 404);
     }
-    const { upcoming, past } = await queries.eventsByOrg(id, new Date());
+    const pivot = at !== undefined ? new Date(at) : new Date();
+    const { upcoming, past } = await queries.eventsByOrg(id, pivot);
     const body = {
       ...mapOrg(orgRow),
       upcoming: upcoming.map(mapEvent),
@@ -219,11 +329,11 @@ export function buildOpenApiDocument(app: ReturnType<typeof createApp>) {
   return app.getOpenAPI31Document({
     openapi: "3.1.0",
     info: {
-      title: "BrownSync Read API",
+      title: "BrownSync API",
       version: "0.1.0",
       description:
-        "Read-only API over the BrownSync canonical schema (DATA_CONTRACT.md §3). " +
-        "Consumed by apps/web and, later, the SwiftUI client via codegen.",
+        "Public read endpoints and protected account operations over the BrownSync canonical schema. " +
+        "Consumed by apps/web and the SwiftUI client via codegen.",
     },
     servers: [{ url: "http://localhost:8787", description: "local dev" }],
   });

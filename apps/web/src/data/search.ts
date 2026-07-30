@@ -193,7 +193,9 @@ export function useSearch(query: string): SearchState {
 
   const groups = useMemo<SearchGroups>(() => {
     if (!active) return EMPTY_GROUPS;
-    const courseRows = meetings.data?.meetings ?? [];
+    const courseRows = (meetings.data?.meetings ?? []).filter(
+      (meeting): meeting is MeetingOut & { placeId: string } => meeting.placeId !== null,
+    );
     // Meetings arrive one row per weekly pattern; collapse to one per course.
     const seen = new Set<string>();
     const courses = courseRows.filter((m) => {

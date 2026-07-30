@@ -14,9 +14,11 @@ import type { ReactNode } from "react";
 import { useFocusReturn } from "../browse/useFocusReturn";
 import { eventTimeLabel, fmtDay, fmtRange, minutesUntil } from "../data/format";
 import { useEventDetail } from "../data/queries";
+import { absoluteHttpUrl } from "../events/url";
 import { DEFAULT_DURATION_MS, isStartingSoon } from "../map/eventsLayer";
 import { ErrorState } from "../ops/states/error";
 import { PanelSkeleton } from "../ops/states/skeletons";
+import { normalizeOrgUrl } from "../orgs/orgLinks";
 
 /** ICS builder loads on demand (Phase 3 perf) — never in the boot bundle. */
 function addToCalendar(event: EventOut): void {
@@ -48,7 +50,7 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
       <h3 className="pb-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
         {label}
       </h3>
-      <div className="text-13 leading-relaxed text-text-primary">{children}</div>
+      <div className="text-14 leading-relaxed text-text-primary">{children}</div>
     </section>
   );
 }
@@ -107,6 +109,8 @@ export function EventDetailPanel({
   const meta = CATEGORY_BY_ID[event.category];
   const place = detail?.place ?? null;
   const org = detail?.org ?? null;
+  const sourceUrl = absoluteHttpUrl(event.url);
+  const orgUrl = normalizeOrgUrl(org?.url);
   const resolvedPlaceName = place?.name ?? event.placeName ?? null;
   const showLocationRaw =
     event.locationRaw != null &&
@@ -124,13 +128,13 @@ export function EventDetailPanel({
         <div className="flex items-center justify-between gap-2">
           <SourceBadge source={event.source} confidence={event.confidence} />
           <div className="flex items-center gap-2">
-            {event.url && (
+            {sourceUrl && (
               <a
-                href={event.url}
+                href={sourceUrl}
                 target="_blank"
                 rel="noreferrer"
                 className={cn(
-                  "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-4 border border-line px-2.5 text-13 font-medium text-text-primary transition-colors duration-150 ease-out hover:bg-bg-overlay",
+                  "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-4 border border-line px-2.5 text-14 font-medium text-text-primary transition-colors duration-150 ease-out hover:bg-bg-overlay",
                   FOCUS_RING,
                 )}
               >
@@ -153,7 +157,7 @@ export function EventDetailPanel({
           />
           {meta.label}
         </Badge>
-        {event.isCanceled && <Badge className="text-status-error">canceled</Badge>}
+        {event.isCanceled && <Badge variant="accent">canceled</Badge>}
         {!event.isCanceled && (inProgress || startingSoon) && (
           <Badge variant="accent">{inProgress ? "live" : `in ${soonMin} min`}</Badge>
         )}
@@ -161,7 +165,7 @@ export function EventDetailPanel({
       </div>
 
       <Section label="When">
-        <div className="font-mono text-13">
+        <div className="font-mono text-14">
           {fmtDay(start)} · {event.allDay ? "all day" : fmtRange(start, end)}
           <span className="text-text-secondary"> ET</span>
         </div>
@@ -189,9 +193,9 @@ export function EventDetailPanel({
         ) : org || event.orgName ? (
           <>
             <div>{org?.name ?? event.orgName}</div>
-            {org?.url && (
+            {orgUrl && (
               <a
-                href={org.url}
+                href={orgUrl}
                 target="_blank"
                 rel="noreferrer"
                 className={cn(
@@ -199,7 +203,7 @@ export function EventDetailPanel({
                   FOCUS_RING,
                 )}
               >
-                {org.url.replace(/^https?:\/\//, "")}
+                {orgUrl.replace(/^https?:\/\//, "")}
               </a>
             )}
           </>

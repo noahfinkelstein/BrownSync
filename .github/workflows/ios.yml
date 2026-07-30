@@ -1,0 +1,105 @@
+name: iOS
+
+on:
+  pull_request:
+    paths:
+      - "apps/ios/**"
+      - "packages/contract/**"
+      - "apps/web/public/tiles/providence.pmtiles"
+      - "map/style.json"
+      - "db/seeds/campus_buildings.geojson"
+      - "db/seeds/campus_landmarks.geojson"
+      - "scripts/gen-swift-tokens.mjs"
+      - ".github/workflows/ios.yml"
+  push:
+    paths:
+      - "apps/ios/**"
+      - "packages/contract/**"
+      - "apps/web/public/tiles/providence.pmtiles"
+      - "map/style.json"
+      - "db/seeds/campus_buildings.geojson"
+      - "db/seeds/campus_landmarks.geojson"
+      - "scripts/gen-swift-tokens.mjs"
+      - ".github/workflows/ios.yml"
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Test Swift token generator
+        run: node --test apps/ios/Tests/TokenGeneratorTests/SwiftStringLiteralTests.test.mjs
+      - name: Generate Swift design tokens and assert no drift
+        run: |
+          node scripts/gen-swift-tokens.mjs
+          TOKEN_STATUS="$(
+            git status --porcelain=v1 --untracked-files=all -- \
+              apps/ios/Generated/Tokens.swift
+          )"
+          if [ -n "$TOKEN_STATUS" ]; then
+            echo "Swift design-token generation produced uncommitted drift:"
+            printf '%s\n' "$TOKEN_STATUS"
+            git diff -- apps/ios/Generated/Tokens.swift
+            exit 1
+          fi
+      - name: Install XcodeGen 2.46.0
+        run: |
+          brew install mint
+          mint install yonaskolb/XcodeGen@2.46.0
+          echo "$HOME/.mint/bin" >> "$GITHUB_PATH"
+          "$HOME/.mint/bin/xcodegen" --version | grep "2.46.0"
+      - name: Generate project and assert committed outputs have no drift
+        run: |
+          xcodegen generate --spec apps/ios/project.yml
+          GENERATED_STATUS="$(
+            git status --porcelain=v1 --untracked-files=all -- \
+              apps/ios/BrownSync.xcodeproj \
+              apps/ios/Sources/BrownSync/Info.plist
+          )"
+          if [ -n "$GENERATED_STATUS" ]; then
+            echo "XcodeGen produced uncommitted generated-output drift:"
+            printf '%s\n' "$GENERATED_STATUS"
+            git diff -- \
+              apps/ios/BrownSync.xcodeproj \
+              apps/ios/Sources/BrownSync/Info.plist
+            exit 1
+          fi
+      - name: Check deterministic snapshots
+        run: sh apps/ios/Scripts/check-snapshots.sh
+      - name: Select and boot an available iPhone simulator
+        run: |
+          SIMULATOR_ID="$(
+            xcrun simctl list devices available -j |
+              ruby -rjson -e '
+                devices = JSON.parse(STDIN.read).fetch("devices")
+                iphone = devices
+                  .select { |runtime, _| runtime.include?("iOS") }
+                  .sort_by(&:first)
+                  .reverse_each
+                  .flat_map { |_, candidates| candidates }
+                  .find { |device| device["isAvailable"] && device["name"].start_with?("iPhone") }
+                abort "No available iPhone simulator found" unless iphone
+                print iphone.fetch("udid")
+              '
+          )"
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          echo "SIMULATOR_ID=$SIMULATOR_ID" >> "$GITHUB_ENV"
+      - name: Build with signing disabled
+        run: |
+          xcodebuild build \
+            -project apps/ios/BrownSync.xcodeproj \
+            -scheme BrownSync \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Run simulator tests with normal signing
+        run: |
+          xcodebuild test \
+            -project apps/ios/BrownSync.xcodeproj \
+            -scheme BrownSync \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -skipPackagePluginValidation

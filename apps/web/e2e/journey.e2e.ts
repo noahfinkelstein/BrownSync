@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { INTEGRATED } from "./flags";
 import { blockExternal, mockApi, mockBasemapGlyphs } from "./support/mock-api";
 
@@ -14,6 +14,20 @@ import { blockExternal, mockApi, mockBasemapGlyphs } from "./support/mock-api";
  *   H  [data-testid="search-input"]     — ⌘K palette input (cmdk renders
  *                                         role=combobox + role=option rows)
  */
+
+/**
+ * Select the right pane's Events tab.
+ *
+ * The pane defaults to the unified **Feed** — the "everything happening at
+ * Brown" list is what the site is for, so it leads. The event list and the
+ * category chips are one click behind it, which is why every spec that drives
+ * them starts here rather than at `/`.
+ */
+async function openEventsTab(page: Page): Promise<void> {
+  const tab = page.locator("aside").getByRole("radio", { name: "Events" });
+  await expect(tab).toBeVisible();
+  await tab.click();
+}
 
 test.describe("full journey (integrated app)", () => {
   test.skip(
@@ -44,7 +58,9 @@ test.describe("full journey (integrated app)", () => {
     await page.keyboard.press("ArrowRight");
     await expect(page).toHaveURL(/[?&]at=/);
 
-    // 3 — open event: first list row opens the detail panel with fixture data.
+    // 3 — open event. The right pane defaults to the unified Feed, so the
+    // event list is one tab click away.
+    await openEventsTab(page);
     const firstRow = page.getByTestId("event-list-item").first();
     await expect(firstRow).toBeVisible();
     await firstRow.click();

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
+import { useState } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { ListView } from "../src/browse/ListView";
 import { createViewportSource } from "../src/browse/viewport";
@@ -21,15 +22,12 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-/** Deterministic clock: an afternoon so every bucket is reachable. */
-const NOW = new Date(2026, 6, 28, 15, 0);
+/** Tue Jul 28 2026 15:00 EDT — fixed independent of the test host timezone. */
+const NOW = new Date("2026-07-28T19:00:00.000Z");
 const clock = () => NOW;
 
 function iso(hours: number, minutes = 0, dayOffset = 0): string {
-  const d = new Date(NOW);
-  d.setDate(d.getDate() + dayOffset);
-  d.setHours(hours, minutes, 0, 0);
-  return d.toISOString();
+  return new Date(Date.UTC(2026, 6, 28 + dayOffset, hours + 4, minutes)).toISOString();
 }
 
 const LIST_EVENTS = [
@@ -76,6 +74,29 @@ describe("ListView (viewport-synced, grouped by time — §3.2, §6.4)", () => {
     await screen.findByText("4 events in view");
   });
 
+  it("counts only events that still have a visible time bucket", async () => {
+    server.use(
+      http.get("*/api/events", () =>
+        HttpResponse.json({
+          events: [
+            mkEvent({
+              id: "already-ended",
+              title: "Already ended",
+              start: iso(8),
+              end: iso(9),
+            }),
+          ],
+        }),
+      ),
+    );
+
+    renderWithHarness(<ListView now={clock} />);
+
+    await screen.findByText("No events in view");
+    expect(screen.getByText("0 events in view")).toBeTruthy();
+    expect(screen.queryByText("Already ended")).toBeNull();
+  });
+
   it("refetches when the viewport moves", async () => {
     useListHandlers();
     const viewport = createViewportSource();
@@ -87,6 +108,38 @@ describe("ListView (viewport-synced, grouped by time — §3.2, §6.4)", () => {
       expect(
         seenRequests.some(
           (u) => u.searchParams.get("bbox") === "-71.40200,41.82500,-71.39600,41.82900",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("refetches the cursor window and sends it with the viewport", async () => {
+    useListHandlers();
+    const viewport = createViewportSource([-71.405, 41.824, -71.398, 41.83]);
+    let setCursor: ((next: Date) => void) | null = null;
+    function CursorList() {
+      const [cursor, updateCursor] = useState(new Date("2026-07-28T19:00:00.000Z"));
+      setCursor = updateCursor;
+      return <ListView viewport={viewport} now={() => cursor} />;
+    }
+
+    renderWithHarness(<CursorList />);
+    await screen.findByText("Poster session");
+
+    const first = seenRequests.find(
+      (url) => url.searchParams.get("from") === "2026-07-28T07:00:00.000Z",
+    );
+    expect(first?.searchParams.get("to")).toBe("2026-08-05T07:00:00.000Z");
+    expect(first?.searchParams.get("bbox")).toBe("-71.40500,41.82400,-71.39800,41.83000");
+
+    act(() => setCursor?.(new Date("2026-07-27T19:00:00.000Z")));
+    await waitFor(() => {
+      expect(
+        seenRequests.some(
+          (url) =>
+            url.searchParams.get("from") === "2026-07-27T07:00:00.000Z" &&
+            url.searchParams.get("to") === "2026-08-04T07:00:00.000Z" &&
+            url.searchParams.get("bbox") === "-71.40500,41.82400,-71.39800,41.83000",
         ),
       ).toBe(true);
     });

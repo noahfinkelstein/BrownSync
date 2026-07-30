@@ -1,10 +1,12 @@
 /**
  * Time formatting — §6.4: timestamps are mono, 24 h, terse ("19:04 · in 26 min").
  * Pure functions; callers inject `now` so tests stay deterministic. All math is
- * in the viewer's local timezone (campus wall time in practice).
+ * in campus wall time regardless of the viewer's timezone.
  */
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+import { formatClock as formatCampusClock } from "../time/format";
+import { addLocalDays, isSameLocalDay, localParts, localWeekday } from "../time/tz";
+
 const MONTHS = [
   "Jan",
   "Feb",
@@ -20,28 +22,22 @@ const MONTHS = [
   "Dec",
 ] as const;
 
-const pad2 = (n: number): string => String(n).padStart(2, "0");
-
 /** "19:04" */
 export function formatClock(d: Date): string {
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return formatCampusClock(d);
 }
 
 export function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+  return isSameLocalDay(a, b);
 }
 
 /** "Today" | "Tomorrow" | "Wed Jul 29" */
 export function formatDayLabel(d: Date, now: Date): string {
   if (isSameDay(d, now)) return "Today";
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
+  const tomorrow = addLocalDays(now, 1);
   if (isSameDay(d, tomorrow)) return "Tomorrow";
-  return `${WEEKDAYS[d.getDay()] ?? ""} ${MONTHS[d.getMonth()] ?? ""} ${d.getDate()}`;
+  const parts = localParts(d);
+  return `${localWeekday(d)} ${MONTHS[parts.month - 1] ?? ""} ${parts.day}`;
 }
 
 /** "in 26 min" | "in 3 h" | "now" | "12 min ago" | "2 h ago" */

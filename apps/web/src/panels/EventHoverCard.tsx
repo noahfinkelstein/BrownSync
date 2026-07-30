@@ -58,7 +58,7 @@ export function EventHoverCard({
             style={{ color: `var(${CATEGORY_BY_ID[event.category].colorToken})` }}
           />
           <div className="min-w-0">
-            <div className="line-clamp-2 text-13 font-medium leading-snug text-text-primary">
+            <div className="line-clamp-2 text-14 font-medium leading-snug text-text-primary">
               {event.title}
             </div>
             <div

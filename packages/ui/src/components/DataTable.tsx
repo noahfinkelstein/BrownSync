@@ -36,7 +36,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const pad = density === "comfortable" ? "py-2" : "py-1";
   return (
-    <table aria-label={ariaLabel} className={cn("w-full border-collapse text-13", className)}>
+    <table aria-label={ariaLabel} className={cn("w-full border-collapse text-14", className)}>
       <thead>
         <tr>
           {columns.map((col) => (
@@ -45,7 +45,13 @@ export function DataTable<T>({
               scope="col"
               style={col.width ? { width: col.width } : undefined}
               className={cn(
-                "border-b border-line px-2 pb-1.5 text-left font-mono text-12 font-normal uppercase tracking-[0.08em] text-text-secondary",
+                /* The header rule is the table's structure, so it has to be
+                   the heaviest line in it. `--line` on paper is a 1.4:1
+                   whisper — fine for the row rules it repeats 40 times, far
+                   too weak to separate the header from the body. `--text-faint`
+                   is 3.8:1: banned for TEXT, which is exactly what makes it
+                   the right hairline. */
+                "border-b border-text-faint px-2 pb-1.5 text-left font-mono text-12 font-normal uppercase tracking-[0.08em] text-text-secondary",
                 col.align === "right" && "text-right",
               )}
             >
@@ -65,7 +71,10 @@ export function DataTable<T>({
           rows.map((row) => (
             <tr
               key={rowKey(row)}
-              className="border-b border-line/60 transition-colors duration-150 ease-out hover:bg-bg-overlay/60"
+              /* Full-strength `--line` and `--bg-overlay`: the /60 variants
+                 composited toward the page and, on paper, "60% of a whisper"
+                 is nothing — the rules and the hover both vanished. */
+              className="border-b border-line transition-colors duration-150 ease-out hover:bg-bg-overlay"
             >
               {columns.map((col) => (
                 <td

@@ -27,6 +27,10 @@ import {
 
 /* ---------------------------------------------------------------- chrome */
 
+/* Gallery chrome deliberately runs on --text-secondary, never --text-faint.
+   A design system whose own labels sit at 3.8:1 is not a proof of anything;
+   faint appears here only as a SWATCH of itself. */
+
 function Section({
   n,
   title,
@@ -41,11 +45,9 @@ function Section({
   return (
     <section className="border-t border-line py-8">
       <div className="mb-5 flex items-baseline gap-3">
-        <span className="font-mono text-12 text-text-faint">{n}</span>
-        <h2 className="font-mono text-12 uppercase tracking-[0.14em] text-text-secondary">
-          {title}
-        </h2>
-        {note && <span className="text-12 text-text-faint">{note}</span>}
+        <span className="font-mono text-12 text-text-secondary">{n}</span>
+        <h2 className="font-mono text-12 uppercase tracking-[0.14em] text-text-primary">{title}</h2>
+        {note && <span className="text-12 text-text-secondary">{note}</span>}
       </div>
       {children}
     </section>
@@ -53,23 +55,22 @@ function Section({
 }
 
 function Label({ children }: { children: ReactNode }) {
-  return <div className="mb-2 font-mono text-12 text-text-faint">{children}</div>;
+  return <div className="mb-2 font-mono text-12 text-text-secondary">{children}</div>;
 }
 
 function Row({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`mb-4 flex flex-wrap items-center gap-2 ${className}`}>{children}</div>;
 }
 
-function Swatch({ name, value, border }: { name: string; value: string; border?: boolean }) {
+/** Every swatch carries the hairline now: on white, four of the eleven surface
+ *  tokens are within 4% of the page and a borderless chip shows nothing. */
+function Swatch({ name, value }: { name: string; value: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span
-        className={`h-8 w-12 rounded-2 ${border ? "border border-line" : ""}`}
-        style={{ background: value }}
-      />
+      <span className="h-8 w-12 rounded-2 border border-line" style={{ background: value }} />
       <span className="flex flex-col">
-        <span className="font-mono text-12 text-text-secondary">{name}</span>
-        <span className="font-mono text-12 text-text-faint">{value}</span>
+        <span className="font-mono text-12 text-text-primary">{name}</span>
+        <span className="font-mono text-12 text-text-secondary">{value}</span>
       </span>
     </div>
   );
@@ -158,11 +159,24 @@ function MapImageStrip() {
       setErr(e instanceof Error ? e.message : String(e));
     }
   }, []);
-  if (err) return <div className="text-12 text-status-error">{err}</div>;
+  // Ink + a status dot, NOT `text-status-error`: the ramp is 3.83–4.62:1 on
+  // the light stack, which is a legal 6px dot and an illegal 12px sentence.
+  if (err)
+    return (
+      <div className="flex items-center gap-1.5 text-12 text-text-primary">
+        <StatusDot status="error" />
+        {err}
+      </div>
+    );
+  // Deliberately a DARK well inside light chrome. buildMapImages paints white
+  // glyphs on transparent for MapLibre `addImage`, and the basemap is still
+  // dark by design (tokens.map) — on `bg-bg-overlay` this strip rendered ten
+  // invisible squares and looked like a broken canvas. `--map-water` is the
+  // surface these icons actually ship against.
   return (
     <div
       ref={ref}
-      className="flex flex-wrap items-center gap-3 rounded-4 border border-line bg-bg-overlay p-3"
+      className="flex flex-wrap items-center gap-3 rounded-4 border border-line bg-map-water p-3"
     />
   );
 }
@@ -177,7 +191,22 @@ export function App() {
   const [mode, setMode] = useState("map");
   const [cursor, setCursor] = useState(31);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [modalPanelOpen, setModalPanelOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState("2");
+
+  // Read back from the live stylesheet rather than pasting the hexes here. The
+  // status ramp lives only in packages/ui/src/styles.css (it is not a contract
+  // token, so tokens.test.ts cannot pin it) — a literal in the gallery would be
+  // a second, unpinned copy, and the gallery's whole job is to be true.
+  const [statusRamp] = useState(() =>
+    (["ok", "stale", "error"] as const).map((key) => ({
+      name: `--status-${key}`,
+      value: getComputedStyle(document.documentElement)
+        .getPropertyValue(`--status-${key}`)
+        .trim()
+        .toUpperCase(),
+    })),
+  );
 
   const toggleChip = (c: Category) =>
     setChips((prev) => {
@@ -219,7 +248,7 @@ export function App() {
       <header className="mb-8 flex items-end justify-between">
         <div>
           <div className="text-24 font-medium tracking-tight text-text-primary">
-            BrownSync <span className="text-text-faint">design system</span>
+            BrownSync <span className="text-text-secondary">design system</span>
           </div>
           <div className="pt-1 font-mono text-12 text-text-secondary">
             /dev/ui · §6 design law · one accent, ten categories, zero card grids
@@ -229,12 +258,12 @@ export function App() {
       </header>
 
       {/* 01 tokens */}
-      <Section n="01" title="tokens" note="bg stack · line · text triad · one accent">
-        <Label>background stack + line</Label>
+      <Section n="01" title="tokens" note="warm paper · seal brown structure · one Brown red">
+        <Label>background stack + line — four steps inside 13% of white</Label>
         <Row className="gap-6">
-          <Swatch name="--bg-base" value={tokens.bg.base} border />
-          <Swatch name="--bg-raised" value={tokens.bg.raised} border />
-          <Swatch name="--bg-overlay" value={tokens.bg.overlay} border />
+          <Swatch name="--bg-base" value={tokens.bg.base} />
+          <Swatch name="--bg-raised" value={tokens.bg.raised} />
+          <Swatch name="--bg-overlay" value={tokens.bg.overlay} />
           <Swatch name="--line" value={tokens.line} />
         </Row>
         <Label>text triad + accent (live/now + primary actions ONLY)</Label>
@@ -244,6 +273,29 @@ export function App() {
           <Swatch name="--text-faint" value={tokens.text.faint} />
           <Swatch name="--accent" value={tokens.accent} />
         </Row>
+        <Label>
+          brand — Brown's Seal Brown carries STRUCTURE (filled controls, selection rules) so the red
+          stays a signal
+        </Label>
+        <Row className="gap-6">
+          <Swatch name="--brand-brown" value={tokens.brand.brown} />
+          <Swatch name="--brand-brown-soft" value={tokens.brand.brownSoft} />
+        </Row>
+        <Label>
+          elevation proof — a 4% warm tint is not a surface on its own; every level is drawn by its
+          hairline, and only the Panel gets a shadow
+        </Label>
+        <div className="mb-4 rounded-4 border border-line bg-bg-base p-4">
+          <div className="mb-2 font-mono text-12 text-text-secondary">--bg-base (page)</div>
+          <div className="rounded-4 border border-line bg-bg-raised p-4">
+            <div className="mb-2 font-mono text-12 text-text-secondary">--bg-raised (panel)</div>
+            <div className="rounded-4 border border-line bg-bg-overlay p-4">
+              <div className="font-mono text-12 text-text-secondary">
+                --bg-overlay (card / input / hover row)
+              </div>
+            </div>
+          </div>
+        </div>
         <Label>tailwind theme proof — literal utility classes compiled from the token map</Label>
         <Row className="font-mono text-12">
           <span className="rounded-2 bg-bg-overlay px-1.5 py-0.5 text-text-secondary">
@@ -253,42 +305,62 @@ export function App() {
             border-line
           </span>
           <span className="rounded-2 px-1.5 py-0.5 text-accent">text-accent</span>
+          <span className="rounded-2 bg-brand-brown px-1.5 py-0.5 text-bg-base">
+            bg-brand-brown
+          </span>
+          <span className="rounded-2 px-1.5 py-0.5 text-brand-brown">text-brand-brown</span>
           <span className="rounded-2 bg-cat-club px-1.5 py-0.5 text-bg-base">bg-cat-club</span>
           <span className="rounded-2 bg-cat-arts px-1.5 py-0.5 text-bg-base">bg-cat-arts</span>
           <span className="rounded-2 px-1.5 py-0.5 text-cat-academic">text-cat-academic</span>
         </Row>
-        <Label>category palette — chroma-matched on dark (contract §4)</Label>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
+        <Label>
+          category palette — hue preserved from the dark ramp, chroma raised and lightness walked
+          down until all ten clear 4.5:1 on white (contract §4)
+        </Label>
+        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
           {CATEGORIES.map((c) => (
             <div key={c.id} className="flex items-center gap-2.5">
-              <span className="h-6 w-6 rounded-2" style={{ background: c.colorHex }} />
+              <span
+                className="h-6 w-6 rounded-2 border border-line"
+                style={{ background: c.colorHex }}
+              />
               <span className="flex flex-col">
-                <span className="font-mono text-12 text-text-secondary">{c.colorToken}</span>
-                <span className="font-mono text-12 text-text-faint">{c.colorHex}</span>
+                <span className="font-mono text-12 text-text-primary">{c.colorToken}</span>
+                <span className="font-mono text-12 text-text-secondary">{c.colorHex}</span>
               </span>
             </div>
           ))}
         </div>
+        <Label>
+          status ramp — INDICATOR colours only (3.8–4.6:1 on the light stack: a legal 6px dot, an
+          illegal 12px sentence)
+        </Label>
+        <Row className="gap-6">
+          {statusRamp.map((s) => (
+            <Swatch key={s.name} name={s.name} value={s.value} />
+          ))}
+        </Row>
       </Section>
 
       {/* 02 type */}
       <Section
         n="02"
         title="type"
-        note="Instrument Sans display · IBM Plex Mono data · 12/13/15/18/24 only"
+        note="Instrument Sans display · IBM Plex Mono data · 12/14/16/19/24/30 only"
       >
         <div className="flex flex-col gap-2">
-          <div className="text-24 tracking-tight text-text-primary">
-            24 — Everything happening at Brown
+          <div className="text-30 tracking-tight text-text-primary">
+            30 — Everything happening at Brown
           </div>
-          <div className="text-18 tracking-tight text-text-primary">18 — Sayles Hall, tonight</div>
-          <div className="text-15 text-text-primary">15 — Panel titles and section heads</div>
-          <div className="text-13 text-text-primary">
-            13 — Body and control text. Density is a feature, not a bug.
+          <div className="text-24 tracking-tight text-text-primary">24 — Tonight on the Hill</div>
+          <div className="text-19 tracking-tight text-text-primary">19 — Sayles Hall, tonight</div>
+          <div className="text-16 text-text-primary">16 — Panel titles and section heads</div>
+          <div className="text-14 text-text-primary">
+            14 — Body and control text. Density is a feature, not a bug.
           </div>
           <div className="text-12 text-text-secondary">12 — Meta, captions, table headers</div>
-          <div className="pt-2 font-mono text-13 text-text-primary">
-            mono 13 — 41.8268°N 71.4025°W
+          <div className="pt-2 font-mono text-14 text-text-primary">
+            mono 14 — 41.8268°N 71.4025°W
           </div>
           <div className="font-mono text-12 text-text-secondary">
             mono 12 — 19:04 · in 26 min · livewhale · conf 0.92
@@ -316,7 +388,7 @@ export function App() {
                   title={`${c.label} tinted`}
                 />
               </div>
-              <div className="font-mono text-12 text-text-faint">{c.icon}</div>
+              <div className="font-mono text-12 text-text-secondary">{c.icon}</div>
             </div>
           ))}
         </div>
@@ -479,7 +551,7 @@ export function App() {
         </div>
         <Label>kbd</Label>
         <Row>
-          <span className="text-13 text-text-secondary">
+          <span className="text-14 text-text-secondary">
             Press <Kbd>⌘K</Kbd> to search, <Kbd>T</Kbd> for tonight, <Kbd>Esc</Kbd> to close
           </span>
         </Row>
@@ -488,7 +560,7 @@ export function App() {
       {/* 07 scrubber */}
       <Section n="07" title="time scrubber" note="±7 days · thin track · accent NOW marker">
         <div className="max-w-[720px]">
-          <div className="mb-1 flex justify-between font-mono text-12 text-text-faint">
+          <div className="mb-1 flex justify-between font-mono text-12 text-text-secondary">
             <span>-7d</span>
             <span className="text-accent">now</span>
             <span>+7d</span>
@@ -608,7 +680,26 @@ export function App() {
           <Button variant="ghost" onClick={() => setPanelOpen(true)}>
             Open detail panel
           </Button>
+          {/* The modal variant is here to exercise the scrim: on paper a veil
+              of the PAGE colour dims nothing, so it is seal brown at 40%. */}
+          <Button variant="subtle" onClick={() => setModalPanelOpen(true)}>
+            Open modal panel (scrim)
+          </Button>
         </Row>
+        <Panel
+          modal
+          open={modalPanelOpen}
+          onOpenChange={setModalPanelOpen}
+          title="Modal panel"
+          sub="scrim proof · seal brown at 40%"
+          footer={<Button variant="primary">Add to calendar</Button>}
+        >
+          <p className="text-14 text-text-secondary">
+            Everything behind this panel should read as pushed back, not merely covered. The
+            elevation stack above stays visible through the veil — that is the point of a scrim, and
+            it is what a 60% wash of the page colour could not do.
+          </p>
+        </Panel>
         <Panel
           open={panelOpen}
           onOpenChange={setPanelOpen}
@@ -630,7 +721,7 @@ export function App() {
               <Badge>weekly</Badge>
               <Badge variant="accent">starting soon</Badge>
             </Row>
-            <p className="text-13 text-text-secondary">
+            <p className="text-14 text-text-secondary">
               First general body meeting of the semester. Trip sign-ups for the fall break White
               Mountains traverse open tonight.
             </p>
@@ -705,9 +796,9 @@ export function App() {
         </div>
       </Section>
 
-      <footer className="border-t border-line pt-6 font-mono text-12 text-text-faint">
-        litmus §6.5 — passes as Bloomberg/Gotham dark, fails as v0 template · radius ≤ 6 · one
-        shadow · one accent
+      <footer className="border-t border-line pt-6 font-mono text-12 text-text-secondary">
+        litmus §6.5 — passes as a Brown University publication, fails as a v0 template · radius ≤ 6
+        · one shadow · one signal colour · seal brown carries structure
       </footer>
     </div>
   );

@@ -20,7 +20,7 @@ export const CATEGORY_IDS = [
 
 export type Category = (typeof CATEGORY_IDS)[number];
 
-export const CategorySchema = z.enum(CATEGORY_IDS);
+export const CategorySchema = z.enum(CATEGORY_IDS).meta({ id: "Category" });
 
 export type CategoryMeta = {
   id: Category;
@@ -44,7 +44,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Academic",
     icon: "icon-academic",
     colorToken: "--cat-academic",
-    colorHex: "#73abda",
+    colorHex: "#1378ce",
     hue: 245,
   },
   {
@@ -52,7 +52,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Class",
     icon: "icon-class",
     colorToken: "--cat-class",
-    colorHex: "#61b1cf",
+    colorHex: "#147ea6",
     hue: 225,
   },
   {
@@ -60,7 +60,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Club",
     icon: "icon-club",
     colorToken: "--cat-club",
-    colorHex: "#5eb7a7",
+    colorHex: "#1e8573",
     hue: 180,
   },
   {
@@ -68,7 +68,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Arts",
     icon: "icon-arts",
     colorToken: "--cat-arts",
-    colorHex: "#b296d2",
+    colorHex: "#8742d7",
     hue: 305,
   },
   {
@@ -76,7 +76,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Athletics",
     icon: "icon-athletics",
     colorToken: "--cat-athletics",
-    colorHex: "#d78d92",
+    colorHex: "#df323e",
     hue: 15,
   },
   {
@@ -84,7 +84,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Food",
     icon: "icon-food",
     colorToken: "--cat-food",
-    colorHex: "#bfa060",
+    colorHex: "#966e1d",
     hue: 85,
   },
   {
@@ -92,7 +92,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Social",
     icon: "icon-social",
     colorToken: "--cat-social",
-    colorHex: "#ce8eb2",
+    colorHex: "#d3348d",
     hue: 345,
   },
   {
@@ -100,7 +100,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Career",
     icon: "icon-career",
     colorToken: "--cat-career",
-    colorHex: "#57b5bf",
+    colorHex: "#19828d",
     hue: 205,
   },
   {
@@ -108,7 +108,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Wellness",
     icon: "icon-wellness",
     colorToken: "--cat-wellness",
-    colorHex: "#81b482",
+    colorHex: "#2c862e",
     hue: 145,
   },
   {
@@ -116,7 +116,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
     label: "Admin",
     icon: "icon-admin",
     colorToken: "--cat-admin",
-    colorHex: "#94a0dd",
+    colorHex: "#3451e4",
     hue: 275,
   },
 ] as const;
@@ -137,9 +137,9 @@ export const PLACE_KINDS = [
   "other",
 ] as const;
 export type PlaceKind = (typeof PLACE_KINDS)[number];
-export const PlaceKindSchema = z.enum(PLACE_KINDS);
+export const PlaceKindSchema = z.enum(PLACE_KINDS).meta({ id: "PlaceKind" });
 
 /** organizations.kind — contract §1. */
 export const ORG_KINDS = ["club", "department", "office", "athletics", "external"] as const;
 export type OrgKind = (typeof ORG_KINDS)[number];
-export const OrgKindSchema = z.enum(ORG_KINDS);
+export const OrgKindSchema = z.enum(ORG_KINDS).meta({ id: "OrgKind" });

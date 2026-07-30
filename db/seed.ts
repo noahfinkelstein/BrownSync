@@ -6,6 +6,12 @@
  * schemas, then upserts into Postgres with contract §2 semantics. Any invalid
  * line aborts before the DB is touched — half-valid seeds never load.
  *
+ * BEFORE any of that, db/seeds/manifest.json is verified (db/manifest.ts):
+ * every listed artifact must match its published byte length and sha256. A
+ * mixed generation — places.ndjson from one ingestion run, events.ndjson from
+ * the next — is otherwise completely silent, because every line still
+ * validates; only the hashes disagree. Failing here means zero writes.
+ *
  *   DATABASE_URL=postgres://... pnpm db:seed
  */
 import path from "node:path";
@@ -19,10 +25,11 @@ import {
 } from "@brownsync/contract";
 import postgres from "postgres";
 import type { z } from "zod";
+import { resolveSeedsDir, verifyManifest } from "./manifest";
 import { readNdjsonFile } from "./ndjson";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const seedsDir = path.join(here, "seeds");
+const seedsDir = resolveSeedsDir(path.join(here, "seeds"));
 
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
@@ -38,7 +45,48 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Bundle integrity gate — runs before a single NDJSON byte is read and long
+ * before a connection is opened. Exits 1 on any integrity failure, so a
+ * tampered or half-published bundle can never partially load.
+ *
+ * A missing manifest is fatal ONLY when artifacts are actually present: an
+ * empty db/seeds/ is the legitimate "ingestion hasn't produced a drop yet"
+ * state and must stay a green no-op, exactly as before.
+ */
+async function assertBundleIntegrity(): Promise<void> {
+  const result = await verifyManifest(seedsDir);
+  if (!result.present) {
+    if (result.failures.length === 0 && result.managedPresent.length === 0) return;
+    for (const f of result.failures) console.error(`FAIL: ${f}`);
+    if (result.failures.length === 0) {
+      console.error(
+        `FAIL: manifest.json: missing from ${seedsDir}, but ` +
+          `${result.managedPresent.length} seed artifact(s) are present ` +
+          `(${result.managedPresent.join(", ")}) — refusing to load an unverifiable bundle`,
+      );
+    }
+    console.error("nothing was written to the database");
+    process.exit(1);
+  }
+  if (!result.ok) {
+    for (const f of result.failures) console.error(`FAIL: ${f}`);
+    console.error(
+      `manifest generation ${result.generation} did not verify — ` +
+        "nothing was written to the database",
+    );
+    process.exit(1);
+  }
+  for (const w of result.warnings) console.warn(`warn: ${w}`);
+  console.log(
+    `manifest ${result.generation}: ${result.verified} artifact(s) verified (bytes + sha256)`,
+  );
+}
+
 async function main() {
+  // Integrity first: a mixed generation must cost zero writes.
+  await assertBundleIntegrity();
+
   // Validate everything up front, before any DB write.
   const [places, orgs, events, meetings, runs] = await Promise.all([
     readNdjson("places.ndjson", SeedPlaceSchema),

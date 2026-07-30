@@ -1,0 +1,63 @@
+(() => {
+  const groups = [{"group":"code:KREA 0500","srcdb":"202610","sections":[{"crn":"10141"}]},{"group":"code:LACA 1504U","srcdb":"202610","sections":[{"crn":"15501"}]},{"group":"code:LACA 1956F","srcdb":"202610","sections":[{"crn":"15815"}]},{"group":"code:LACA 1990","srcdb":"202610","sections":[{"crn":"12126"},{"crn":"12127"},{"crn":"12128"},{"crn":"12129"},{"crn":"12130"},{"crn":"12131"},{"crn":"12132"},{"crn":"12133"},{"crn":"12134"},{"crn":"12135"},{"crn":"12136"},{"crn":"12137"}]}];
+  const extractGroup = (group) => {
+    const groupRows = [];
+    return group.sections
+      .reduce(
+        (previous, section) =>
+          previous.then(() => {
+            const key = "crn:" + section.crn;
+            return fose.detailsAPI
+              .fetchFor(group.group, key, key, group.srcdb)
+              .then((detail) => {
+                const meetingContainer = document.createElement("div");
+                meetingContainer.innerHTML = detail.meeting_html || "";
+                groupRows.push({
+                  crn: String(detail.crn || section.crn),
+                  course_code:
+                    detail.code || group.group.replace(/^code:/, ""),
+                  meeting_html: detail.meeting_html || "",
+                  schedule_and_location: (meetingContainer.textContent || "")
+                    .replace(/\s+/g, " ")
+                    .trim(),
+                });
+              })
+              .catch((error) => {
+                groupRows.push({
+                  crn: String(section.crn),
+                  course_code: group.group.replace(/^code:/, ""),
+                  meeting_html: "",
+                  schedule_and_location: "",
+                  error: String(error),
+                });
+              });
+          }),
+        Promise.resolve(),
+      )
+      .then(() => groupRows);
+  };
+
+  const starts = Array.from(
+    { length: Math.ceil(groups.length / 4) },
+    (_, index) => index * 4,
+  );
+  const rows = [];
+
+  return starts
+    .reduce(
+      (previous, start) =>
+        previous
+          .then(() =>
+            Promise.all(groups.slice(start, start + 4).map(extractGroup)),
+          )
+          .then((groupRows) => rows.push(...groupRows.flat())),
+      Promise.resolve(),
+    )
+    .then(() => JSON.stringify(rows))
+    .catch((error) =>
+      JSON.stringify({
+        top_error: String(error),
+        stack: error && error.stack ? String(error.stack) : "",
+      }),
+    );
+})()

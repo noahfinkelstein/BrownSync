@@ -25,6 +25,13 @@ export function SearchInput({
     <div
       className={cn(
         "flex items-center gap-1.5 rounded-4 border border-line bg-bg-overlay px-2 transition-colors duration-150 ease-out focus-within:border-text-faint",
+        /* The focusable node is the inner <input>, so FOCUS_RING's
+           `focus-visible:` never reaches this wrapper and the field's only
+           focus cue was the border darkening from `--line` to `--text-faint`:
+           1.4:1 → 3.8:1 against white, a step you cannot see across a room.
+           Same 1px accent ring as every other control (§6.4), keyed to
+           focus-within so it tracks the input it wraps. */
+        "focus-within:outline-solid focus-within:outline-1 focus-within:outline-offset-1 focus-within:outline-accent",
         density === "comfortable" ? "h-8" : "h-7",
         className,
       )}
@@ -33,7 +40,7 @@ export function SearchInput({
       <input
         type="search"
         value={value}
-        className="w-full min-w-0 grow bg-transparent text-13 text-text-primary outline-none placeholder:text-text-secondary [&::-webkit-search-cancel-button]:hidden"
+        className="w-full min-w-0 grow bg-transparent text-14 text-text-primary outline-none placeholder:text-text-secondary [&::-webkit-search-cancel-button]:hidden"
         {...props}
       />
       {hasValue && onClear ? (

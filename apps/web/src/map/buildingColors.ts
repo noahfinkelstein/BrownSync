@@ -6,5 +6,5 @@
  * re-parsing the style at runtime, and `test/buildingColors.test.ts` fails
  * the suite if the two ever drift apart.
  */
-export const BUILDING_3D_BASE = "#1A202A";
-export const BUILDING_2D_BASE = "#151A22";
+export const BUILDING_3D_BASE = "#141821";
+export const BUILDING_2D_BASE = "#141821";

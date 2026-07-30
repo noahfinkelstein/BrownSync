@@ -1,4 +1,5 @@
 import type { EventOut } from "@brownsync/contract";
+import { addLocalDays, localParts, startOfLocalDay } from "../time/tz";
 import { isSameDay } from "./format";
 
 /**
@@ -37,9 +38,7 @@ const EVENING_HOUR = 17;
 function effectiveEndMs(e: EventOut, start: Date): number {
   if (e.end) return new Date(e.end).getTime();
   if (e.allDay) {
-    const eod = new Date(start);
-    eod.setHours(23, 59, 59, 999);
-    return eod.getTime();
+    return addLocalDays(startOfLocalDay(start), 1).getTime();
   }
   return start.getTime() + ASSUMED_DURATION_MS;
 }
@@ -49,8 +48,7 @@ export function bucketOf(e: EventOut, now: Date): TimeBucketId | null {
   const start = new Date(e.start);
   const startMs = start.getTime();
   const nowMs = now.getTime();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
+  const tomorrow = addLocalDays(now, 1);
 
   if (e.allDay) {
     // All-day rows read as day items, never "happening now" noise.
@@ -61,7 +59,9 @@ export function bucketOf(e: EventOut, now: Date): TimeBucketId | null {
 
   if (startMs <= nowMs) return effectiveEndMs(e, start) > nowMs ? "now" : null;
   if (startMs <= nowMs + HOUR_MS) return "next-hour";
-  if (isSameDay(start, now)) return start.getHours() >= EVENING_HOUR ? "tonight" : "today";
+  if (isSameDay(start, now)) {
+    return localParts(start).hour >= EVENING_HOUR ? "tonight" : "today";
+  }
   if (isSameDay(start, tomorrow)) return "tomorrow";
   return "week";
 }

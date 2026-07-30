@@ -1,5 +1,15 @@
 {
   "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": [
+    "packages/contract/openapi.json",
+    "map/style.json",
+    "db/seeds/campus_buildings.geojson",
+    "db/seeds/campus_landmarks.geojson",
+    "db/seeds/campus_amenities.geojson",
+    "db/seeds/dining_menus.json",
+    "db/seeds/publications.json",
+    "db/seeds/library_hours.json"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

@@ -79,6 +79,15 @@ class OrganizationRow(ContractRow):
     description: str | None = None
     url: str | None = None
     instagram: str | None = None
+    contact_emails: list[str] = Field(default_factory=list)
+    advisor: str | None = None
+    funding_category: str | None = None
+    website_url: str | None = None
+    facebook_url: str | None = None
+    linkedin_url: str | None = None
+    youtube_url: str | None = None
+    twitter_url: str | None = None
+    tiktok_url: str | None = None
     default_place_id: str | None = None
     source: str
 

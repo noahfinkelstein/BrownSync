@@ -1,0 +1,88 @@
+{
+  "snapshot_utc": "2026-07-29T13:35:00Z",
+  "workbook": "brownsync_public_data.xlsx",
+  "csv_validation": [
+    {
+      "file": "brown_all_student_groups.csv",
+      "rows": 457,
+      "columns": 17
+    },
+    {
+      "file": "brown_dining_menu_links.csv",
+      "rows": 10,
+      "columns": 5
+    },
+    {
+      "file": "brown_news_archive.csv",
+      "rows": 3301,
+      "columns": 10
+    },
+    {
+      "file": "brown_daily_herald_news.csv",
+      "rows": 35,
+      "columns": 8
+    },
+    {
+      "file": "brown_upcoming_events.csv",
+      "rows": 1000,
+      "columns": 34
+    },
+    {
+      "file": "brown_athletics_calendar.csv",
+      "rows": 170,
+      "columns": 13
+    },
+    {
+      "file": "brown_academic_calendar_2026_2027.csv",
+      "rows": 110,
+      "columns": 7
+    },
+    {
+      "file": "brown_a_to_z_resources.csv",
+      "rows": 300,
+      "columns": 8
+    },
+    {
+      "file": "brown_library_hours.csv",
+      "rows": 91,
+      "columns": 7
+    },
+    {
+      "file": "brown_event_locations.csv",
+      "rows": 153,
+      "columns": 8
+    },
+    {
+      "file": "brown_college_hill_buildings.csv",
+      "rows": 2150,
+      "columns": 22
+    },
+    {
+      "file": "brown_data_sources.csv",
+      "rows": 15,
+      "columns": 10
+    }
+  ],
+  "classes": {
+    "rows": 5275,
+    "columns": 18
+  },
+  "workbook_sheets": 13,
+  "previews": [
+    "sources.png",
+    "fall-2026-classes.png",
+    "student-groups.png",
+    "dining-menus.png",
+    "brown-news.png",
+    "bdh-headlines.png",
+    "livewhale-events.png",
+    "athletics.png",
+    "academic-calendar.png",
+    "a-z-resources.png",
+    "library-hours.png",
+    "event-locations.png",
+    "college-hill-buildings.png"
+  ],
+  "formula_errors": "{\"kind\":\"notice\",\"message\":\"Cell search matched 0 entries.\"}",
+  "workbook_summary": "{\"kind\":\"workbook\",\"id\":\"wb/hloplb\",\"sheets\":13,\"tables\":13}\n{\"kind\":\"sheet\",\"id\":\"ws/kjpeg6\",\"name\":\"Sources\",\"index\":0,\"range\":\"A1:J19\",\"address\":\"A1:J19\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"Sources\",\"address\":\"A1:J19\",\"rows\":19,\"cols\":10,\"values\":[[\"BrownSync Public Data Sources\",null,null,null,null,null,null,null,null,null],[\"Start here: exported snapshots, coverage notes, refresh cadence and verified live sources. Snapshot: 2026-07-29T13:35:00Z\",null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null],[\"dataset\",\"exported_file\",\"row_count\",\"coverage\",\"snapshot_utc\",\"source_name\",\"source_url\",\"update_strategy\",\"notes\",\"license_or_terms\"],[\"Fall 2026 classes and locations\",\"brown_fall_2026_classes_and_locations.csv\",5275,\"All authenticated Fall 2026 CAB sections visible to the logged-in user\",\"2026-07-29T01:42:00.000Z\",\"Courses @ Brown (CAB)\",\"https://cab.brown.edu/\",\"Re-scrape after CAB schedule or room changes\",\"Contains physical locations, remote/online markers, arranged meetings and publication status.\",\"Brown University site terms apply\"],[\"Student groups\",\"brown_all_student_groups.csv\",457,\"424 undergraduate + 33 graduate organizations\",\"2026-07-29T13:35:00.000Z\",\"Student Activities + Graduate Student Council\",\"https://studentactivities.brown.edu/student-groups/undergraduate-student-groups\",\"Refresh each semester\",\"Public descriptions, contact emails, advisors, funding categories and social links where published.\",\"Brown University site terms apply\"],[\"Dining menu links\",\"brown_dining_menu_links.csv\",10,\"Seven Brown Dining locations, cross-location search and Faculty Club menus\",\"2026-07-29T13:35:00.000Z\",\"Brown Dining + Faculty Club\",\"https://menus.dining.brown.edu/\",\"Links are stable; menu contents remain live on Brown sites\",\"The Dining SPA uses one shared URL; open it and select the named location.\",\"Brown University site terms apply\"],[\"Brown University news archive\",\"brown_news_archive.csv\",3301,\"3301 official articles from 2016-01-04 through 2026-07-28\",\"2026-07-29T13:35:00.000Z\",\"Brown University News\",\"https://www.brown.edu/news/all\",\"Daily metadata refresh\",\"Metadata only: titles, dates, categories, links and image metadata; no article-body copying.\",\"Brown University site terms apply\"],[\"Brown Daily Herald current feed\",\"brown_daily_herald_news.csv\",35,\"Current 35-item top-stories RSS feed\",\"2026-07-29T13:35:00.000Z\",\"The Brown Daily Herald\",\"https://www.browndailyherald.com/feed\",\"Poll periodically; retain only metadata and short excerpts\",\"Feed last built Wed, 29 Jul 2026 09:30:37 -0400.\",\"Publisher copyright applies\"],[\"Upcoming public events\",\"brown_upcoming_events.csv\",1000,\"1,000 event instances from 2026-07-29 through 2026-11-03\",\"2026-07-29T13:35:00.000Z\",\"Brown Events / LiveWhale JSON\",\"https://events.brown.edu/live/json/events\",\"Poll no more frequently than every 10 minutes\",\"Feed maximum observed was 1,000; fields include public contacts, categories, URLs and coordinates.\",\"Brown University site terms apply\"],[\"Athletics calendar\",\"brown_athletics_calendar.csv\",170,\"Currently published varsity events in the SIDEARM ICS feed\",\"2026-07-29T13:35:00.000Z\",\"Brown Bears Athletics\",\"https://brownbears.com/calendar.ashx/calendar.ics\",\"Poll at the feed's two-hour publication interval\",\"Includes home/away inference, opponent, venue, streaming URL and event URL.\",\"Brown Athletics site terms apply\"],[\"2026-2027 academic calendar\",\"brown_academic_calendar_2026_2027.csv\",110,\"Summer 2026, Fall 2026, Winter 2027 and Spring 2027\",\"2026-07-29T13:35:00.000Z\",\"Brown Registrar\",\"https://registrar.brown.edu/academic-calendar/2026-2027-academic-calendar\",\"Refresh after Registrar calendar changes\",\"Includes multi-day date ranges and event links.\",\"Brown University site terms apply\"],[\"Campus A-Z resources\",\"brown_a_to_z_resources.csv\",300,\"All 300 entries in Brown's public A-Z directory\",\"2026-07-29T13:35:00.000Z\",\"Brown A-Z\",\"https://www.brown.edu/a-z\",\"Monthly refresh\",\"Includes public phone, decoded public email, address, map and directory links where present.\",\"Brown University site terms apply\"],[\"Brown Library weekly hours\",\"brown_library_hours.csv\",91,\"13 service/location rows across 2026-07-26 through 2026-08-01\",\"2026-07-29T13:35:00.000Z\",\"Brown University Library\",\"https://lib.brown.edu/using-library/visiting-library/locations-hours\",\"Refresh weekly or daily; hours are subject to change\",\"Snapshot of the currently displayed seven-day hours table.\",\"Brown University site terms apply\"],[\"College Hill building centroids\",\"brown_college_hill_buildings.csv\",2150,\"All OSM building ways in the Brown/College Hill bounding box\",\"2026-07-29T13:33:11.000Z\",\"OpenStreetMap via Overpass API\",\"https://overpass-api.de/\",\"Periodic OSM refresh; retain attribution\",\"325 named buildings; 111 Brown-relevance hints. Not every footprint is Brown-owned.\",\"OpenStreetMap contributors, ODbL\"],[\"Event locations (derived)\",\"brown_event_locations.csv\",153,\"Unique nonblank locations from the 1,000-event LiveWhale snapshot\",\"2026-07-29T13:35:00.000Z\",\"Derived from Brown Events / LiveWhale JSON\",\"https://events.brown.edu/live/json/events\",\"Rebuild with each event refresh\",\"Aggregates event count, observed coordinates, date range and organizers.\",\"Brown University site terms apply\"],[\"Brown campus map (live source)\",\"\",0,\"Interactive ArcGIS campus map; source catalog entry only\",\"2026-07-29T13:35:00.000Z\",\"Brown University Campus Map\",\"https://experience.arcgis.com/experience/dc278deab79e4fcaa875a81a1732e13e\",\"Evaluate ArcGIS service endpoints for a future gazetteer refresh\",\"Linked for future ingestion; not duplicated in this snapshot.\",\"Brown University / Esri terms apply\"],[\"Campus shuttle (live source)\",\"\",0,\"Live vehicle and route source; source catalog entry only\",\"2026-07-29T13:35:00.000Z\",\"Brown Shuttle / Passio GO\",\"https://brownuniversity.passiogo.com/\",\"Use as a live feed rather than a static snapshot\",\"High-churn positions were intentionally not frozen into the CSV pack.\",\"Passio GO and Brown Transportation terms apply\"],[\"Emergency information (live source)\",\"\",0,\"Current emergency-information page; source catalog entry only\",\"2026-07-29T13:35:00.000Z\",\"Brown Emergency Information\",\"https://www.brown.edu/emergency\",\"Link live; do not cache for safety-critical display\",\"Always show the live official page rather than a stale snapshot.\",\"Brown University site terms apply\"]]}\n{\"kind\":\"sheet\",\"id\":\"ws/yhvnj5\",\"name\":\"Fall 2026 Classes\",\"index\":1,\"range\":\"A1:R5279\",\"address\":\"A1:R5279\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"Fall 2026 Classes\",\"address\":\"A1:R5279\",\"rows\":5279,\"cols\":18,\"values\":[[\"Brown Fall 2026 Classes and Locations\",null,null,null,null,null,null,null],[\"Authenticated CAB export with published physical rooms, r...\",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],\"valuesTruncated\":true,\"valuesPreviewRows\":3,\"valuesPreviewCols\":8,\"valuesPreviewAddress\":\"A1:H3\"}\n{\"kind\":\"sheet\",\"id\":\"ws/ciazsj\",\"name\":\"Student Groups\",\"index\":2,\"range\":\"A1:Q461\",\"address\":\"A1:Q461\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"Student Groups\",\"address\":\"A1:Q461\",\"rows\":461,\"cols\":17,\"values\":[[\"Brown Student Groups\",null,null,null,null,null,null,null],[\"457 public organizations: 424 undergraduate and 33 gradua...\",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],\"valuesTruncated\":true,\"valuesPreviewRows\":3,\"valuesPreviewCols\":8,\"valuesPreviewAddress\":\"A1:H3\"}\n{\"kind\":\"sheet\",\"id\":\"ws/jpuo6i\",\"name\":\"Dining Menus\",\"index\":3,\"range\":\"A1:E14\",\"address\":\"A1:E14\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"Dining Menus\",\"address\":\"A1:E14\",\"rows\":14,\"cols\":5,\"values\":[[\"Brown Dining Menu Links\",null,null,null,null],[\"Links only, as requested. The Brown Dining SPA uses a shared URL for its seven locations. Snapshot: 2026-07-29T13:35:00Z\",null,null,null,null],[null,null,null,null,null],[\"dining_location\",\"menu_name\",\"menu_url\",\"menu_instructions\",\"source_url\"],[\"Andrews Commons\",\"Daily menus\",\"https://menus.dining.brown.edu/\",\"Open the menu site and select Andrews Commons\",\"https://menus.dining.brown.edu/\"],[\"Blue Room\",\"Daily menus\",\"https://menus.dining.brown.edu/\",\"Open the menu site and select Blue Room\",\"https://menus.dining.brown.edu/\"],[\"Ivy Room\",\"Daily menus\",\"https://menus.dining.brown.edu/\",\"Open the menu site and select Ivy Room\",\"https://menus.dining.brown.edu/\"],[\"Josiah's\",\"Daily menus\",\"https://menus.dining.brown.edu/\",\"Open the menu site and select Josiah's\",\"https://menus.dining.brown.edu/\"],[\"School of Engineering\",\"Daily menus\",\"https://menus.dining.brown.edu/\",\"Open the menu site and select School of Engineering\",\"https://menus.dining.brown.edu/\"],[\"Sharpe Refectory\",\"Daily menus\",\"https://menus.dining.brown.edu/\",\"Open the menu site and select Sharpe Refectory\",\"https://menus.dining.brown.edu/\"],[\"Verney-Woolley\",\"Daily menus\",\"https://menus.dining.brown.edu/\",\"Open the menu site and select Verney-Woolley\",\"https://menus.dining.brown.edu/\"],[\"All dining locations\",\"Find Menu Items\",\"https://menus.dining.brown.edu/search\",\"Search menu items across Brown Dining.\",\"https://menus.dining.brown.edu/\"],[\"Brown Faculty Club\",\"Luncheon à La Carte\",\"https://facultyclub.brown.edu/menus/luncheon-la-carte\",\"\",\"https://facultyclub.brown.edu/menus\"],[\"Brown Faculty Club\",\"Private Event Menus\",\"https://facultyclub.brown.edu/menus/private-event-menus\",\"\",\"https://facultyclub.brown.edu/menus\"]]}\n{\"kind\":\"sheet\",\"id\":\"ws/073mo0\",\"name\":\"Brown News\",\"index\":4,\"range\":\"A1:J3305\",\"address\":\"A1:J3305\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"Brown News\",\"address\":\"A1:J3305\",\"rows\":3305,\"cols\":10,\"values\":[[\"Brown University News Archive\",null,null,null,null,null,null,null],[\"3,301 official news metadata records from January 2016 th...\",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],\"valuesTruncated\":true,\"valuesPreviewRows\":3,\"valuesPreviewCols\":8,\"valuesPreviewAddress\":\"A1:H3\"}\n{\"kind\":\"sheet\",\"id\":\"ws/w3eevz\",\"name\":\"BDH Headlines\",\"index\":5,\"range\":\"A1:H39\",\"address\":\"A1:H39\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"BDH Headlines\",\"address\":\"A1:H39\",\"rows\":39,\"cols\":8,\"values\":[[\"Brown Daily Herald Current Feed\",null,null,null,null,null,null,null],[\"Current RSS metadata with excerpts capped at 500 characte...\",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],\"valuesTruncated\":true,\"valuesPreviewRows\":3,\"valuesPreviewCols\":8,\"valuesPreviewAddress\":\"A1:H3\"}\n{\"kind\":\"sheet\",\"id\":\"ws/frkqc0\",\"name\":\"LiveWhale Events\",\"index\":6,\"range\":\"A1:AH1004\",\"address\":\"A1:AH1004\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"LiveWhale Events\",\"address\":\"A1:AH1004\",\"rows\":1004,\"cols\":34,\"values\":[[\"Brown Upcoming Public Events\",null,null,null,null,null,null,null],[\"1,000 upcoming event instances. The public feed cap was r...\",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],\"valuesTruncated\":true,\"valuesPreviewRows\":3,\"valuesPreviewCols\":8,\"valuesPreviewAddress\":\"A1:H3\"}\n{\"kind\":\"sheet\",\"id\":\"ws/444bxp\",\"name\":\"Athletics\",\"index\":7,\"range\":\"A1:M174\",\"address\":\"A1:M174\",\"tables\":1}\n{\"kind\":\"table\",\"sheet\":\"Athletics\",\"address\":\"A1:M174\",\"rows\":174,\"cols\":13,\"values\":[[\"Brown Athletics Calendar\",null,null,null,null,null,null,null],[\"Current Brown Bears SIDEARM calendar feed with home/away ...\",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],\"valuesTruncated\":true,\"valuesPreviewRows\":3,\"valuesPreviewCols\":8,\"valuesPreviewAddress\":\"A1:H3\"}\n{\"kind\":\"sheet\",\"id\":\"ws/y0tzb1\",\"name\":\"Academic Calendar\",\"index\":8,\"range\":\"A1:G114\",\"address\":\"A1:G114\",\"tables\":1}\n{\"kind\":\"notice\",\"message\":\"Truncated: omitted 9 lines. Increase maxChars, narrow range, or use tableMaxRows/tableMaxCols/tableMaxCellChars.\"}"
+}

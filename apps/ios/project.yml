@@ -1,0 +1,102 @@
+name: BrownSync
+
+options:
+  bundleIdPrefix: com.noahfinkelstein
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "26.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+
+packages:
+  BrownSyncAPI:
+    path: packages/BrownSyncAPI
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    exactVersion: 6.28.0
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    exactVersion: 2.54.0
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: 9.0.0
+
+targets:
+  BrownSync:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources/BrownSync
+        excludes:
+          - Info.plist
+      - path: Generated
+      - path: Resources
+        excludes:
+          - glyphs
+        buildPhase: resources
+      - path: Resources/glyphs
+        type: folder
+        buildPhase: resources
+    info:
+      path: Sources/BrownSync/Info.plist
+      properties:
+        NSLocationWhenInUseUsageDescription: Your coordinates are processed only on this device; only the campus place you choose is shared.
+        UILaunchScreen: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.noahfinkelstein.BrownSync
+        PRODUCT_NAME: BrownSync
+        GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - package: BrownSyncAPI
+        product: BrownSyncAPI
+      - package: MapLibre
+        product: MapLibre
+      - package: Supabase
+        product: Supabase
+      - package: GoogleSignIn
+        product: GoogleSignIn
+
+  BrownSyncTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - Tests/BrownSyncTests
+    dependencies:
+      - target: BrownSync
+      - package: BrownSyncAPI
+        product: BrownSyncAPI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.noahfinkelstein.BrownSyncTests
+        GENERATE_INFOPLIST_FILE: YES
+
+  BrownSyncUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - Tests/BrownSyncUITests
+    dependencies:
+      - target: BrownSync
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.noahfinkelstein.BrownSyncUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: BrownSync
+
+schemes:
+  BrownSync:
+    build:
+      targets:
+        BrownSync: all
+        BrownSyncTests: [test]
+        BrownSyncUITests: [test]
+    test:
+      targets:
+        - BrownSyncTests
+        - BrownSyncUITests

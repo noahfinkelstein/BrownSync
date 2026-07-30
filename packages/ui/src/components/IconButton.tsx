@@ -18,7 +18,9 @@ export function IconButton({
     <button
       type={type}
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-4 text-text-secondary transition-colors duration-150 ease-out hover:bg-bg-overlay hover:text-text-primary disabled:opacity-40",
+        /* Same rest → hover → active ladder as Button/ghost: two solid steps
+           down the surface stack, because alpha steps lighten on paper. */
+        "inline-flex shrink-0 items-center justify-center rounded-4 text-text-secondary transition-colors duration-150 ease-out hover:bg-bg-overlay hover:text-text-primary active:bg-line disabled:opacity-40",
         density === "comfortable" ? "h-8 w-8" : "h-7 w-7",
         FOCUS_RING,
         className,

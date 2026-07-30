@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-fixtures",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@brownsync/web",
+        "dev",
+        "--port",
+        "5199",
+        "--strictPort",
+        "--mode",
+        "fixtures"
+      ],
+      "port": 5199
+    }
+  ]
+}

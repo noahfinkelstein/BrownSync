@@ -1,0 +1,63 @@
+(() => {
+  const groups = [{"group":"code:VISA 0130","srcdb":"202610","sections":[{"crn":"15450"}]},{"group":"code:VISA 0140","srcdb":"202610","sections":[{"crn":"15451"}]},{"group":"code:VISA 0150","srcdb":"202610","sections":[{"crn":"15452"},{"crn":"15455"}]},{"group":"code:VISA 0160","srcdb":"202610","sections":[{"crn":"15531"},{"crn":"15532"}]},{"group":"code:VISA 0170","srcdb":"202610","sections":[{"crn":"15449"}]},{"group":"code:VISA 1110","srcdb":"202610","sections":[{"crn":"15441"}]},{"group":"code:VISA 1210E","srcdb":"202610","sections":[{"crn":"15621"}]},{"group":"code:VISA 1210M","srcdb":"202610","sections":[{"crn":"16307"}]},{"group":"code:VISA 1240","srcdb":"202610","sections":[{"crn":"15446"}]},{"group":"code:VISA 1310","srcdb":"202610","sections":[{"crn":"15439"}]},{"group":"code:VISA 1320","srcdb":"202610","sections":[{"crn":"15440"}]},{"group":"code:VISA 1410","srcdb":"202610","sections":[{"crn":"15442"}]},{"group":"code:VISA 1510","srcdb":"202610","sections":[{"crn":"15438"}]},{"group":"code:VISA 1520","srcdb":"202610","sections":[{"crn":"15444"}]},{"group":"code:VISA 1600","srcdb":"202610","sections":[{"crn":"15443"}]},{"group":"code:VISA 1740","srcdb":"202610","sections":[{"crn":"15538"}]},{"group":"code:VISA 1800C","srcdb":"202610","sections":[{"crn":"15437"}]},{"group":"code:VISA 1800G","srcdb":"202610","sections":[{"crn":"15925"}]},{"group":"code:VISA 1900","srcdb":"202610","sections":[{"crn":"15447"}]},{"group":"code:VISA 1910","srcdb":"202610","sections":[{"crn":"13252"},{"crn":"13253"},{"crn":"13254"},{"crn":"13255"},{"crn":"13256"},{"crn":"13257"},{"crn":"13258"},{"crn":"13259"},{"crn":"13260"},{"crn":"13261"},{"crn":"13262"},{"crn":"13263"},{"crn":"13264"},{"crn":"13265"},{"crn":"13266"},{"crn":"13267"},{"crn":"13268"},{"crn":"13269"},{"crn":"16257"}]}];
+  const extractGroup = (group) => {
+    const groupRows = [];
+    return group.sections
+      .reduce(
+        (previous, section) =>
+          previous.then(() => {
+            const key = "crn:" + section.crn;
+            return fose.detailsAPI
+              .fetchFor(group.group, key, key, group.srcdb)
+              .then((detail) => {
+                const meetingContainer = document.createElement("div");
+                meetingContainer.innerHTML = detail.meeting_html || "";
+                groupRows.push({
+                  crn: String(detail.crn || section.crn),
+                  course_code:
+                    detail.code || group.group.replace(/^code:/, ""),
+                  meeting_html: detail.meeting_html || "",
+                  schedule_and_location: (meetingContainer.textContent || "")
+                    .replace(/\s+/g, " ")
+                    .trim(),
+                });
+              })
+              .catch((error) => {
+                groupRows.push({
+                  crn: String(section.crn),
+                  course_code: group.group.replace(/^code:/, ""),
+                  meeting_html: "",
+                  schedule_and_location: "",
+                  error: String(error),
+                });
+              });
+          }),
+        Promise.resolve(),
+      )
+      .then(() => groupRows);
+  };
+
+  const starts = Array.from(
+    { length: Math.ceil(groups.length / 4) },
+    (_, index) => index * 4,
+  );
+  const rows = [];
+
+  return starts
+    .reduce(
+      (previous, start) =>
+        previous
+          .then(() =>
+            Promise.all(groups.slice(start, start + 4).map(extractGroup)),
+          )
+          .then((groupRows) => rows.push(...groupRows.flat())),
+      Promise.resolve(),
+    )
+    .then(() => JSON.stringify(rows))
+    .catch((error) =>
+      JSON.stringify({
+        top_error: String(error),
+        stack: error && error.stack ? String(error.stack) : "",
+      }),
+    );
+})()

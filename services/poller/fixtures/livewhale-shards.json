@@ -1,0 +1,15 @@
+{
+  "note": "Replay plan for the SHARDED LiveWhale path (src/livewhale/shard.ts). Responses are keyed by REQUEST ORDER, not by date: the window planner is anchored on `now`, so a date-keyed fixture would stop matching tomorrow. This plan pins the BEHAVIOUR and stays deterministic forever. Sequence: (1) the real recorded at-cap response, which must trigger a halve-and-refetch; (2) and (3) its two halves, both under the cap and sharing 10 source_ids so the cross-window dedupe is exercised; (4+) every remaining window comes back empty, which is what makes the sweep window the union of what was REQUESTED rather than of what came back. Nothing bottoms out at the 1-day floor, so the run must record `ok` — the first time LiveWhale can.",
+  "responses": [
+    "livewhale-events.json",
+    "livewhale-shard-a.json",
+    "livewhale-shard-b.json"
+  ],
+  "default": "livewhale-shard-empty.json",
+  "sha256": {
+    "livewhale-events.json": "ece44446d4cffb6ff2e6ed18bdfae398eb0d192d33ee29cf64638cc0b3431517",
+    "livewhale-shard-a.json": "4ea04a872ec5ab9abdfa7ea8a8c6bc299e9ff435317b19898b9defd74d61afe9",
+    "livewhale-shard-b.json": "f319de864aacd84734dddbe1caea14e60f882931847fbdb28a66a17a4c5643c3",
+    "livewhale-shard-empty.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  }
+}

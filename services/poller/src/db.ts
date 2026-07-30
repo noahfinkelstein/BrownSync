@@ -33,10 +33,42 @@ function chunks<T>(rows: readonly T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Upsert one batch of contract rows, resolving `location_raw` to a place
+ * along the way (migration 0007).
+ *
+ * TWO THINGS ARE LOAD-BEARING HERE, both fixing the same live bug —
+ * /api/events returning 500 rows with zero placeId:
+ *
+ *  1. `resolve_place()` is applied to the DISTINCT `location_raw` values of
+ *     the batch, in a CTE — not per row. A sweep of 1000 events carries on
+ *     the order of 200 distinct location strings, and the fuzzy stage is the
+ *     expensive one, so resolving distinct values is a 5x reduction for free.
+ *     The poller stays gazetteer-free: resolution is the database's job, and
+ *     there is exactly one implementation of it.
+ *
+ *  2. The conflict clause never overwrites a resolved place with null.
+ *     Precedence is: an explicit place_id from the feed or a sidecar, else
+ *     this run's SQL resolution, else THE VALUE ALREADY IN THE ROW. The seed
+ *     bundle's 229 resolved places used to be wiped on the first live refresh
+ *     because the clause was a bare `place_id = excluded.place_id` and the
+ *     LiveWhale normalizer emits null.
+ *
+ *     The spec for this reads `coalesce(excluded.place_id, resolved.place_id,
+ *     events.place_id)`, but `resolved` is not in scope inside ON CONFLICT —
+ *     only `excluded` and the target table are. Folding the resolution into
+ *     the proposed row (below) and writing `coalesce(excluded.place_id,
+ *     events.place_id)` is exactly equivalent, and is the only way it can be
+ *     expressed.
+ *
+ * The batch travels as a single jsonb parameter unpacked by
+ * `jsonb_to_recordset` rather than as a multi-row VALUES list, because the
+ * CTE needs named, typed input columns to join the resolutions onto.
+ */
 export async function upsertEvents(sql: Sql, rows: readonly SeedEvent[]): Promise<number> {
   let upserted = 0;
   for (const chunk of chunks(rows, UPSERT_CHUNK)) {
-    const values = chunk.map((r) => ({
+    const payload = chunk.map((r) => ({
       source: r.source,
       source_id: r.source_id,
       title: r.title,
@@ -56,10 +88,55 @@ export async function upsertEvents(sql: Sql, rows: readonly SeedEvent[]): Promis
       cost: r.cost ?? null,
       confidence: r.confidence,
       is_canceled: r.is_canceled,
-      raw: r.raw == null ? null : sql.json(r.raw as never),
+      raw: r.raw ?? null,
     }));
     const result = await sql`
-      insert into events ${sql(values)}
+      with input as (
+        select * from jsonb_to_recordset(${sql.json(payload as never)}::jsonb) as x(
+          source       text,
+          source_id    text,
+          title        text,
+          description  text,
+          start_ts     timestamptz,
+          end_ts       timestamptz,
+          is_all_day   boolean,
+          rrule        text,
+          location_raw text,
+          place_id     text,
+          lat          float8,
+          lng          float8,
+          org_id       text,
+          category     text,
+          tags         text[],
+          url          text,
+          cost         text,
+          confidence   real,
+          is_canceled  boolean,
+          raw          jsonb
+        )
+      ),
+      resolved as (
+        select d.location_raw, rp.place_id
+        from (
+          select distinct i.location_raw
+          from input i
+          where i.location_raw is not null and i.place_id is null
+        ) d
+        cross join lateral resolve_place(d.location_raw) rp
+      )
+      insert into events (
+        source, source_id, title, description, start_ts, end_ts, is_all_day,
+        rrule, location_raw, place_id, lat, lng, org_id, category, tags,
+        url, cost, confidence, is_canceled, raw
+      )
+      select
+        i.source, i.source_id, i.title, i.description, i.start_ts, i.end_ts,
+        i.is_all_day, i.rrule, i.location_raw,
+        coalesce(i.place_id, r.place_id),
+        i.lat, i.lng, i.org_id, i.category, coalesce(i.tags, '{}'::text[]),
+        i.url, i.cost, i.confidence, i.is_canceled, i.raw
+      from input i
+      left join resolved r on r.location_raw = i.location_raw
       on conflict (source, source_id) do update set
         title        = excluded.title,
         description  = excluded.description,
@@ -68,7 +145,7 @@ export async function upsertEvents(sql: Sql, rows: readonly SeedEvent[]): Promis
         is_all_day   = excluded.is_all_day,
         rrule        = excluded.rrule,
         location_raw = excluded.location_raw,
-        place_id     = excluded.place_id,
+        place_id     = coalesce(excluded.place_id, events.place_id),
         lat          = excluded.lat,
         lng          = excluded.lng,
         org_id       = excluded.org_id,

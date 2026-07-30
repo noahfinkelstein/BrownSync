@@ -2,23 +2,43 @@
   "artifacts": {
     "athletics_venues.json": {
       "bytes": 1226,
-      "sha256": "630fe02cd313e769726127924c126d904f07c2b5d3fec12760d4d3ec32e7ad1a"
+      "sha256": "130adf01a64fd3fea9dc35f62bd15377f70b668286599aa4302fdffed3255981"
     },
     "brown_owned_buildings.json": {
       "bytes": 6027,
-      "sha256": "477e4086cbc5a1859df5d53a2d712a9f058dccd84cf0d256e006b7639e2ebd31"
+      "sha256": "0a801a681c5623319f6d89ce9a06178a37448610e93bb736406e2369c840edfa"
+    },
+    "campus_amenities.geojson": {
+      "bytes": 232026,
+      "sha256": "930311109237f1c930036d3da9634b18a3b0f4b874e7b17833bbac69259e81fd"
+    },
+    "campus_buildings.geojson": {
+      "bytes": 326949,
+      "sha256": "d1299681040d783b3b0d66403e55d7a7be20d1aef9830913f72511880d3e3a00"
+    },
+    "campus_landmarks.geojson": {
+      "bytes": 464802,
+      "sha256": "2abacd5e41a251fcca82548b6c528c6ba4a89d9b91a52f9bd294aa97d9df86e7"
     },
     "course_meetings.ndjson": {
       "bytes": 1614349,
       "sha256": "23b7ddce129dfc7e3d2b105d5f96dc5a98d2d9c284803a96d5d0dc438705f149"
     },
+    "dining_menus.json": {
+      "bytes": 89383,
+      "sha256": "225935cfe6a8fba0d89ec8a0d36d3bc5a4b2248b2ab0ed5c09676b48a856871c"
+    },
     "events.ndjson": {
       "bytes": 1798589,
       "sha256": "04102b4b320f2f398be97f38d4814f66117719083a6fefa56ab6417bf2c968a1"
     },
+    "library_hours.json": {
+      "bytes": 48449,
+      "sha256": "96c6217b02247ec1f39f4f9256b10d754cdbdd2ac1070d908ac81c7c1f36d2c6"
+    },
     "organization_livewhale_groups.json": {
       "bytes": 93,
-      "sha256": "fdc1fc06e0187494a053db78acc0d68ce5ef82469d27a97d517f491e93015dd5"
+      "sha256": "d695a874385518d2018dc7e5d6c619aec2e8a48473ea8e0c913dd81c55af2c2f"
     },
     "organizations.ndjson": {
       "bytes": 309596,
@@ -27,9 +47,13 @@
     "places.ndjson": {
       "bytes": 143489,
       "sha256": "4b522c81b7a0e946a47c60fedd4fa2a74087a859fc36b5334b6223f500670dad"
+    },
+    "publications.json": {
+      "bytes": 13903,
+      "sha256": "71f691f9425f8191e9f30299a37ba53aa29ee648e491240b2a6d838fe41ba41d"
     }
   },
-  "generated_at": "2026-07-29T14:59:22.971433Z",
-  "generation": "9e8e8a479a97401ab4077c449d7a1871",
+  "generated_at": "2026-07-30T01:39:49.193941Z",
+  "generation": "16830f58c0d242c0a296a0bda68637b1",
   "schema_version": 1
 }

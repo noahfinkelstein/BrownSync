@@ -10,6 +10,20 @@ import { blockExternal, mockApi, mockBasemapGlyphs } from "./support/mock-api";
  * click-through. Pointer input is used ONLY to seed focus at a known spot.
  */
 
+/**
+ * Select the right pane's Events tab.
+ *
+ * The pane defaults to the unified **Feed** — the "everything happening at
+ * Brown" list is what the site is for, so it leads. The event list and the
+ * category chips are one click behind it, which is why every spec that drives
+ * them starts here rather than at `/`.
+ */
+async function openEventsTab(page: Page): Promise<void> {
+  const tab = page.locator("aside").getByRole("radio", { name: "Events" });
+  await expect(tab).toBeVisible();
+  await tab.click();
+}
+
 test.describe("keyboard-only journey", () => {
   test.skip(!INTEGRATED, "Needs the integrated app (see e2e/flags.ts).");
 
@@ -30,7 +44,16 @@ test.describe("keyboard-only journey", () => {
     const trigger = page.locator("header").getByRole("button", { name: /search/i });
     await expect(trigger).toBeVisible();
 
-    // Keyboard from the top of the page: first tab stop is the search trigger.
+    // Tab order from the top of the page. This used to read "first tab stop
+    // is the search trigger", which was true only while the wordmark was a
+    // <span> and the header had no navigation. It now leads with the
+    // wordmark and the two directory links — correct order for a header, and
+    // pinned here explicitly so a future reshuffle is a deliberate edit
+    // rather than a silently different keyboard experience.
+    for (const name of ["BrownSync", "Events", "Clubs"]) {
+      await page.keyboard.press("Tab");
+      await expect(page.locator("header").getByRole("link", { name })).toBeFocused();
+    }
     await page.keyboard.press("Tab");
     await expect(trigger).toBeFocused();
 
@@ -56,6 +79,7 @@ test.describe("keyboard-only journey", () => {
 
   test("category chips: one tab stop, arrow-key roving, keyboard toggle", async ({ page }) => {
     await page.goto("/");
+    await openEventsTab(page);
     const chips = page.getByRole("group", { name: "Filter by category" });
     await expect(chips).toBeVisible();
 
@@ -88,6 +112,7 @@ test.describe("keyboard-only journey", () => {
 
   test("event list: ↑/↓ roving, Enter opens the panel, Escape returns focus", async ({ page }) => {
     await page.goto("/");
+    await openEventsTab(page);
     const rows = page.getByTestId("event-list-item");
     await expect(rows.first()).toBeVisible();
     const rowCount = await rows.count();
@@ -119,6 +144,13 @@ test.describe("keyboard-only journey", () => {
 
     // Enter opens the detail panel and moves focus into it…
     await page.keyboard.press("ArrowDown");
+    // Identify the invoking row by its TEXT, not its index. The list mounts
+    // when the Events tab is selected rather than at page load, so a late
+    // arrival from useBrowseEvents can still shift indices here — and this
+    // test is about focus returning to the row you opened, not about that row
+    // happening to be second.
+    const invokerText = await page.evaluate(() => document.activeElement?.textContent ?? "");
+    expect(invokerText).not.toBe("");
     await page.keyboard.press("Enter");
     const panel = page.getByTestId("detail-panel");
     await expect(panel).toBeVisible();
@@ -127,7 +159,14 @@ test.describe("keyboard-only journey", () => {
     // …and Escape closes it, returning focus to the invoking row.
     await page.keyboard.press("Escape");
     await expect(panel).toBeHidden();
-    await expect(second).toBeFocused();
+    await expect
+      .poll(() =>
+        page.evaluate(() => ({
+          text: document.activeElement?.textContent ?? "",
+          isRow: !!document.activeElement?.closest('[data-testid="event-list-item"]'),
+        })),
+      )
+      .toEqual({ text: invokerText, isRow: true });
   });
 
   test("time scrubber: arrows step 15 min, Shift+arrow steps a day", async ({ page }) => {

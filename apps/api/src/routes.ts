@@ -20,14 +20,24 @@ import { createRoute, z } from "@hono/zod-openapi";
  * reviewable place.
  */
 
-export const ErrorEnvelopeSchema = z.object({
-  error: z.object({ code: z.string(), message: z.string() }),
-});
+export const ErrorEnvelopeSchema = z
+  .object({
+    error: z.object({ code: z.string(), message: z.string() }),
+  })
+  .meta({ id: "ErrorEnvelope" });
 
-export const EventsResponseSchema = z.object({ events: z.array(EventOutSchema) });
-export const PlacesResponseSchema = z.object({ places: z.array(PlaceOutSchema) });
-export const OrgsResponseSchema = z.object({ orgs: z.array(OrgOutSchema) });
-export const MeetingsResponseSchema = z.object({ meetings: z.array(MeetingOutSchema) });
+export const EventsResponseSchema = z
+  .object({ events: z.array(EventOutSchema) })
+  .meta({ id: "EventsResponse" });
+export const PlacesResponseSchema = z
+  .object({ places: z.array(PlaceOutSchema) })
+  .meta({ id: "PlacesResponse" });
+export const OrgsResponseSchema = z
+  .object({ orgs: z.array(OrgOutSchema) })
+  .meta({ id: "OrgsResponse" });
+export const MeetingsResponseSchema = z
+  .object({ meetings: z.array(MeetingOutSchema) })
+  .meta({ id: "MeetingsResponse" });
 
 const json = <S>(schema: S, description: string) => ({
   content: { "application/json": { schema } },
@@ -105,7 +115,10 @@ export const orgByIdRoute = createRoute({
   method: "get",
   path: "/api/orgs/{id}",
   summary: "One organization with upcoming and past events",
-  request: { params: z.object({ id: z.string().min(1) }) },
+  request: {
+    params: z.object({ id: z.string().min(1) }),
+    query: AtQuerySchema,
+  },
   responses: {
     200: json(OrgDetailOutSchema, "Org detail"),
     400: badRequest,

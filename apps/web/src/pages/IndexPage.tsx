@@ -1,3 +1,4 @@
+import { SegmentedControl } from "@brownsync/ui";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useState } from "react";
@@ -5,6 +6,8 @@ import { CategoryChips } from "../browse/CategoryChips";
 import { ListView } from "../browse/ListView";
 import { createViewportSource } from "../browse/viewport";
 import { useCursorDate } from "../data/cursor";
+import { DiningPanel } from "../dining";
+import { FeedPanel } from "../feed";
 import { flyToTarget } from "../map/camera";
 import { LiveMap } from "../map/LiveMap";
 import { parseLl } from "./PlaceMiniMap";
@@ -16,8 +19,19 @@ import { parseLl } from "./PlaceMiniMap";
  * detail panel + flyTo; ⌘K event hits arrive as `/?event=<id>` (H's palette
  * default) and are consumed here. The list re-groups off lane G's cursor.
  */
+type PaneTab = "feed" | "events" | "dining";
+
+/** Feed leads and is the default: the unified "what is happening at Brown"
+ *  list is what this site is FOR. Events and Dining are the drill-downs. */
+const PANE_TABS = [
+  { value: "feed", label: "Feed" },
+  { value: "events", label: "Events" },
+  { value: "dining", label: "Dining" },
+] as const;
+
 export function IndexPage() {
   const [viewport] = useState(() => createViewportSource());
+  const [tab, setTab] = useState<PaneTab>("feed");
   const [map, setMap] = useState<MaplibreMap | null>(null);
   const { cursor } = useCursorDate();
   const navigate = useNavigate();
@@ -101,18 +115,42 @@ export function IndexPage() {
       onExternalEventClear={clearEventParam}
       renderList={(openEvent) => (
         <div className="flex h-full min-h-0 flex-col bg-bg-raised">
-          {/* SLOT:chips (relocated from the header — see panels/Header.tsx): the
-              taxonomy filter rides atop the list it filters; ?cats= also drives
-              the map layers via useCategoryFilter in LiveMap. */}
           <div className="shrink-0 border-b border-line px-3 py-2">
-            <CategoryChips />
+            <SegmentedControl
+              options={PANE_TABS}
+              value={tab}
+              onValueChange={setTab}
+              aria-label="Right pane"
+            />
           </div>
-          <ListView
-            className="min-h-0 grow"
-            viewport={viewport}
-            now={() => cursor}
-            onSelectEvent={openEvent}
-          />
+          {tab === "events" ? (
+            <>
+              {/* SLOT:chips (relocated from the header — see panels/Header.tsx):
+                  the taxonomy filter rides atop the list it filters; ?cats=
+                  also drives the map layers via useCategoryFilter in LiveMap. */}
+              <div className="shrink-0 border-b border-line px-3 py-2">
+                <CategoryChips />
+              </div>
+              <ListView
+                className="min-h-0 grow"
+                viewport={viewport}
+                now={() => cursor}
+                onSelectEvent={openEvent}
+              />
+            </>
+          ) : tab === "feed" ? (
+            // Events + student press + dining, one ranked list. Same cursor
+            // and same ?cats= as the map, so the two cannot disagree.
+            <div className="min-h-0 grow overflow-y-auto">
+              <FeedPanel onSelectEvent={openEvent} />
+            </div>
+          ) : (
+            // Dining reads the same cursor as the map, so scrubbing to 18:30
+            // shows what is open at 18:30 rather than what is open now.
+            <div className="min-h-0 grow overflow-y-auto">
+              <DiningPanel />
+            </div>
+          )}
         </div>
       )}
     />

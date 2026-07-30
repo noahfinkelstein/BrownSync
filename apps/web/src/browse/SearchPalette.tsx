@@ -30,7 +30,7 @@ export type SearchPaletteProps = {
 };
 
 const ITEM_CLS = cn(
-  "flex select-none items-center gap-2 rounded-4 px-2 py-1.5 text-13 text-text-primary",
+  "flex select-none items-center gap-2 rounded-4 px-2 py-1.5 text-14 text-text-primary",
   "data-[selected=true]:bg-bg-overlay",
 );
 
@@ -105,7 +105,7 @@ export function SearchPalette({ open, onOpenChange, onSelectEvent }: SearchPalet
           value={query}
           onValueChange={setQuery}
           placeholder="Search events, places, clubs, courses…"
-          className="h-9 w-full min-w-0 grow bg-transparent text-13 text-text-primary outline-none placeholder:text-text-secondary"
+          className="h-9 w-full min-w-0 grow bg-transparent text-14 text-text-primary outline-none placeholder:text-text-secondary"
         />
         <Kbd>esc</Kbd>
       </div>

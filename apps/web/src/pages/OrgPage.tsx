@@ -14,8 +14,11 @@ import {
 import type { ReactNode } from "react";
 import { formatClock, formatDayLabel, formatRelative } from "../browse/format";
 import { isLive } from "../browse/grouping";
+import { useCursorDate } from "../data/cursor";
 import { useOrg } from "../data/orgs";
+import { meetingsBucketFor } from "../data/queries";
 import { ApiError } from "../data/search";
+import { normalizeOrgUrl } from "../orgs/orgLinks";
 import { PageShell, SectionHeading } from "./PageShell";
 
 /**
@@ -32,8 +35,9 @@ export type OrgPageProps = {
 const PAST_LIMIT = 20;
 
 export function OrgPage({ id, onSelectEvent }: OrgPageProps) {
-  const org = useOrg(id);
-  const now = new Date();
+  const { cursor } = useCursorDate();
+  const org = useOrg(id, meetingsBucketFor(cursor));
+  const now = cursor;
 
   if (org.isPending) {
     return (
@@ -68,7 +72,10 @@ export function OrgPage({ id, onSelectEvent }: OrgPageProps) {
   const detail = org.data;
   const upcoming = [...detail.upcoming].sort((a, b) => a.start.localeCompare(b.start));
   const past = [...detail.past].sort((a, b) => b.start.localeCompare(a.start)).slice(0, PAST_LIMIT);
-  const instagramHandle = detail.instagram?.replace(/^@/, "") ?? null;
+  const websiteUrl = normalizeOrgUrl(detail.url);
+  const instagramUrl = normalizeOrgUrl(detail.instagram, { instagramHandle: true });
+  const instagramHandle =
+    instagramUrl === null ? null : new URL(instagramUrl).pathname.replace(/^\/+/, "");
 
   return (
     <PageShell>
@@ -86,20 +93,12 @@ export function OrgPage({ id, onSelectEvent }: OrgPageProps) {
           <Badge className="translate-y-[1px]">{detail.kind}</Badge>
         </div>
         {detail.description && (
-          <p className="max-w-[64ch] pt-2 text-13 text-text-secondary">{detail.description}</p>
+          <p className="max-w-[64ch] pt-2 text-14 text-text-secondary">{detail.description}</p>
         )}
         <div className="flex items-center gap-4 pt-2">
-          {detail.url && <ExternalLink href={detail.url}>website ↗</ExternalLink>}
-          {instagramHandle && (
-            <ExternalLink
-              href={
-                instagramHandle.startsWith("http")
-                  ? instagramHandle
-                  : `https://instagram.com/${instagramHandle}`
-              }
-            >
-              @{instagramHandle.replace(/^https?:\/\/(www\.)?instagram\.com\//, "")} ↗
-            </ExternalLink>
+          {websiteUrl && <ExternalLink href={websiteUrl}>website ↗</ExternalLink>}
+          {instagramUrl && (
+            <ExternalLink href={instagramUrl}>@{instagramHandle || "instagram"} ↗</ExternalLink>
           )}
         </div>
       </header>
