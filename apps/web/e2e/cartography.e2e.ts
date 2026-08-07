@@ -109,6 +109,23 @@ for (const hour of HOURS) {
         await settled;
       }, camera);
 
+      // POSITIVE CONTROL (round-2 review): the luminance/near-white bounds
+      // are upper bounds only, and a tile-less canvas — bare earth fill, no
+      // buildings — passes them vacuously. Rendered-feature count proves the
+      // basemap actually drew content before we measure its darkness.
+      const renderedFeatures = await page.evaluate(() => {
+        const map = (
+          window as unknown as { __brownsyncMap: { queryRenderedFeatures: () => unknown[] } }
+        ).__brownsyncMap;
+        return map.queryRenderedFeatures().length;
+      });
+      expect(
+        renderedFeatures,
+        `${camera.name} at ${hour.name}:00 — only ${renderedFeatures} rendered features; ` +
+          "the basemap did not draw content, so the darkness bounds below would " +
+          "pass vacuously",
+      ).toBeGreaterThan(50);
+
       const png = await page.locator(".maplibregl-canvas").screenshot();
       await testInfo.attach(`${hour.name}h-${camera.name}`, {
         body: png,

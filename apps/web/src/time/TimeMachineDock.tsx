@@ -37,13 +37,18 @@ export function TimeMachineDock({ store = timeCursor, className }: TimeMachineDo
           it exists precisely so nobody has to hit a 0.5 px/step target by
           hand, so the track it shortens is the track it makes less load-
           bearing. Anything that shrinks the rail FURTHER belongs elsewhere.
-          Below md the stepper and presets are gone entirely (UI audit: at
-          375 px the full row collapsed into an unusable pile) — mobile keeps
-          NOW + rail + readout, and exact steps stay a keyboard affordance. */}
-      <div className="hidden shrink-0 items-center gap-4 md:flex">
+          Below md the STEPPER is gone (UI audit: at 375 px the full row
+          collapsed into an unusable pile) and its exact steps remain a
+          keyboard affordance. The PRESETS stay at every width — round-2
+          review: they have no keyboard equivalent, so hiding them left touch
+          devices with drag as the only path to tonight/weekend. */}
+      {/* Wrapper, not className on the stepper: cn is clsx-only (no
+          tailwind-merge), so `hidden` vs the component's own `flex` would be
+          stylesheet-order roulette. */}
+      <div className="hidden shrink-0 md:flex">
         <TimeStepper store={store} className="shrink-0" />
-        <TimePresets store={store} className="shrink-0" />
       </div>
+      <TimePresets store={store} className="shrink-0" />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Button, cn, Scrubber } from "@brownsync/ui";
 import { type KeyboardEvent, useMemo } from "react";
 import { type TimeCursorStore, timeCursor } from "./cursor";
-import { formatCursor } from "./format";
+import { formatCursor, formatCursorParts } from "./format";
 import { createScrubberScale, stepLocalDay } from "./scrubberScale";
 import { useTimeCursor } from "./useTimeCursor";
 
@@ -31,6 +31,7 @@ export function TimeScrubber({ store = timeCursor, className }: TimeScrubberProp
 
   const at = cursor.now();
   const liveNow = cursor.liveNow();
+  const readout = formatCursorParts(at, liveNow);
   const value = scale.toValue(at);
   const nowValue = scale.toValue(liveNow);
 
@@ -74,15 +75,20 @@ export function TimeScrubber({ store = timeCursor, className }: TimeScrubberProp
         />
       </div>
       {/* aria-live off: <output> defaults to polite, which would announce
-          every 30 s live tick. The slider's aria-valuetext covers AT.
-          The 10.5rem reservation (worst case "Sat 20:00 · 6 d 23 h ago",
-          held so the rail doesn't breathe as the text changes) is md-up
-          only — at 375 px it ate ~45% of the viewport (UI audit). */}
+          every 30 s live tick. The slider's aria-valuetext covers AT (and
+          carries the full absolute+relative text at every width).
+          WIDTH DISCIPLINE (round-2 review): the readout shares a flex row
+          with the grow rail, so any text-width change reallocates rail track
+          under an active drag. md-up reserves the full worst case
+          ("Sat 20:00 · 6 d 23 h ago", 10.5rem); below md the relative half is
+          dropped and 5rem covers the worst absolute ("Sat 20:00") — a stable
+          reservation either way, never a breathing one. */}
       <output
         aria-live="off"
-        className="shrink-0 whitespace-nowrap text-right font-mono text-14 text-text-secondary tabular-nums md:min-w-[10.5rem]"
+        className="min-w-[5rem] shrink-0 whitespace-nowrap text-right font-mono text-14 text-text-secondary tabular-nums md:min-w-[10.5rem]"
       >
-        {formatCursor(at, liveNow)}
+        {readout.absolute}
+        <span className="hidden md:inline"> · {readout.relative}</span>
       </output>
     </div>
   );

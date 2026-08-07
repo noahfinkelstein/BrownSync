@@ -39,6 +39,11 @@ export function TimePresets({ store = timeCursor, className }: TimePresetsProps)
             onClick={() => cursor.setAt(floorToMinute(preset.at))}
             className={cn(
               "inline-flex h-6 shrink-0 select-none items-center rounded-4 border px-2 text-12 transition-colors duration-150 ease-out",
+              // Presets have no keyboard equivalent, so they must survive on
+              // touch (round-2 review): "tonight" — the #1 student jump —
+              // stays at every width; "weekend" yields below sm where the
+              // rail needs the room.
+              id === "weekend" && "hidden sm:inline-flex",
               active
                 ? "border-line bg-bg-overlay text-text-primary"
                 : "border-line text-text-secondary hover:border-text-faint hover:text-text-primary",

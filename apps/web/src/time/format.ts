@@ -52,6 +52,24 @@ export function formatRelative(at: Date | number, now: Date | number): string {
 }
 
 /**
+ * The scrubber readout split into its two halves, so the mobile readout can
+ * render the absolute clock alone (round-2 review: the relative half swings
+ * the text ~60→185 px, and below md that width came straight out of the rail
+ * mid-drag). `absolute` gains a weekday prefix once the cursor leaves today.
+ */
+export function formatCursorParts(
+  at: Date | number,
+  now: Date | number,
+  timeZone: string = CAMPUS_TZ,
+): { absolute: string; relative: string } {
+  const clock = formatClock(at, timeZone);
+  const absolute = isSameLocalDay(at, now, timeZone)
+    ? clock
+    : `${localWeekday(at, timeZone)} ${clock}`;
+  return { absolute, relative: formatRelative(at, now) };
+}
+
+/**
  * The scrubber readout: `19:04 · in 26 min`, with a weekday prefix once the
  * cursor leaves today (`Sat 20:00 · in 4 d 2 h`).
  */
@@ -60,9 +78,6 @@ export function formatCursor(
   now: Date | number,
   timeZone: string = CAMPUS_TZ,
 ): string {
-  const clock = formatClock(at, timeZone);
-  const absolute = isSameLocalDay(at, now, timeZone)
-    ? clock
-    : `${localWeekday(at, timeZone)} ${clock}`;
-  return `${absolute} · ${formatRelative(at, now)}`;
+  const parts = formatCursorParts(at, now, timeZone);
+  return `${parts.absolute} · ${parts.relative}`;
 }
