@@ -8,6 +8,7 @@ import {
   type LayerSpec,
   type LayerState,
 } from "../map/layerRegistry";
+import { panelStartsOpen } from "./defaultOpen";
 
 export type LayerPanelProps = {
   state: LayerState;
@@ -32,6 +33,10 @@ const INITIAL_COLLAPSED = new Set<LayerGroupId>(
  */
 export function LayerPanel({ state, onToggle, onReset, isModified, counts }: LayerPanelProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<LayerGroupId>>(INITIAL_COLLAPSED);
+  // The WHOLE panel collapses to its "Layers" chip, closed by default below
+  // md (UI audit: mounted expanded it covered the top-left ~45% of a 375 px
+  // map before the user asked for it).
+  const [panelOpen, setPanelOpen] = useState(panelStartsOpen);
 
   const toggleGroup = useCallback((id: LayerGroupId) => {
     setCollapsed((prev) => {
@@ -45,13 +50,32 @@ export function LayerPanel({ state, onToggle, onReset, isModified, counts }: Lay
     <nav
       aria-label="Map layers"
       data-testid="layer-panel"
-      className="absolute top-3 left-3 z-20 max-h-[calc(100%-1.5rem)] w-52 overflow-y-auto rounded-6 border border-line bg-bg-raised"
+      className={cn(
+        "absolute top-3 left-3 z-20 max-h-[calc(100%-1.5rem)] overflow-y-auto rounded-6 border border-line bg-bg-raised",
+        panelOpen && "w-52",
+      )}
     >
-      <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-line bg-bg-raised px-2.5 py-1.5">
-        <h2 className="font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
-          Layers
+      <div
+        className={cn(
+          "sticky top-0 flex items-center justify-between gap-2 bg-bg-raised px-2.5 py-1.5",
+          panelOpen && "border-b border-line",
+        )}
+      >
+        <h2>
+          <button
+            type="button"
+            aria-expanded={panelOpen}
+            onClick={() => setPanelOpen((prev) => !prev)}
+            className={cn(
+              "flex items-center gap-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary",
+              FOCUS_RING,
+            )}
+          >
+            <Chevron open={panelOpen} />
+            Layers
+          </button>
         </h2>
-        {isModified && (
+        {panelOpen && isModified && (
           <button
             type="button"
             onClick={onReset}
@@ -65,7 +89,8 @@ export function LayerPanel({ state, onToggle, onReset, isModified, counts }: Lay
         )}
       </div>
 
-      {LAYER_GROUPS.map((group) => {
+      {panelOpen &&
+        LAYER_GROUPS.map((group) => {
         const rows = LAYERS.filter((layer) => layer.group === group.id);
         if (rows.length === 0) return null;
         const isCollapsed = collapsed.has(group.id);
