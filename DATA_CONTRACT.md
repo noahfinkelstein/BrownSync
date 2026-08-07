@@ -1,9 +1,26 @@
-# BrownSync — Shared Data Contract v1.7
+# BrownSync — Shared Data Contract v1.8
 
 **This file is the single source of truth for how the frontend/API side (Claude Code) and the ingestion side (Codex) integrate.** Both handoffs reference it. Neither side may change it unilaterally — changes require bumping the version header and updating both sides in the same PR.
 
 ## Version history
 
+- **v1.8** (migration `0019`, 2026-08-07) — operational hardening only; no
+  seed artifact, ingestion producer, or public read shape changes. Four
+  fixes: (a) the board owner set can no longer reach zero — a database
+  guard blocks deleting the last `board_moderators` owner row (including the
+  account-deletion cascade), and `DELETE /api/account` returns a typed `409
+  board_owner_transfer_required` when the caller is the sole board owner;
+  (b) account-deletion board cleanup keys on the provisioned
+  `BOARD_AUTHOR_PEPPER` secret instead of the `BOARD_ENABLED` launch flag, so
+  flipping the flag back off after launch can never silently skip the
+  deletion contract; (c) the five client-updatable `profiles` columns gain
+  value constraints (`display_name` ≤ 80, `bio` ≤ 2000, `concentration`
+  ≤ 120, `class_year` 1900–2100, `avatar_url` `https://` and ≤ 2048) and
+  direct PostgREST profile updates consume the shared social write budget;
+  (d) `brownsync_list_user_events` pages on a millisecond-truncated
+  `(updated_at, id)` keyset and returns millisecond-exact boundary
+  timestamps, so the Worker cursor can never skip events sharing a boundary
+  millisecond.
 - **v1.7** (migration `0015`, 2026-07-30) — adds the Brown-only
   pseudonymous native board as an isolated operational model. Eleven
   RLS-enabled tables and owner-only routines provide content, engagement,
@@ -221,7 +238,10 @@ characters that must resolve unambiguously to a canonical place. Creation,
 optimistic edit, idempotent cancel, bounded keyset management reads, detail,
 and moderation are owner-only Worker routines; direct client DML and routine
 execution are revoked. The management cursor is positional and bounded to
-100 rows (default 50).
+100 rows (default 50). Since v1.8 the management keyset compares and returns
+millisecond-truncated `updated_at` values so the Worker's millisecond-
+precision cursor round-trips exactly and boundary rows sharing a millisecond
+are never skipped.
 
 Account deletion cancels and soft-deletes personal events, preserves
 organization-owned events, clears deleted-user attribution, and removes actor
@@ -310,15 +330,27 @@ and is excluded from the public-read limiter; GET and HEAD remain private,
 while OPTIONS is dependency-free. `BOARD_ENABLED` defaults closed and becomes
 sticky after its first true deployment. Operators then use
 `board_control.enabled` as the runtime kill switch, which preserves status,
-appeal, authored deletion, and account-cleanup paths.
+appeal, authored deletion, and account-cleanup paths. Since v1.8 the flag
+gates board ROUTES only: account-deletion board cleanup keys on the
+provisioned `BOARD_AUTHOR_PEPPER` secret and runs (failing closed on any
+error) regardless of the flag, so a reverted or dropped flag cannot skip the
+deletion contract.
 
-After infrastructure launch, account deletion must derive the same token and
-complete `brownsync_delete_board_account` before Supabase Auth Admin deletion.
+Once the pepper secret is provisioned, account deletion must derive the same
+token and complete `brownsync_delete_board_account` before Supabase Auth
+Admin deletion.
 Cleanup installs a durable token-only fence, removes engagement and abuse
 state, nulls authored text, and gives every surviving body-free tombstone its
 own unlinkable random token. A missing secret/routine or cleanup failure
 returns a sanitized unavailable response and leaves the Auth account intact;
 both cleanup and a subsequent Auth-not-found result are safe to retry.
+
+The board owner set can never become empty (v1.8): removing the last
+`board_moderators` owner row — through the moderator routines, a direct
+delete, or the profiles deletion cascade — fails with
+`BROWNSYNC_BOARD_TERMINAL_CONFLICT`, and `brownsync_delete_board_account`
+rejects a sole owner before writing any fence so `DELETE /api/account`
+answers `409 board_owner_transfer_required` until ownership is transferred.
 
 ### v1.1 operational tables (migrations 0006, 0007)
 
