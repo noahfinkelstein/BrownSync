@@ -51,6 +51,8 @@ describe("openapi.json — named components (Swift codegen input)", () => {
   it("registers every contract §3 Out-shape as a named component", () => {
     const names = Object.keys(doc.components?.schemas ?? {});
     for (const required of [
+      "Article",
+      "ArticleLicense",
       "Event",
       "EventDetail",
       "Place",

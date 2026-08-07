@@ -1,4 +1,6 @@
 import {
+  type ArticleLicense,
+  type ArticleOut,
   CATEGORY_IDS,
   type Category,
   type EventOut,
@@ -12,7 +14,14 @@ import {
   type PlaceKind,
   type PlaceOut,
 } from "@brownsync/contract";
-import type { EventApiRow, MeetingRow, OrgRow, PlaceRow, SourceHealthRow } from "./queries";
+import type {
+  ArticleApiRow,
+  EventApiRow,
+  MeetingRow,
+  OrgRow,
+  PlaceRow,
+  SourceHealthRow,
+} from "./queries";
 
 /**
  * snake_case DB rows → camelCase contract Out-shapes. Pure functions; unit
@@ -81,6 +90,31 @@ export function mapEvent(row: EventApiRow): EventOut {
     confidence: row.confidence,
     isCanceled: row.is_canceled,
     mergedSources: row.merged_sources ?? [],
+  };
+}
+
+const ARTICLE_LICENSES: ReadonlySet<string> = new Set(["headline_only", "excerpt", "full"]);
+
+/**
+ * The DB CHECK constrains license to the contract enum; an unknown value can
+ * only mean schema drift, and the safe reading is the MOST restrictive one —
+ * a client must never render more than permitted because a mapper guessed
+ * generously.
+ */
+function normalizeArticleLicense(license: string): ArticleLicense {
+  return ARTICLE_LICENSES.has(license) ? (license as ArticleLicense) : "headline_only";
+}
+
+export function mapArticle(row: ArticleApiRow): ArticleOut {
+  return {
+    id: row.id,
+    title: row.title,
+    url: row.url,
+    publishedAt: toIso(row.published_at),
+    author: row.author,
+    source: row.source,
+    publication: row.publication,
+    license: normalizeArticleLicense(row.license),
   };
 }
 
