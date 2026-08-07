@@ -6,6 +6,7 @@ import type { Sql } from "@brownsync/sources/db";
 import type { HttpClient } from "@brownsync/sources/http";
 import { describe, expect, it } from "vitest";
 import {
+  createLivewhaleRunner,
   createWorkerRunners,
   etiquetteSpacingMs,
   type RegistryRow,
@@ -89,12 +90,16 @@ function fakePersist(): { persist: NonNullable<RunnerDeps["persist"]>; calls: Pe
 }
 
 describe("livewhale worker runner (recorded shard replay)", () => {
+  // NOTE: createLivewhaleRunner is exercised directly — it is deliberately
+  // NOT in createWorkerRunners while poll.yml's livewhale entry is live (two
+  // lanes racing the cancellation sweep flap cancellations; see runners.ts).
+  // These tests are the template's proof for the migration release.
   it("shards, dedupes across windows, upserts and sweeps the REQUESTED union — status ok", async () => {
     const client = fixtureReplayClient("livewhale-shards.json");
     const { persist, calls } = fakePersist();
-    const runners = createWorkerRunners(noSql, { http: client, persist });
+    const runner = createLivewhaleRunner(noSql, { http: client, persist });
 
-    const result = await runners.livewhale?.(registryRow({ source: "livewhale" }));
+    const result = await runner(registryRow({ source: "livewhale" }));
 
     // Same shape the poller's runner.test.ts pins: the at-cap first window is
     // halved, its halves carry 150 + 150 rows sharing 10 source_ids, every
@@ -129,7 +134,7 @@ describe("livewhale worker runner (recorded shard replay)", () => {
   it("reports partial when a one-day window still answers at the cap", async () => {
     const client = fixtureReplayClient("livewhale-shards-capped.json");
     const { persist } = fakePersist();
-    const runners = createWorkerRunners(noSql, {
+    const runner = createLivewhaleRunner(noSql, {
       http: client,
       persist,
       // Same narrowing as the poller's capped-replay test: the recorded
@@ -138,9 +143,21 @@ describe("livewhale worker runner (recorded shard replay)", () => {
       shardOptions: { cap: 150, windowDays: 2, lookbackDays: 0, lookaheadDays: 1 },
     });
 
-    const result = await runners.livewhale?.(registryRow({ source: "livewhale" }));
+    const result = await runner(registryRow({ source: "livewhale" }));
     expect(result?.status).toBe("partial");
     expect(result?.error).toBeNull();
+  });
+});
+
+describe("createWorkerRunners — release gate", () => {
+  it("ships dedup only; livewhale stays unregistered until poll.yml's entry is retired", () => {
+    // Registering livewhale here while the Actions lane still sweeps it means
+    // two unlocked read-compute-write cancellation sweeps racing each other —
+    // false cancellations and a combined cadence past contract §5's <=10-min
+    // pledge. This assertion is the gate: flipping it is the same release
+    // that must edit poll.yml.
+    const runners = createWorkerRunners(noSql);
+    expect(Object.keys(runners).sort()).toEqual(["dedup"]);
   });
 });
 

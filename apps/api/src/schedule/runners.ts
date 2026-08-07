@@ -109,8 +109,17 @@ export type RunnerDeps = {
  * strictly in sequence at the etiquette spacing, a window at the server cap
  * is halved, and the cancellation sweep covers the union of what was ASKED
  * FOR. `partial` only when a single-day window still hit the cap.
+ *
+ * EXPORTED BUT NOT REGISTERED in createWorkerRunners — deliberately. While
+ * poll.yml's livewhale entry is still live, running this too would mean two
+ * lanes racing the read-compute-write cancellation sweep with no lock: a
+ * mid-sweep upsert from the other lane looks "unseen" to this one and gets
+ * falsely canceled (self-healing next sweep, but user-visible flapping), and
+ * the combined cadence would breach contract §5's own <=10-min etiquette
+ * pledge. This runner is the tested template; it gets its registry entry in
+ * the SAME release that retires poll.yml's livewhale entry, never alongside.
  */
-function createLivewhaleRunner(sql: Sql, deps: RunnerDeps): SourceRunner {
+export function createLivewhaleRunner(sql: Sql, deps: RunnerDeps = {}): SourceRunner {
   return async (row) => {
     const client =
       deps.http ??
@@ -154,13 +163,17 @@ function createDedupRunner(sql: Sql, deps: RunnerDeps): SourceRunner {
   };
 }
 
-/** Everything the Worker can run this release, keyed by registry source name. */
+/**
+ * Everything the Worker runs THIS release, keyed by registry source name.
+ * The dispatcher ships with dedup (sql lane) as its first production source;
+ * livewhale joins in the release that retires poll.yml's livewhale entry
+ * (see createLivewhaleRunner's note on cancel-sweep flapping).
+ */
 export function createWorkerRunners(
   sql: Sql,
   deps: RunnerDeps = {},
 ): Readonly<Record<string, SourceRunner>> {
   return {
-    livewhale: createLivewhaleRunner(sql, deps),
     dedup: createDedupRunner(sql, deps),
   };
 }
