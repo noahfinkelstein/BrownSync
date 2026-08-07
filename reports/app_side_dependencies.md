@@ -39,7 +39,7 @@ lane. This file is the register.
   in addition to city and venue (rule and evidence:
   `ingest/brownsync_ingest/athletics_venues.py`).
 
-## 2. Organization LiveWhale sidecar (Task 7) — BLOCKING, app lane
+## 2. Organization LiveWhale sidecar (Task 7) — RESOLVED 2026-08-07
 
 - Artifact: `db/seeds/organization_livewhale_groups.json`, schema v1
   (`{"schema_version": 1, "generated_at": "<UTC ISO>", "mappings":
@@ -59,9 +59,14 @@ lane. This file is the register.
   Consumers must tolerate absence AND an empty list; the app lane's
   `OrgLivewhaleGroupsSchema` (packages/contract/src/seeds.ts, verified
   field-for-field 2026-07-29) already allows both.
-- Required app-side action unchanged: a consumer test must pass in the app
+- ~~Required app-side action unchanged: a consumer test must pass in the app
   lane before ingestion claims the integration done. This dependency stays
-  BLOCKING until then.
+  BLOCKING until then.~~ **RESOLVED 2026-08-07**: the app-lane consumer test
+  exists and passes — `services/poller/test/seed-sidecars.test.ts` drives
+  `loadOrgGroups()` (services/poller/src/livewhale/orgs.ts) against the
+  recorded sidecar fixture, asserting schema-v1 parsing, tolerance of an
+  ABSENT file (empty map), and tolerance of the measured-empty `mappings`
+  list. Runs in the poller suite in CI (green on `main` @ ad25f48).
 
 ## 3. Dining discovery input (Task 8) — BLOCKING, user action
 
