@@ -1,9 +1,31 @@
-# BrownSync — Shared Data Contract v1.8
+# BrownSync — Shared Data Contract v1.9
 
 **This file is the single source of truth for how the frontend/API side (Claude Code) and the ingestion side (Codex) integrate.** Both handoffs reference it. Neither side may change it unilaterally — changes require bumping the version header and updating both sides in the same PR.
 
 ## Version history
 
+- **v1.9** (migration `0021`, 2026-08-07) — strictly additive: the `articles`
+  table, its read route, and its first producer. News articles get their own
+  home instead of riding `events` (the "BDH-in-events misfit"); existing
+  `bdh` rows are NOT migrated here and `/api/events` is unchanged. The
+  licence rule 0004 had to enforce by purge is now structural: CHECK
+  constraints make the database physically reject `description`/`body_text`
+  for a `license = 'headline_only'` row, bound `body_text` to
+  `license = 'full'`, and bound `raw` to an immutable metadata allowlist
+  (guid, link, pubDate, published, author, categories, section,
+  listing_date). Nothing hard-deletes: `is_removed` is a soft flag the read
+  model filters on. New route `GET /api/articles?from&to` (defaults
+  to=now, from=to−14 days) returns `{ articles: Article[] }`, where each
+  row exposes `license` (so clients cannot render more than permitted) and
+  `publication` (the registry label, e.g. "Brown News" — attribution +
+  click-through is structural). First producer: `brown_news`, a Worker-lane
+  parser of the server-rendered `www.brown.edu/news` listing (vetted
+  2026-08-07: robots permits `/news`; NO live feed — the root `rss.xml` is a
+  dead 2019 channel and must never be used). It stores headline + URL + date
+  only and FAILS CLOSED: fewer than 10 parsed listing items means selector
+  drift — the run records `partial` and upserts nothing, leaving previous
+  rows untouched. Registry row: lane `worker`, cadence 1800 s, stale after
+  7200 s, `license = 'headline_only'`, enabled.
 - **v1.8** (migration `0019`, 2026-08-07) — operational hardening only; no
   seed artifact, ingestion producer, or public read shape changes. Four
   fixes: (a) the board owner set can no longer reach zero — a database
@@ -404,6 +426,58 @@ the whole host) are registered this way. `bdh` ships `enabled = false` with
 `license = 'headline_only'` pending written permission. `/api/health` reports
 all three rather than silently leaving them out.
 
+### Articles (v1.9, migration 0021) — news rows with a structural licence gate
+
+Like the v1.1 tables, `articles` is **not a seed artifact**: ingestion emits
+no NDJSON for it, there is no `Seed*Schema`, no `contract.py` row model, and
+`db/seed-check.ts` has nothing to validate. It is written only by Worker-lane
+producers (first: `brown_news`) and read through `v_articles_api` /
+`api_articles()`.
+
+```sql
+create table articles (
+  id            uuid primary key default gen_random_uuid(),
+  source        text not null,      -- registry slug; NOT FK'd (0006's rule)
+  source_id     text not null,      -- stable within the source
+  title         text not null,
+  url           text not null,
+  published_at  timestamptz not null,
+  author        text,
+  license       text not null,      -- 'headline_only'|'excerpt'|'full'
+  description   text,               -- excerpt-level text; licence-gated
+  body_text     text,               -- 'full' licence only
+  first_seen_at timestamptz not null default now(),
+  last_seen_at  timestamptz not null default now(),
+  is_removed    boolean not null default false,  -- soft flag; never DELETE
+  raw           jsonb,              -- metadata allowlist, CHECK-enforced
+  unique (source, source_id),
+  check (license in ('headline_only', 'excerpt', 'full')),
+  check (license <> 'headline_only' or (description is null and body_text is null)),
+  check (license = 'full' or body_text is null),
+  check (articles_raw_allowlisted(raw))
+);
+```
+
+**The licence CHECKs are the legal gate made structural** — the lesson of
+migration 0004, which had to purge BDH bodies a normalizer had stored. A
+`headline_only` row physically cannot carry prose: not in `description`, not
+in `body_text`, and not smuggled into `raw` (the allowlist function admits
+only `guid`, `link`, `pubDate`, `published`, `author`, `categories`,
+`section`, `listing_date`, and requires a jsonb object). Widening a source's
+licence is an explicit, auditable `UPDATE` of `source_registry.license` plus
+a reviewed normalizer change — never a code path that quietly stores more.
+
+Upsert semantics follow §2: upsert on `(source, source_id)`, refresh
+`last_seen_at` on every sighting, never hard-delete (`is_removed` is the soft
+removal flag and the on-conflict clause never resurrects it). Producers fail
+closed: `brown_news` refuses to upsert anything when its listing parse yields
+fewer than 10 items (selector drift ≠ empty news day) and records the run as
+`partial`.
+
+**BDH is deliberately NOT migrated in v1.9.** Its rows continue to ride
+`events` with `source = 'bdh'`; moving them into `articles` is its own future
+PR with its own purge-parity proof.
+
 ### Enums and CHECK constraints — a recorded decision
 
 **No Postgres `enum` types, anywhere.** They cannot be altered inside a
@@ -467,6 +541,12 @@ Served as Postgres views/RPC (Supabase) or REST routes. Response shapes are fixe
 - `GET /api/meetings?at=<iso>` → course meetings in session at instant `at` (server expands `days`+times against the term calendar)
 - `GET /api/now` → convenience: `{ events, meetings, counts_by_category }` for the default "live" view
 - `GET /api/health` → per-source last successful run from `source_runs`, left-joined to `source_registry`
+- `GET /api/articles?from=<iso>&to=<iso>` (v1.9) → `{ articles: Article[] }` — newest first,
+  defaults `to=now`, `from=to−14 days` (the feed's article age cutoff). Each `Article` is
+  `{ id, title, url, publishedAt, author, source, publication, license }`: `license` so a client
+  can never render more than the source permits, `publication` (registry label, e.g. "Brown
+  News") so attribution + click-through is structural. There is deliberately NO body or excerpt
+  field in the v1.9 shape.
 
 `SourceHealth` (v1.1) carries three **optional** fields alongside the v1 ones —
 optional so a v1 client is unaffected:
