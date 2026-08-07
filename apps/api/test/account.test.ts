@@ -348,6 +348,23 @@ describe("DELETE /api/account orchestration", () => {
     expect(deleter).not.toHaveBeenCalled();
   });
 
+  it("maps a sole-board-owner deletion conflict to a typed 409 envelope", async () => {
+    const deleter = vi.fn<AccountDeleter>(async () => "owner_transfer_required");
+    const response = await accountRequest(
+      accountApp({
+        authenticator: attachedAuthenticator(),
+        limiter: allowedLimiter(),
+        deleter,
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()) as unknown).toMatchObject({
+      error: { code: "board_owner_transfer_required" },
+    });
+    expect(deleter).toHaveBeenCalledOnce();
+  });
+
   it("fails closed by default before a limiter or account service can be trusted", async () => {
     const response = await accountRequest(createApp(fakeQueries()));
 
@@ -813,7 +830,7 @@ describe("Worker and cross-origin boundary", () => {
 });
 
 describe("OpenAPI account contract", () => {
-  it("declares bearer security and 204/401/403/429/503 without a client user id", () => {
+  it("declares bearer security and 204/401/403/409/429/503 without a client user id", () => {
     const document = buildOpenApiDocument(createApp(fakeQueries())) as {
       paths?: Record<string, Record<string, unknown>>;
     };
@@ -829,6 +846,7 @@ describe("OpenAPI account contract", () => {
       "204",
       "401",
       "403",
+      "409",
       "429",
       "503",
     ]);

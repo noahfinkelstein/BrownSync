@@ -115,6 +115,10 @@ const accountRoute = createRoute({
       ErrorEnvelopeSchema,
       "Brown Google membership and recent OAuth authentication required",
     ),
+    409: meJson(
+      ErrorEnvelopeSchema,
+      "Sole board ownership must be transferred before account deletion",
+    ),
     429: meJson(ErrorEnvelopeSchema, "Authenticated write rate limit exceeded"),
     503: meJson(ErrorEnvelopeSchema, "Account service temporarily unavailable"),
   },
@@ -244,6 +248,15 @@ export function createApp(queries: Queries, options: CreateAppOptions = {}) {
       result = await accountDeleter(c.get("user"));
     } catch {
       result = "unavailable";
+    }
+    if (result === "owner_transfer_required") {
+      return c.json(
+        errorEnvelope(
+          "board_owner_transfer_required",
+          "You are the board's only owner. Transfer board ownership before deleting this account.",
+        ),
+        409,
+      );
     }
     if (result !== "deleted") {
       return c.json(

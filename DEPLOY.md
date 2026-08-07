@@ -163,8 +163,11 @@ that infrastructure gate until all of these are complete:
       account-deletion smoke tests passed.
 
 Only then change checked-in `BOARD_ENABLED` to `"true"` and deploy. That flip
-is **sticky**: after the first true deployment, never set it false, because
-doing so would bypass required board cleanup during account deletion. Use
+is **sticky**: after the first true deployment, never set it false — the flag
+gates every board route closed again. Account deletion is protected either
+way: since migration `0019` board cleanup keys on the provisioned
+`BOARD_AUTHOR_PEPPER` secret, not this flag, so a reverted flag can no longer
+skip required board cleanup during account deletion. Use
 `board_control.enabled` through the owner API as the operational kill switch.
 The database switch blocks ordinary reads/writes while still allowing status,
 appeals, authored deletion, and account cleanup.
@@ -173,6 +176,12 @@ Once launched, malformed/missing board identity configuration, a missing
 database cleanup routine, or cleanup failure returns a sanitized `503` and
 prevents Supabase Auth Admin deletion. Retrying is safe: the database keeps a
 token-only deletion fence and Auth Admin `404` remains idempotent success.
+
+The owner set can never be emptied (migration `0019`): deleting the last
+`board_moderators` owner row is blocked at the database, and a sole owner's
+`DELETE /api/account` returns `409 board_owner_transfer_required` until a
+second owner is granted. To recover an ownerless pre-0019 state, insert a new
+owner row through the owner database connection.
 
 Local sanity checks that need no Cloudflare auth:
 `pnpm --filter @brownsync/api build:worker` (bundle dry-run) and

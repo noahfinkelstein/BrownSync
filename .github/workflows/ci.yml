@@ -172,6 +172,8 @@ jobs:
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0017_org_assets_checks.sql
       - name: Organization assets multi-session race checks
         run: BROWNSYNC_DISPOSABLE_ORG_ASSET_RACE=1 PGPASSWORD=postgres bash db/checks/0017_org_assets_race.sh postgresql://postgres:postgres@localhost:5432/postgres
+      - name: P1 hardening SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0019_p1_hardening_checks.sql
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

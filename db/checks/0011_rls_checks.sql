@@ -445,6 +445,11 @@ $$;
 
 reset role;
 
+-- 0019's direct-write limiter trigger keys on auth.uid(); clear the
+-- impersonated claims so this exercises the true owner-connection path
+-- (the Worker's Hyperdrive connection never carries request.jwt claims).
+select set_config('request.jwt.claims', '', true);
+
 update public.profiles
 set handle = 'owner_path_ok'
 where id = '50000000-0000-4000-8000-000000000001';

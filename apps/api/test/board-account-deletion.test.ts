@@ -28,10 +28,10 @@ function availableIdentity(events: string[] = []): BoardIdentity {
 }
 
 describe("board-aware account deletion", () => {
-  it("preserves the legacy Admin deletion path before first board launch", async () => {
+  it("preserves the legacy Admin deletion path while the board pepper is unconfigured", async () => {
     const adminDeleter = vi.fn<AccountDeleter>(async () => "deleted");
     const deleter = createBoardAwareAccountDeleter({
-      launchState: "not_launched",
+      cleanupState: "unconfigured",
       adminDeleter,
     });
 
@@ -54,7 +54,7 @@ describe("board-aware account deletion", () => {
       return "deleted";
     });
     const deleter = createBoardAwareAccountDeleter({
-      launchState: "launched",
+      cleanupState: "configured",
       identity,
       cleanup,
       adminDeleter,
@@ -76,7 +76,7 @@ describe("board-aware account deletion", () => {
       const cleanup = vi.fn<BoardAccountCleaner>(async () => "cleaned");
       const adminDeleter = vi.fn<AccountDeleter>(async () => "deleted");
       const deleter = createBoardAwareAccountDeleter({
-        launchState: "launched",
+        cleanupState: "configured",
         identity,
         cleanup,
         adminDeleter,
@@ -103,7 +103,7 @@ describe("board-aware account deletion", () => {
     const cleanup = vi.fn<BoardAccountCleaner>(async () => "cleaned");
     const adminDeleter = vi.fn<AccountDeleter>(async () => "deleted");
     const deleter = createBoardAwareAccountDeleter({
-      launchState: "launched",
+      cleanupState: "configured",
       identity,
       cleanup,
       adminDeleter,
@@ -129,7 +129,7 @@ describe("board-aware account deletion", () => {
     const cleanup = vi.fn<BoardAccountCleaner>(async () => "cleaned");
     const adminDeleter = vi.fn<AccountDeleter>(async () => "deleted");
     const deleter = createBoardAwareAccountDeleter({
-      launchState: "launched",
+      cleanupState: "configured",
       identity,
       cleanup,
       adminDeleter,
@@ -137,6 +137,21 @@ describe("board-aware account deletion", () => {
 
     await expect(deleter(USER)).resolves.toBe("unavailable");
     expect(cleanup).not.toHaveBeenCalled();
+    expect(adminDeleter).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a sole-owner cleanup conflict without touching Admin deletion", async () => {
+    const cleanup = vi.fn<BoardAccountCleaner>(async () => "owner_transfer_required");
+    const adminDeleter = vi.fn<AccountDeleter>(async () => "deleted");
+    const deleter = createBoardAwareAccountDeleter({
+      cleanupState: "configured",
+      identity: availableIdentity(),
+      cleanup,
+      adminDeleter,
+    });
+
+    await expect(deleter(USER)).resolves.toBe("owner_transfer_required");
+    expect(cleanup).toHaveBeenCalledOnce();
     expect(adminDeleter).not.toHaveBeenCalled();
   });
 
@@ -149,7 +164,7 @@ describe("board-aware account deletion", () => {
       });
       const adminDeleter = vi.fn<AccountDeleter>(async () => "deleted");
       const deleter = createBoardAwareAccountDeleter({
-        launchState: "launched",
+        cleanupState: "configured",
         identity: availableIdentity(),
         cleanup,
         adminDeleter,
@@ -170,7 +185,7 @@ describe("board-aware account deletion", () => {
         return "unavailable";
       });
       const deleter = createBoardAwareAccountDeleter({
-        launchState: "launched",
+        cleanupState: "configured",
         identity: availableIdentity(),
         cleanup,
         adminDeleter,
@@ -199,7 +214,7 @@ describe("board-aware account deletion", () => {
         return "deleted";
       });
     const deleter = createBoardAwareAccountDeleter({
-      launchState: "launched",
+      cleanupState: "configured",
       identity: availableIdentity(events),
       cleanup,
       adminDeleter,
@@ -225,7 +240,7 @@ describe("board-aware account deletion", () => {
       throw new Error(`${ACTOR_ID}:${AUTHOR_TOKEN}`);
     });
     const deleter = createBoardAwareAccountDeleter({
-      launchState: "launched",
+      cleanupState: "configured",
       identity: availableIdentity(),
       cleanup,
       adminDeleter: vi.fn<AccountDeleter>(async () => "deleted"),
