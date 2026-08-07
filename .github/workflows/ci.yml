@@ -136,6 +136,8 @@ jobs:
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0006_source_registry_checks.sql
       - name: Place resolution SQL checks (rollback-safe)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0007_place_resolution_checks.sql
+      - name: Worker dispatcher registry SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0008_dispatcher_checks.sql
       - name: Identity SQL checks (rollback-safe)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0010_identity_checks.sql
       - name: RLS SQL checks (rollback-safe)

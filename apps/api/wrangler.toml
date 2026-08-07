@@ -15,6 +15,15 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
+# The registry-driven dispatcher (src/scheduled.ts): deliberately ONE
+# `* * * * *` trigger, not N cron expressions — per-source cadence, backoff
+# and the kill switch live as source_registry DATA, so tuning is a SQL
+# UPDATE, not a wrangler.toml edit + deploy. Each tick runs at most 3 due
+# sources; cron is not exactly-once and may skip, which the dispatcher
+# treats as a floor (see apps/api/src/schedule/dispatch.ts).
+[triggers]
+crons = ["* * * * *"]
+
 # Hyperdrive pools TCP connections to Supabase Postgres at the edge — required
 # because each Worker request opens a fresh postgres.js connection. One-time:
 #   npx wrangler hyperdrive create brownsync-db \
