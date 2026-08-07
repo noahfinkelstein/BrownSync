@@ -1,5 +1,16 @@
 import { OrgLivewhaleGroupsSchema } from "@brownsync/contract";
-import { cancelUnseen, type Sql, upsertEvents } from "@brownsync/sources/db";
+import {
+  BROWN_NEWS_URL,
+  MIN_LISTING_ITEMS,
+  parseBrownNewsListing,
+} from "@brownsync/sources/brown_news/index";
+import {
+  type ArticleUpsertRow,
+  cancelUnseen,
+  type Sql,
+  upsertArticles,
+  upsertEvents,
+} from "@brownsync/sources/db";
 import { runDedup } from "@brownsync/sources/dedup/index";
 import {
   createHttpCore,
@@ -97,6 +108,8 @@ export type RunnerDeps = {
       seenIds: readonly string[],
     ) => Promise<number>;
   };
+  /** Replaces the articles upsert (brown_news) for offline tests. */
+  persistArticles?: (sql: Sql, rows: readonly ArticleUpsertRow[]) => Promise<number>;
   /** Replaces the dedup engine for offline tests. */
   dedup?: (sql: Sql) => ReturnType<typeof runDedup>;
   /** Narrows the window plan/cap so tests can replay the recorded capped plan. */
@@ -149,6 +162,55 @@ export function createLivewhaleRunner(sql: Sql, deps: RunnerDeps = {}): SourceRu
 }
 
 /**
+ * brown.edu/news, Worker lane — Workstream C's first `articles` producer.
+ * Vetted and CLEARED 2026-08-07 (reports/ops/2026-08-07-source-vetting.md):
+ * robots permits /news, no live feed exists (root rss.xml is a dead 2019
+ * channel), so the run is ONE polite GET of the server-rendered listing
+ * (ETag-revalidated across warm cron ticks) parsed for its stable dateful
+ * hrefs. Title + URL + date only — the parser never reads bodies and the
+ * upsert path has no body column; migration 0021's CHECKs reject prose for a
+ * headline_only row even if some future code path tried.
+ *
+ * FAIL-CLOSED GATE (spec risk R2): fewer than MIN_LISTING_ITEMS parsed items
+ * means the selector drifted, not that the news stopped. The run records
+ * `partial` with the reason and upserts NOTHING, leaving previous rows
+ * untouched. `partial` (not `error`) on purpose: the host answered and the
+ * registry must not back off a healthy host — the signal surfaces in
+ * /api/health as a non-ok run, which is the drift alarm.
+ */
+export function createBrownNewsRunner(sql: Sql, deps: RunnerDeps = {}): SourceRunner {
+  return async (row) => {
+    const client =
+      deps.http ??
+      createHttpCore({ minSpacingMs: etiquetteSpacingMs(row), cache: isolateEtagCache });
+    const listing = await client.get(BROWN_NEWS_URL);
+    const items = parseBrownNewsListing(listing.body);
+    if (items.length < MIN_LISTING_ITEMS) {
+      return {
+        status: "partial",
+        items: 0,
+        error:
+          `brown_news fail-closed gate: parsed ${items.length} listing items ` +
+          `(< ${MIN_LISTING_ITEMS}) — selector drift suspected; nothing upserted`,
+      };
+    }
+    const rows: ArticleUpsertRow[] = items.map((item) => ({
+      source: "brown_news",
+      source_id: item.source_id,
+      title: item.title,
+      url: item.url,
+      published_at: item.published_at,
+      author: null,
+      license: "headline_only",
+      raw: { listing_date: item.listing_date },
+    }));
+    const persistArticles = deps.persistArticles ?? upsertArticles;
+    const upserted = await persistArticles(sql, rows);
+    return { status: "ok", items: upserted, error: null };
+  };
+}
+
+/**
  * Cross-source dedup, SQL lane (spec problem #6): the Actions rider used to
  * tie dedup's cadence to athletics', so moving athletics to 2 h would have
  * silently halved it. Here it runs on its own registry cadence (900 s,
@@ -165,15 +227,18 @@ function createDedupRunner(sql: Sql, deps: RunnerDeps): SourceRunner {
 
 /**
  * Everything the Worker runs THIS release, keyed by registry source name.
- * The dispatcher ships with dedup (sql lane) as its first production source;
- * livewhale joins in the release that retires poll.yml's livewhale entry
- * (see createLivewhaleRunner's note on cancel-sweep flapping).
+ * brown_news registers immediately — unlike livewhale it has NO cross-lane
+ * overlap (no Actions entry, no cancellation sweep to race), so the registry
+ * row (migration 0021) and the runner ship in the same release. livewhale
+ * joins in the release that retires poll.yml's livewhale entry (see
+ * createLivewhaleRunner's note on cancel-sweep flapping).
  */
 export function createWorkerRunners(
   sql: Sql,
   deps: RunnerDeps = {},
 ): Readonly<Record<string, SourceRunner>> {
   return {
+    brown_news: createBrownNewsRunner(sql, deps),
     dedup: createDedupRunner(sql, deps),
   };
 }
