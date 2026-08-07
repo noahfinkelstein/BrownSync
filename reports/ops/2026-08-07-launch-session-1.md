@@ -115,3 +115,25 @@ cursors, social RPC limiter gaps.
   Worker-migration PR (flips the release-gate test, retires poll.yml's
   livewhale entry); Lane B producers + contract v2 articles table (unblocks
   Workstream C producers).
+
+## Addendum — round-2 review (wf_234fcaec-3e8) and fixes
+
+8 agents over today's merged diffs: 4 findings survived verification.
+Fixed immediately (fd3b937): the two confirmed P1 UI regressions (mobile
+lost all non-drag time controls → presets restored at every width, weekend
+from sm; readout width instability mid-drag → relative half md-up only with
+stable reservations both sides) and the cartography-e2e vacuity P2
+(rendered-feature positive control >50). Remaining confirmed P2 for
+backlog: TOCTOU window on the sole-owner 409 guard (ownership change
+between cleanup RPC and Auth cascade surfaces as 503 after tombstoning —
+board is unlaunched; fix alongside launch-gate work).
+
+Unverified P2 backlog from round 2 (recorded, not yet triaged): last-owner
+trigger lock-order vs RPCs on the cascade path; dispatcher claim
+serialization assumes runs shorter than cadence; per-attempt timeout does
+not bound whole-run wall time; 14-day article cutoff is one-sided when
+scrubbing to the past; aggregateStatus green when all sources paused;
+missing-but-expected pepper silently skips cleanup; runner lookup
+prototype traversal; feed hard cap 15 with no overflow affordance;
+attribution lift clears only the collapsed now-bar; health dot color-only
+at rest.
