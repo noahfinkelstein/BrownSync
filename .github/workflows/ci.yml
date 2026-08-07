@@ -23,6 +23,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm turbo run typecheck test build
+      - name: Worker bundles (wrangler dry-run, offline)
+        # The dispatcher makes the Worker a consumer of packages/sources; this
+        # is what fails CI — instead of the next deploy — if a node:* import
+        # ever sneaks into that package.
+        run: pnpm --filter @brownsync/api build:worker
       - name: Seed QA sweep (offline — schemas, FKs, manifest hashes)
         run: pnpm db:seed-check
       - name: Install Playwright chromium
