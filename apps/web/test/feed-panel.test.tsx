@@ -142,7 +142,7 @@ describe("FeedPanel destinations", () => {
     // UI audit: rows rendered item.sourceId ("livewhale"/"bdh") verbatim,
     // which read as debug output and polluted every accessible name.
     renderWithHarness(<FeedPanel />);
-    await screen.findByRole("button", { name: /Campus talk/ });
+    await screen.findByRole("link", { name: /News headline/ });
     for (const slug of ["livewhale", "bdh", "brown-dining"]) {
       expect(screen.queryByText(slug)).toBeNull();
     }
