@@ -64,9 +64,13 @@ export function NowBar({ className }: { className?: string }) {
             {summary.live} now
           </span>
           {/* Separators inherit --text-secondary. --text-faint fails AA and
-              a rendered `·` is text, aria-hidden or not (a11y-contrast.test). */}
-          <span aria-hidden>·</span>
-          <span className="shrink-0">{summary.classes} in class</span>
+              a rendered `·` is text, aria-hidden or not (a11y-contrast.test).
+              The classes count hides below sm (UI audit: at 375 px it pushed
+              the health dot off-edge; "N now" is the count a phone acts on). */}
+          <span aria-hidden className="hidden sm:inline">
+            ·
+          </span>
+          <span className="hidden shrink-0 sm:inline">{summary.classes} in class</span>
           {/* No next-event teaser (UI audit): it was a non-interactive
               duplicate of the HappeningNow panel's first row. The counts
               are the readout; the panel is where events are named. */}
