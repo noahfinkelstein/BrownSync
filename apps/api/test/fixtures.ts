@@ -117,7 +117,8 @@ export const healthRows: SourceHealthRow[] = [
 /** One row of api_articles() (migration 0021), as the brown_news producer writes it. */
 export const articleRow: ArticleApiRow = {
   id: "6f2d9a1c-7b3e-4c8d-9e0f-2a4b6c8d0e1f",
-  title: "Meet the scientists behind the science, at Brown's Multidisciplinary Teaching Laboratories",
+  title:
+    "Meet the scientists behind the science, at Brown's Multidisciplinary Teaching Laboratories",
   url: "https://www.brown.edu/news/2026-08-03/multidisciplinary-teaching-laboratories",
   published_at: new Date("2026-08-03T04:00:00Z"),
   author: null,

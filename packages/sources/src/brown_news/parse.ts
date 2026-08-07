@@ -49,7 +49,8 @@ export type BrownNewsItem = {
  * anchor text — boilerplate ("Read Article") and empty image anchors lose to
  * a real headline by construction.
  */
-const ANCHOR_RE = /<a\b[^>]*href="(\/news\/(\d{4})-(\d{2})-(\d{2})\/[a-z0-9][a-z0-9\-_.]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+const ANCHOR_RE =
+  /<a\b[^>]*href="(\/news\/(\d{4})-(\d{2})-(\d{2})\/[a-z0-9][a-z0-9\-_.]*)"[^>]*>([\s\S]*?)<\/a>/gi;
 
 function isRealDate(y: number, m: number, d: number): boolean {
   if (m < 1 || m > 12 || d < 1 || d > 31) return false;

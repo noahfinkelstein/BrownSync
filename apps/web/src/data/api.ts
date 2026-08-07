@@ -105,9 +105,9 @@ export async function fetchEventDetail(id: string): Promise<EventDetailOut> {
  * newest first. The fixture dataset carries no articles — an empty list is
  * the honest zero-backend answer, and the feed degrades gracefully.
  */
-export async function fetchArticles(params: { from?: string; to?: string } = {}): Promise<
-  ArticleOut[]
-> {
+export async function fetchArticles(
+  params: { from?: string; to?: string } = {},
+): Promise<ArticleOut[]> {
   if (fixturesEnabled()) return [];
   const body = await getJson("/api/articles", ArticlesResponseSchema, { ...params });
   return body.articles;

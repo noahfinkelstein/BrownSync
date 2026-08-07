@@ -1,9 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import {
-  MIN_LISTING_ITEMS,
-  parseBrownNewsListing,
-} from "@brownsync/sources/brown_news/index";
+import { MIN_LISTING_ITEMS, parseBrownNewsListing } from "@brownsync/sources/brown_news/index";
 import { describe, expect, it } from "vitest";
 import { FIXTURES_DIR } from "../src/paths";
 

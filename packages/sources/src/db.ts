@@ -228,10 +228,7 @@ export type ArticleUpsertRow = {
  * clause: soft removal is an operator decision and a story reappearing in a
  * listing must not silently resurrect it.
  */
-export async function upsertArticles(
-  sql: Sql,
-  rows: readonly ArticleUpsertRow[],
-): Promise<number> {
+export async function upsertArticles(sql: Sql, rows: readonly ArticleUpsertRow[]): Promise<number> {
   let upserted = 0;
   for (const chunk of chunks(rows, UPSERT_CHUNK)) {
     const payload = chunk.map((r) => ({
