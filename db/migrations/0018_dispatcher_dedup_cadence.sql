@@ -1,4 +1,12 @@
--- 0008_dispatcher_dedup_cadence.sql — dedup moves to the Worker dispatcher.
+-- 0018_dispatcher_dedup_cadence.sql — dedup moves to the Worker dispatcher.
+--
+-- NUMBERING (allocation-table deviation, recorded): Lane B was allocated
+-- 0005-0009 and 0008/0009 were still free on paper, but prod Supabase had
+-- already applied migrations through 0017 by the time this landed — a
+-- migration numbered 0008 would slot BELOW the remote high-water mark and
+-- `supabase db push` refuses out-of-order files without --include-all.
+-- Lane B's 0008/0009 slots are therefore PERMANENTLY DEAD; new migrations
+-- continue from 0018.
 --
 -- ADDITIVE ONLY in effect: no table, column or function changes — one UPDATE
 -- of operator policy in source_registry, which exists precisely so that this

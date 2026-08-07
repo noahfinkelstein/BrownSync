@@ -12,7 +12,7 @@ import {
  * Orchestration tests over an injected fake store — CI never touches a live
  * server. What the SQL store must guarantee (the claim UPDATE's atomic
  * re-check, the failure counter) is proven in
- * db/checks/0008_dispatcher_checks.sql against the disposable container.
+ * db/checks/0018_dispatcher_checks.sql against the disposable container.
  */
 
 const NOW = new Date("2026-08-07T12:00:00Z");

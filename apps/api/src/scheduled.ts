@@ -13,7 +13,7 @@ import type { RegistryRow, RunnerResult, SourceRunner } from "./schedule/runners
  * All SQL lives behind `DispatcherStore` (same seam pattern as queries.ts) so
  * the orchestration is tested with an injected fake — CI never touches a live
  * server. The SQL implementation's semantics are proven in
- * db/checks/0008_dispatcher_checks.sql against the disposable PostGIS
+ * db/checks/0018_dispatcher_checks.sql against the disposable PostGIS
  * container.
  *
  * Worker cron is NOT exactly-once and ticks can be skipped (spec risk R5):

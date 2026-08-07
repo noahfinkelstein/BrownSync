@@ -10,7 +10,7 @@ import {
 /**
  * Exhaustive offline coverage of the dispatcher's pure planning math — no
  * Worker, no DB (the SQL twin of the predicate is proven separately in
- * db/checks/0008_dispatcher_checks.sql against the disposable container).
+ * db/checks/0018_dispatcher_checks.sql against the disposable container).
  */
 
 const NOW = new Date("2026-08-07T12:00:00Z");

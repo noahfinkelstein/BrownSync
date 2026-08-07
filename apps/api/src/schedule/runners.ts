@@ -143,7 +143,7 @@ function createLivewhaleRunner(sql: Sql, deps: RunnerDeps): SourceRunner {
  * Cross-source dedup, SQL lane (spec problem #6): the Actions rider used to
  * tie dedup's cadence to athletics', so moving athletics to 2 h would have
  * silently halved it. Here it runs on its own registry cadence (900 s,
- * migration 0008). Same engine as `pnpm poll dedup`; idempotent, so the
+ * migration 0018). Same engine as `pnpm poll dedup`; idempotent, so the
  * transitional overlap with poll.yml's cron is harmless.
  */
 function createDedupRunner(sql: Sql, deps: RunnerDeps): SourceRunner {

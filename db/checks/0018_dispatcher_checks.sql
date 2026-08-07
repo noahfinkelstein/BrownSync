@@ -1,15 +1,15 @@
--- 0008_dispatcher_checks.sql — semantic checks for the Worker dispatcher's
--- registry policy (migration 0008) and its claim SQL.
+-- 0018_dispatcher_checks.sql — semantic checks for the Worker dispatcher's
+-- registry policy (migration 0018) and its claim SQL.
 --
 -- Run by CI's postgis job right after migrations:
---   psql -v ON_ERROR_STOP=1 -f db/checks/0008_dispatcher_checks.sql
+--   psql -v ON_ERROR_STOP=1 -f db/checks/0018_dispatcher_checks.sql
 --
 -- ROLLBACK-SAFE: one transaction that always rolls back; fixtures are
 -- prefixed chk_ and assertions test MEMBERSHIP, so this is safe against a
 -- live database.
 --
 -- Two kinds of assertion, mirroring 0006's split:
---  * SEEDED-DATA assertions read the real dedup row 0008 retunes — these keep
+--  * SEEDED-DATA assertions read the real dedup row 0018 retunes — these keep
 --    a future edit from quietly undoing the problem-#6 fix and re-coupling
 --    dedup's cadence to another workflow's schedule;
 --  * FIXTURE assertions (chk_ rows) prove the CLAIM UPDATE's semantics — the
@@ -28,36 +28,36 @@ declare
 begin
   select * into r from source_registry where source = 'dedup';
   if not found then
-    raise exception '0008: dedup registry row is missing';
+    raise exception '0018: dedup registry row is missing';
   end if;
   if r.lane <> 'sql' then
-    raise exception '0008: dedup lane = %, want sql (Worker dispatcher, problem #6)', r.lane;
+    raise exception '0018: dedup lane = %, want sql (Worker dispatcher, problem #6)', r.lane;
   end if;
   if not r.enabled then
-    raise exception '0008: dedup is disabled — the dispatcher would never run it';
+    raise exception '0018: dedup is disabled — the dispatcher would never run it';
   end if;
   if r.cadence_seconds <> 900 then
-    raise exception '0008: dedup cadence = %s, want 900', r.cadence_seconds;
+    raise exception '0018: dedup cadence = %s, want 900', r.cadence_seconds;
   end if;
   if r.stale_after_seconds <> 3600 then
-    raise exception '0008: dedup stale_after = %s, want 3600', r.stale_after_seconds;
+    raise exception '0018: dedup stale_after = %s, want 3600', r.stale_after_seconds;
   end if;
 
   -- feed_rank is registered ahead of its producer and must STAY disabled
   -- until one exists — an enabled row with no runner makes the registry lie.
   select * into r from source_registry where source = 'feed_rank';
   if not found then
-    raise exception '0008: feed_rank registry row is missing';
+    raise exception '0018: feed_rank registry row is missing';
   end if;
   if r.enabled then
-    raise exception '0008: feed_rank is enabled but has no producer yet';
+    raise exception '0018: feed_rank is enabled but has no producer yet';
   end if;
 
   -- The dispatcher''s first worker source: livewhale stays on its contract §5
   -- cadence.
   select * into r from source_registry where source = 'livewhale';
   if not found or r.lane <> 'worker' or not r.enabled or r.cadence_seconds <> 600 then
-    raise exception '0008: livewhale must be an enabled worker source at 600s';
+    raise exception '0018: livewhale must be an enabled worker source at 600s';
   end if;
 end
 $chk$;
@@ -95,7 +95,7 @@ begin
          or last_started_at + make_interval(secs => cadence_seconds) <= now());
   get diagnostics n = row_count;
   if n <> 1 then
-    raise exception '0008: never-run source not claimable (claimed % rows)', n;
+    raise exception '0018: never-run source not claimable (claimed % rows)', n;
   end if;
 
   -- Re-claiming immediately must LOSE — this is the not-exactly-once guard:
@@ -107,7 +107,7 @@ begin
          or last_started_at + make_interval(secs => cadence_seconds) <= now());
   get diagnostics n = row_count;
   if n <> 0 then
-    raise exception '0008: immediate re-claim won — overlapping ticks would double-run';
+    raise exception '0018: immediate re-claim won — overlapping ticks would double-run';
   end if;
 
   -- Past-cadence: claimable.
@@ -118,7 +118,7 @@ begin
          or last_started_at + make_interval(secs => cadence_seconds) <= now());
   get diagnostics n = row_count;
   if n <> 1 then
-    raise exception '0008: overdue source not claimable (claimed % rows)', n;
+    raise exception '0018: overdue source not claimable (claimed % rows)', n;
   end if;
 
   -- Inside cadence: not claimable.
@@ -129,7 +129,7 @@ begin
          or last_started_at + make_interval(secs => cadence_seconds) <= now());
   get diagnostics n = row_count;
   if n <> 0 then
-    raise exception '0008: source inside its cadence was claimed';
+    raise exception '0018: source inside its cadence was claimed';
   end if;
 
   -- Backoff wins over cadence: an overdue-but-suppressed source stays put.
@@ -140,7 +140,7 @@ begin
          or last_started_at + make_interval(secs => cadence_seconds) <= now());
   get diagnostics n = row_count;
   if n <> 0 then
-    raise exception '0008: backed-off source was claimed';
+    raise exception '0018: backed-off source was claimed';
   end if;
 
   -- Disabled: the kill switch must hold at claim time too.
@@ -151,7 +151,7 @@ begin
          or last_started_at + make_interval(secs => cadence_seconds) <= now());
   get diagnostics n = row_count;
   if n <> 0 then
-    raise exception '0008: disabled source was claimed';
+    raise exception '0018: disabled source was claimed';
   end if;
 
   -- Failure bookkeeping: bumpFailures returns the post-increment count and
@@ -161,17 +161,17 @@ begin
   update source_registry set consecutive_failures = consecutive_failures + 1
     where source = 'chk_disp_overdue';
   if (select consecutive_failures from source_registry where source = 'chk_disp_overdue') <> 2 then
-    raise exception '0008: consecutive_failures did not accumulate';
+    raise exception '0018: consecutive_failures did not accumulate';
   end if;
   update source_registry
     set consecutive_failures = 0, backoff_until = null, last_ok_at = now()
     where source = 'chk_disp_overdue';
   if (select consecutive_failures from source_registry where source = 'chk_disp_overdue') <> 0 then
-    raise exception '0008: markSuccess did not reset consecutive_failures';
+    raise exception '0018: markSuccess did not reset consecutive_failures';
   end if;
 end
 $chk$;
 
 rollback;
 
-\echo '0008_dispatcher_checks: all assertions passed (transaction rolled back)'
+\echo '0018_dispatcher_checks: all assertions passed (transaction rolled back)'
