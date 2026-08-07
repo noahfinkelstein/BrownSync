@@ -5,7 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useCategoryFilter } from "../browse/filter";
 import { DAILY_ARTIFACT_QUERY_OPTIONS } from "../data/artifacts";
-import { useEventsWindow } from "../data/queries";
+import { useArticlesWindow, useEventsWindow } from "../data/queries";
 import { useDining } from "../dining";
 import { eventsInWindow } from "../map/eventsLayer";
 import type { FeedItem, PublicationsDocument } from "./model";
@@ -44,6 +44,7 @@ export function FeedPanel({
 }) {
   const eventsQuery = useEventsWindow();
   const publications = usePublications();
+  const articles = useArticlesWindow();
   const dining = useDining();
   const { selected } = useCategoryFilter();
   const cursor = eventsQuery.cursor;
@@ -56,13 +57,15 @@ export function FeedPanel({
     // 15, down from 40 (UI audit): the feed is a glance surface next to a
     // map, not an archive — a 40-row page was mostly weeks-old news.
     return buildFeed(
-      { events, publications: publications.data, dining: dining.data },
+      { events, publications: publications.data, articles: articles.data, dining: dining.data },
       { at, pageSize: 15 },
     );
-  }, [eventsQuery.data, publications.data, dining.data, selected, cursor, at]);
+  }, [eventsQuery.data, publications.data, articles.data, dining.data, selected, cursor, at]);
 
-  const degraded = eventsQuery.isError || publications.isError || dining.isError;
-  const pending = eventsQuery.isPending || publications.isPending || dining.isPending;
+  const degraded =
+    eventsQuery.isError || publications.isError || articles.isError || dining.isError;
+  const pending =
+    eventsQuery.isPending || publications.isPending || articles.isPending || dining.isPending;
 
   return (
     <div className={cn("flex flex-col", className)} data-testid="feed-panel">
@@ -147,11 +150,16 @@ function FeedRow({
     "block w-full px-3 py-2.5 text-left transition-colors duration-150 ease-out hover:bg-bg-overlay/60";
   // No sourceId line (UI audit): "livewhale"/"bdh"/"bpr" are ingest slugs,
   // not user-facing provenance, and they polluted every row's accessible
-  // name. The kind label carries the only distinction a reader acts on.
+  // name. The kind label carries the only distinction a reader acts on —
+  // EXCEPT articles, where a human publication label ("Brown News") replaces
+  // the generic "news": prominent attribution + click-through is the licence
+  // condition headline-only rows exist under, not decoration.
+  const label =
+    item.kind === "article" && item.publication !== null ? item.publication : KIND_LABEL[item.kind];
   const body = (
     <span className="flex items-baseline gap-2">
       <span className="shrink-0 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
-        {KIND_LABEL[item.kind]}
+        {label}
       </span>
       <span className="grow text-14 text-text-primary">{item.title}</span>
       <span className="shrink-0 font-mono text-12 tabular-nums text-text-secondary">{when}</span>

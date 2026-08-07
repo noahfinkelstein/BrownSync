@@ -1,4 +1,4 @@
-import type { EventOut } from "@brownsync/contract";
+import type { ArticleOut, EventOut } from "@brownsync/contract";
 import {
   type DiningDocument,
   type DiningLocation,
@@ -78,6 +78,14 @@ export type EventFeedItem = FeedItemBase & {
 export type ArticleFeedItem = FeedItemBase & {
   readonly kind: "article";
   readonly article: PublicationArticle;
+  /**
+   * Human attribution label ("Brown News", "Brown Daily Herald"). Rendering
+   * it on article rows is a licence obligation, not decoration: headline-only
+   * rows exist on the promise of prominent attribution + click-through.
+   * Null when the upstream carries no label — the row falls back to the
+   * generic kind label rather than inventing one.
+   */
+  readonly publication: string | null;
 };
 
 export type DiningFeedItem = FeedItemBase & {
@@ -161,6 +169,7 @@ export function eventsToFeed(events: readonly EventOut[]): EventFeedItem[] {
  */
 export function articlesToFeed(doc: PublicationsDocument | null | undefined): ArticleFeedItem[] {
   if (!doc) return [];
+  const nameBySource = new Map(doc.sources.map((s) => [s.id, s.name]));
   const items: ArticleFeedItem[] = [];
   for (const article of doc.articles) {
     const published = parse(article.published);
@@ -178,6 +187,43 @@ export function articlesToFeed(doc: PublicationsDocument | null | undefined): Ar
       placeId: null,
       url: article.url,
       article,
+      publication: nameBySource.get(article.sourceId) ?? null,
+    });
+  }
+  return items;
+}
+
+/**
+ * API articles (contract v1.9, GET /api/articles — the `articles` table's
+ * read model) → feed rows. Same shape as `articlesToFeed`, different
+ * upstream: these rows come from the database, already carry their registry
+ * attribution label ("Brown News"), and are headline+URL+date by database
+ * CHECK — there is no body to be tempted by.
+ */
+export function apiArticlesToFeed(articles: readonly ArticleOut[]): ArticleFeedItem[] {
+  const items: ArticleFeedItem[] = [];
+  for (const article of articles) {
+    const published = parse(article.publishedAt);
+    if (published === null) continue;
+    items.push({
+      kind: "article",
+      id: `article:${article.source}:${article.id}`,
+      sourceId: article.source,
+      title: article.title,
+      timestamp: published,
+      endsAt: null,
+      placeId: null,
+      url: article.url,
+      article: {
+        id: article.id,
+        sourceId: article.source,
+        title: article.title,
+        url: article.url,
+        published: article.publishedAt,
+        section: null,
+        author: article.author,
+      },
+      publication: article.publication,
     });
   }
   return items;
