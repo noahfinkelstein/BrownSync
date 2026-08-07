@@ -25,3 +25,4 @@ supabase/.branches/
 # os
 .DS_Store
 .gstack/
+.claude/worktrees/
