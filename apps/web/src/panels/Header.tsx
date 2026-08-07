@@ -104,10 +104,13 @@ function MobileDirectoryNav() {
 }
 
 export function AppHeader() {
+  // gap-3 below md: with the search trigger collapsed to a glyph and the
+  // health chip demoted to a dot (UI audit), the tighter gap is what lets
+  // brand + Browse + search + NowBar + health all fit at 375 px.
   return (
     <header
       style={ON_BROWN}
-      className="relative z-30 flex h-14 shrink-0 items-center gap-4 bg-brand-brown px-4 text-text-primary"
+      className="relative z-30 flex h-14 shrink-0 items-center gap-3 bg-brand-brown px-4 text-text-primary md:gap-4"
     >
       <div className="flex shrink-0 items-baseline gap-2.5">
         {/* <Link>, never a bare <a href>. A raw anchor is a full document

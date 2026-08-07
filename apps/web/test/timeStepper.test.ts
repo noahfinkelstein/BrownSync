@@ -21,6 +21,11 @@ function step(name: string): TimeStep {
   return found;
 }
 
+/** No longer a button (UI audit trimmed the stepper to −1h +1h +1d), but the
+ *  keyboard's Shift+ArrowLeft still steps back a day through `stepCursor`'s
+ *  day path — so its DST behaviour stays pinned here. */
+const BACK_ONE_DAY: TimeStep = { unit: "day", direction: -1, label: "−1d", name: "Back one day" };
+
 /**
  * DST ends Sunday 2026-11-01: 02:00 EDT becomes 01:00 EST, so that local day
  * is 25 hours long. Every day/week assertion below is anchored to it.
@@ -73,25 +78,7 @@ describe("day steps preserve the campus wall clock across DST", () => {
   it("round-trips: forward one day then back lands on the original instant", () => {
     const scale = createScrubberScale(FALL_BACK_ANCHOR);
     const next = stepCursor(scale, SAT_2000_EDT, step("Forward one day"));
-    expect(stepCursor(scale, next, step("Back one day")).getTime()).toBe(SAT_2000_EDT.getTime());
-  });
-});
-
-describe("week steps are seven calendar days, not 168 hours", () => {
-  it("keeps the wall clock when the week contains the DST transition", () => {
-    // Seven "+1d" presses and one "+1w" press must agree; 168 h flat would
-    // put "same time next Friday" an hour early.
-    const scale = createScrubberScale(new Date("2026-11-03T00:00:00Z"));
-    const from = new Date("2026-10-31T00:00:00Z"); // Fri Oct 30, 20:00 EDT
-    const next = stepCursor(scale, from, step("Forward one week"));
-
-    expect(localParts(next).hour).toBe(20);
-    expect(localParts(next).day).toBe(6);
-    expect(next.getTime() - from.getTime()).toBe(7 * DAY_MS + HOUR_MS);
-
-    let byDay = from as Date;
-    for (let i = 0; i < 7; i++) byDay = stepCursor(scale, byDay, step("Forward one day"));
-    expect(byDay.getTime()).toBe(next.getTime());
+    expect(stepCursor(scale, next, BACK_ONE_DAY).getTime()).toBe(SAT_2000_EDT.getTime());
   });
 });
 
@@ -101,11 +88,11 @@ describe("stepping respects the scrubber's ±7-day rail", () => {
   it("clamps an overshooting step to the end of the rail", () => {
     const scale = createScrubberScale(ANCHOR);
     const nearEnd = scale.toDate(scale.max - 30);
-    expect(stepCursor(scale, nearEnd, step("Forward one week")).getTime()).toBe(
+    expect(stepCursor(scale, nearEnd, step("Forward one day")).getTime()).toBe(
       scale.toDate(scale.max).getTime(),
     );
     const nearStart = scale.toDate(30);
-    expect(stepCursor(scale, nearStart, step("Back one day")).getTime()).toBe(
+    expect(stepCursor(scale, nearStart, step("Back one hour")).getTime()).toBe(
       scale.toDate(0).getTime(),
     );
   });
@@ -117,9 +104,9 @@ describe("stepping respects the scrubber's ±7-day rail", () => {
     const end = scale.toDate(scale.max);
     const start = scale.toDate(scale.min);
     expect(canStep(scale, end, step("Forward one hour"))).toBe(false);
-    expect(canStep(scale, end, step("Forward one week"))).toBe(false);
+    expect(canStep(scale, end, step("Forward one day"))).toBe(false);
     expect(canStep(scale, end, step("Back one hour"))).toBe(true);
-    expect(canStep(scale, start, step("Back one day"))).toBe(false);
+    expect(canStep(scale, start, step("Back one hour"))).toBe(false);
     expect(canStep(scale, start, step("Forward one day"))).toBe(true);
   });
 
@@ -145,15 +132,18 @@ describe("<TimeStepper/> renders real, named, keyboard-reachable buttons", () =>
   it("gives every control a spelled-out accessible name", () => {
     mount();
     expect(screen.getByRole("group", { name: "Step the time cursor" })).toBeTruthy();
-    for (const name of [
-      "Back one week",
-      "Back one day",
-      "Back one hour",
-      "Forward one hour",
-      "Forward one day",
-      "Forward one week",
-    ]) {
+    for (const name of ["Back one hour", "Forward one hour", "Forward one day"]) {
       expect(screen.getByRole("button", { name }).tagName).toBe("BUTTON");
+    }
+  });
+
+  it("renders ONLY the three surviving steps — ±1w and −1d stay deleted", () => {
+    // UI audit: six step buttons was control sprawl. This pins the trim so
+    // the buttons do not creep back one PR at a time.
+    mount();
+    expect(screen.getAllByRole("button")).toHaveLength(3);
+    for (const name of ["Back one week", "Back one day", "Forward one week"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
     }
   });
 
@@ -166,15 +156,17 @@ describe("<TimeStepper/> renders real, named, keyboard-reachable buttons", () =>
 
   it("disables the forward controls once the cursor reaches the end of the rail", () => {
     const store = mount();
-    fireEvent.click(screen.getByRole("button", { name: "Forward one week" }));
-    // September has no DST boundary, so one week here is exactly +7 d = max.
+    // Seven "+1d" presses walk to the rail end (September has no DST
+    // boundary, so seven local days here are exactly +7 d = max).
+    for (let i = 0; i < 7; i++) {
+      fireEvent.click(screen.getByRole("button", { name: "Forward one day" }));
+    }
     expect(store.now().getTime()).toBe(CLOCK + 7 * DAY_MS);
 
     const disabled = (name: string) =>
       (screen.getByRole("button", { name }) as HTMLButtonElement).disabled;
     expect(disabled("Forward one hour")).toBe(true);
     expect(disabled("Forward one day")).toBe(true);
-    expect(disabled("Forward one week")).toBe(true);
     expect(disabled("Back one hour")).toBe(false);
   });
 });

@@ -10,6 +10,8 @@ import { DEFAULT_DURATION_MS, SOON_MS } from "../map/eventsLayer";
  * those are miserable to assert through a rendered component.
  */
 
+// No `next` slot (UI audit): the bar's next-event teaser duplicated the
+// HappeningNow panel and was deleted, so the summary carries counts only.
 export type NowSummary = {
   /** Events in progress at the cursor. */
   readonly live: number;
@@ -17,18 +19,12 @@ export type NowSummary = {
   readonly soon: number;
   /** Course meetings in session at the cursor. */
   readonly classes: number;
-  /** The next event to START strictly after the cursor, if any. */
-  readonly next: EventOut | null;
-  /** Milliseconds until `next` starts, or null when there is no next. */
-  readonly nextInMs: number | null;
 };
 
 export const EMPTY_SUMMARY: NowSummary = {
   live: 0,
   soon: 0,
   classes: 0,
-  next: null,
-  nextInMs: null,
 };
 
 /**
@@ -67,41 +63,11 @@ export function summarizeNow(
   const cursorMs = cursor.getTime();
   let live = 0;
   let soon = 0;
-  let next: EventOut | null = null;
-  let nextMs = Number.POSITIVE_INFINITY;
 
   for (const event of events) {
     if (isInProgress(event, cursorMs)) live += 1;
     if (isSoon(event, cursorMs)) soon += 1;
-
-    const startMs = Date.parse(event.start);
-    // Strictly after: an event starting exactly at the cursor is already
-    // counted as live, and showing it as "next" too would double-report it.
-    // Canceled events are never "next" — that is the one slot the bar names.
-    if (!event.isCanceled && Number.isFinite(startMs) && startMs > cursorMs && startMs < nextMs) {
-      nextMs = startMs;
-      next = event;
-    }
   }
 
-  return {
-    live,
-    soon,
-    classes,
-    next,
-    nextInMs: next ? nextMs - cursorMs : null,
-  };
-}
-
-/** `in 26 min` / `in 3 h` / `in 2 d` — the coarse form the bar needs. */
-export function formatCountdown(ms: number): string {
-  // The sub-minute check reads the raw ms, not the rounded minutes: 30 s
-  // rounds to 1, and "in 1 min" for something 30 s away is a small lie that
-  // the user can watch tick past.
-  if (ms < 60_000) return "in <1 min";
-  const minutes = Math.round(ms / 60_000);
-  if (minutes < 60) return `in ${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `in ${hours} h`;
-  return `in ${Math.round(hours / 24)} d`;
+  return { live, soon, classes };
 }

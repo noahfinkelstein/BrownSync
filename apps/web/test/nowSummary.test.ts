@@ -1,7 +1,7 @@
 import type { EventOut } from "@brownsync/contract";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DURATION_MS, isEventLive, SOON_MS } from "../src/map/eventsLayer";
-import { EMPTY_SUMMARY, formatCountdown, summarizeNow } from "../src/panels/nowSummary";
+import { EMPTY_SUMMARY, summarizeNow } from "../src/panels/nowSummary";
 
 const AT = new Date("2026-09-10T18:00:00Z");
 const AT_MS = AT.getTime();
@@ -83,54 +83,22 @@ describe("the soon window drives the header's live dot", () => {
   });
 });
 
-describe("the next slot", () => {
-  it("picks the earliest event strictly after the cursor", () => {
-    const events = [
-      event({ start: iso(120 * MIN), title: "Later" }),
-      event({ start: iso(20 * MIN), title: "Next" }),
-      event({ start: iso(-10 * MIN), title: "Already started" }),
-    ];
-    const summary = summarizeNow(events, 0, AT);
-    expect(summary.next?.title).toBe("Next");
-    expect(summary.nextInMs).toBe(20 * MIN);
-  });
-
-  it("does not name an event that starts exactly at the cursor", () => {
-    // It is already counted in `live`; naming it as "next" double-reports it.
-    const summary = summarizeNow([event({ start: iso(0), title: "Now" })], 0, AT);
-    expect(summary.next).toBeNull();
-    expect(summary.live).toBe(1);
-  });
-
-  it("does not name a canceled event", () => {
-    const events = [
-      event({ start: iso(10 * MIN), title: "Canceled", isCanceled: true }),
-      event({ start: iso(40 * MIN), title: "Real" }),
-    ];
-    expect(summarizeNow(events, 0, AT).next?.title).toBe("Real");
-  });
-
+// The `next` slot and `formatCountdown` are gone with the header's teaser
+// (UI audit): the bar reads counts only, and HappeningNow names events.
+describe("summary edges", () => {
   it("survives an unparseable start date", () => {
     const summary = summarizeNow([event({ start: "not a date" })], 0, AT);
     expect(summary).toEqual({ ...EMPTY_SUMMARY, classes: 0 });
   });
 
-  it("returns nothing when the cursor is past everything", () => {
+  it("carries the classes count even when the cursor is past everything", () => {
     const summary = summarizeNow([event({ start: iso(-5 * 60 * MIN) })], 7, AT);
-    expect(summary.next).toBeNull();
-    expect(summary.nextInMs).toBeNull();
+    expect(summary.live).toBe(0);
     expect(summary.classes).toBe(7);
   });
-});
 
-describe("formatCountdown", () => {
-  it.each([
-    [30_000, "in <1 min"],
-    [26 * MIN, "in 26 min"],
-    [59 * MIN, "in 59 min"],
-    [3 * 60 * MIN, "in 3 h"],
-    [50 * 60 * MIN, "in 2 d"],
-  ])("%i ms → %s", (ms, expected) => {
-    expect(formatCountdown(ms)).toBe(expected);
+  it("exposes counts only — no next-event field to leak a teaser back in", () => {
+    const summary = summarizeNow([event({ start: iso(20 * MIN), title: "Next" })], 0, AT);
+    expect(Object.keys(summary).sort()).toEqual(["classes", "live", "soon"]);
   });
 });

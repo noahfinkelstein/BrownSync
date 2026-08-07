@@ -10,6 +10,7 @@ import {
   LAYERS,
   type LayerId,
   type LayerState,
+  LIVE_LAYERS,
   parseLayers,
   serializeLayers,
 } from "../src/map/layerRegistry";
@@ -156,6 +157,14 @@ describe("?layers= round-trips as a DIFF against the defaults", () => {
     for (const id of pending) {
       expect(parseLayers(id)[id as LayerId], id).toBe(false);
     }
+  });
+
+  it("keeps pending layers out of LIVE_LAYERS — the panel renders only LIVE_LAYERS", () => {
+    // UI audit: disabled "… soon" placeholder rows were dead weight in the
+    // panel. LayerPanel now maps over LIVE_LAYERS, so this is the seam that
+    // keeps a future pending entry invisible until it is wired up.
+    expect(LIVE_LAYERS.every((l) => !l.pending)).toBe(true);
+    expect(LIVE_LAYERS.length).toBe(LAYERS.filter((l) => !l.pending).length);
   });
 
   it("keeps LAYER_BY_ID complete", () => {

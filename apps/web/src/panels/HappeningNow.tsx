@@ -6,6 +6,7 @@ import { useEventsWindow, useMeetingsInSession } from "../data/queries";
 import { aggregateMeetingActivity, totalMeetingCount } from "../map/classesLayer";
 import { eventsInWindow } from "../map/eventsLayer";
 import { formatClock, formatRelative } from "../time/format";
+import { panelStartsOpen } from "./defaultOpen";
 import { happeningNow, placeLabel } from "./liveNow";
 
 export type HappeningNowProps = {
@@ -43,7 +44,9 @@ export function HappeningNow({ onSelect, className }: HappeningNowProps) {
   const meetingsQuery = useMeetingsInSession();
   const { selected } = useCategoryFilter();
   const cursor = eventsQuery.cursor;
-  const [open, setOpen] = useState(true);
+  // Collapsed to the one-row summary on phones (UI audit: mounted expanded
+  // it stacked with LayerPanel over most of a 375 px map).
+  const [open, setOpen] = useState(panelStartsOpen);
 
   const model = useMemo(() => {
     const windowed = eventsInWindow(eventsQuery.data ?? [], cursor);

@@ -30,18 +30,24 @@ export function SearchTrigger({ onSelectEvent, className }: SearchTriggerProps) 
 
   return (
     <>
+      {/* Below md the trigger collapses to the glyph alone (UI audit: the
+          56-w field ran the 375 px header off-edge). aria-label keeps the
+          accessible name stable across both forms. */}
       <button
         type="button"
+        aria-label="Search"
         onClick={() => setOpen(true)}
         className={cn(
-          "flex h-7 w-56 shrink-0 items-center gap-1.5 rounded-4 border border-line bg-bg-overlay px-2 text-14 text-text-secondary transition-colors duration-150 ease-out hover:border-text-faint hover:text-text-primary",
+          "flex h-7 w-7 shrink-0 items-center justify-center gap-1.5 rounded-4 border border-line bg-bg-overlay px-0 text-14 text-text-secondary transition-colors duration-150 ease-out hover:border-text-faint hover:text-text-primary md:w-56 md:justify-start md:px-2",
           FOCUS_RING,
           className,
         )}
       >
         <SearchGlyph className="h-3.5 w-3.5 shrink-0" />
-        <span className="grow text-left">Search</span>
-        <Kbd>⌘K</Kbd>
+        <span className="hidden grow text-left md:inline">Search</span>
+        <span className="hidden md:inline">
+          <Kbd>⌘K</Kbd>
+        </span>
       </button>
       <SearchPalette open={open} onOpenChange={setOpen} onSelectEvent={onSelectEvent} />
     </>

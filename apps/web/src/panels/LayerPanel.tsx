@@ -2,12 +2,13 @@ import { CategoryIcon, cn, FOCUS_RING } from "@brownsync/ui";
 import { useCallback, useState } from "react";
 import {
   LAYER_GROUPS,
-  LAYERS,
   type LayerGroupId,
   type LayerId,
   type LayerSpec,
   type LayerState,
+  LIVE_LAYERS,
 } from "../map/layerRegistry";
+import { panelStartsOpen } from "./defaultOpen";
 
 export type LayerPanelProps = {
   state: LayerState;
@@ -32,6 +33,10 @@ const INITIAL_COLLAPSED = new Set<LayerGroupId>(
  */
 export function LayerPanel({ state, onToggle, onReset, isModified, counts }: LayerPanelProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<LayerGroupId>>(INITIAL_COLLAPSED);
+  // The WHOLE panel collapses to its "Layers" chip, closed by default below
+  // md (UI audit: mounted expanded it covered the top-left ~45% of a 375 px
+  // map before the user asked for it).
+  const [panelOpen, setPanelOpen] = useState(panelStartsOpen);
 
   const toggleGroup = useCallback((id: LayerGroupId) => {
     setCollapsed((prev) => {
@@ -45,13 +50,32 @@ export function LayerPanel({ state, onToggle, onReset, isModified, counts }: Lay
     <nav
       aria-label="Map layers"
       data-testid="layer-panel"
-      className="absolute top-3 left-3 z-20 max-h-[calc(100%-1.5rem)] w-52 overflow-y-auto rounded-6 border border-line bg-bg-raised"
+      className={cn(
+        "absolute top-3 left-3 z-20 max-h-[calc(100%-1.5rem)] overflow-y-auto rounded-6 border border-line bg-bg-raised",
+        panelOpen && "w-52",
+      )}
     >
-      <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-line bg-bg-raised px-2.5 py-1.5">
-        <h2 className="font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
-          Layers
+      <div
+        className={cn(
+          "sticky top-0 flex items-center justify-between gap-2 bg-bg-raised px-2.5 py-1.5",
+          panelOpen && "border-b border-line",
+        )}
+      >
+        <h2>
+          <button
+            type="button"
+            aria-expanded={panelOpen}
+            onClick={() => setPanelOpen((prev) => !prev)}
+            className={cn(
+              "flex items-center gap-1.5 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary",
+              FOCUS_RING,
+            )}
+          >
+            <Chevron open={panelOpen} />
+            Layers
+          </button>
         </h2>
-        {isModified && (
+        {panelOpen && isModified && (
           <button
             type="button"
             onClick={onReset}
@@ -65,49 +89,55 @@ export function LayerPanel({ state, onToggle, onReset, isModified, counts }: Lay
         )}
       </div>
 
-      {LAYER_GROUPS.map((group) => {
-        const rows = LAYERS.filter((layer) => layer.group === group.id);
-        if (rows.length === 0) return null;
-        const isCollapsed = collapsed.has(group.id);
-        const onCount = rows.filter((r) => state[r.id]).length;
-        return (
-          <section key={group.id} className="border-b border-line last:border-b-0">
-            <h3>
-              <button
-                type="button"
-                aria-expanded={!isCollapsed}
-                onClick={() => toggleGroup(group.id)}
-                className={cn(
-                  "flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left font-mono text-12 uppercase tracking-[0.08em] text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary",
-                  FOCUS_RING,
-                )}
-              >
-                <Chevron open={!isCollapsed} />
-                <span className="grow">{group.label}</span>
-                {isCollapsed && onCount > 0 && <span className="tabular-nums">{onCount}</span>}
-              </button>
-            </h3>
-            {!isCollapsed && (
-              <ul className="pb-1">
-                {rows.map((layer) => (
-                  <li key={layer.id}>
-                    <LayerRow
-                      layer={layer}
-                      on={state[layer.id]}
-                      count={counts?.[layer.id]}
-                      onToggle={onToggle}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        );
-      })}
+      {panelOpen &&
+        LAYER_GROUPS.map((group) => {
+          // LIVE_LAYERS, not LAYERS (UI audit: dead placeholder rows) — a
+          // pending entry has no data, and a disabled "soon" row is a promise
+          // the panel cannot keep. It returns here when it is wired up.
+          const rows = LIVE_LAYERS.filter((layer) => layer.group === group.id);
+          if (rows.length === 0) return null;
+          const isCollapsed = collapsed.has(group.id);
+          const onCount = rows.filter((r) => state[r.id]).length;
+          return (
+            <section key={group.id} className="border-b border-line last:border-b-0">
+              <h3>
+                <button
+                  type="button"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleGroup(group.id)}
+                  className={cn(
+                    "flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left font-mono text-12 uppercase tracking-[0.08em] text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary",
+                    FOCUS_RING,
+                  )}
+                >
+                  <Chevron open={!isCollapsed} />
+                  <span className="grow">{group.label}</span>
+                  {isCollapsed && onCount > 0 && <span className="tabular-nums">{onCount}</span>}
+                </button>
+              </h3>
+              {!isCollapsed && (
+                <ul className="pb-1">
+                  {rows.map((layer) => (
+                    <li key={layer.id}>
+                      <LayerRow
+                        layer={layer}
+                        on={state[layer.id]}
+                        count={counts?.[layer.id]}
+                        onToggle={onToggle}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
     </nav>
   );
 }
 
+// No pending/"soon" rendering: pending layers never reach this component
+// (see the LIVE_LAYERS filter above), so the row only knows live layers.
 function LayerRow({
   layer,
   on,
@@ -119,19 +149,14 @@ function LayerRow({
   count: number | undefined;
   onToggle: (id: LayerId) => void;
 }) {
-  const pending = layer.pending === true;
   return (
     <button
       type="button"
-      aria-pressed={pending ? undefined : on}
-      disabled={pending}
-      title={pending ? "Not wired up yet" : undefined}
+      aria-pressed={on}
       onClick={() => onToggle(layer.id)}
       className={cn(
         "flex h-8 w-full items-center gap-2 px-2.5 text-14 transition-colors duration-150 ease-out",
-        pending
-          ? "cursor-not-allowed text-text-secondary opacity-45"
-          : `hover:bg-bg-overlay/60 ${on ? "text-text-primary" : "text-text-secondary"}`,
+        `hover:bg-bg-overlay/60 ${on ? "text-text-primary" : "text-text-secondary"}`,
         FOCUS_RING,
       )}
     >
@@ -139,9 +164,9 @@ function LayerRow({
         aria-hidden
         className={cn(
           "h-1.5 w-1.5 shrink-0 rounded-full border",
-          on && !pending ? "border-transparent" : "border-text-faint bg-transparent",
+          on ? "border-transparent" : "border-text-faint bg-transparent",
         )}
-        style={on && !pending ? { background: layer.color } : undefined}
+        style={on ? { background: layer.color } : undefined}
       />
       {layer.icon && (
         <span aria-hidden className={cn("shrink-0", on ? "opacity-100" : "opacity-50")}>
@@ -150,14 +175,8 @@ function LayerRow({
         </span>
       )}
       <span className="grow truncate text-left">{layer.label}</span>
-      {pending ? (
-        <span className="shrink-0 font-mono text-12 text-text-secondary">soon</span>
-      ) : (
-        count !== undefined && (
-          <span className="shrink-0 font-mono text-12 tabular-nums text-text-secondary">
-            {count}
-          </span>
-        )
+      {count !== undefined && (
+        <span className="shrink-0 font-mono text-12 tabular-nums text-text-secondary">{count}</span>
       )}
     </button>
   );
