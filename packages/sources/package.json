@@ -1,0 +1,22 @@
+{
+  "name": "@brownsync/sources",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runtime-portable source code shared by services/poller (Node CLI) and apps/api (Cloudflare Worker dispatcher): normalizers, sharding, sweep/upsert semantics, dedup, and the polite HTTP client core. No node:* imports allowed here — that is the whole point of the package (spec: 'the Worker cannot import Node-coupled modules').",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@brownsync/contract": "workspace:*",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

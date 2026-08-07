@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@brownsync/contract": "workspace:*",
+    "@brownsync/sources": "workspace:*",
     "fast-xml-parser": "^5.10.1",
     "node-ical": "^0.27.1",
     "postgres": "^3.4.9",
