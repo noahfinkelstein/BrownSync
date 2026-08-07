@@ -34,8 +34,7 @@ type FakeStore = DispatcherStore & {
   runs: SeedSourceRun[];
   claims: string[];
   successes: Array<{ source: string; okAt: string | null }>;
-  bumps: string[];
-  backoffs: Array<{ source: string; untilIso: string }>;
+  failures: Array<{ source: string; untilIso: string }>;
 };
 
 function fakeStore(
@@ -45,16 +44,13 @@ function fakeStore(
     claimWins?: (source: string) => boolean;
     /** Simulate a source_runs INSERT failing. */
     recordThrows?: boolean;
-    /** consecutive_failures value bumpFailures reports. */
-    failuresAfterBump?: number;
   } = {},
 ): FakeStore {
   const store: FakeStore = {
     runs: [],
     claims: [],
     successes: [],
-    bumps: [],
-    backoffs: [],
+    failures: [],
     loadRegistry: async () => rows,
     claim: async (source) => {
       store.claims.push(source);
@@ -67,12 +63,8 @@ function fakeStore(
     markSuccess: async (source, okAt) => {
       store.successes.push({ source, okAt });
     },
-    bumpFailures: async (source) => {
-      store.bumps.push(source);
-      return opts.failuresAfterBump ?? 1;
-    },
-    setBackoff: async (source, untilIso) => {
-      store.backoffs.push({ source, untilIso });
+    markFailure: async (source, untilIso) => {
+      store.failures.push({ source, untilIso });
     },
   };
   return store;
@@ -97,8 +89,7 @@ describe("runDispatchTick", () => {
       },
     ]);
     expect(store.successes).toEqual([{ source: "livewhale", okAt: NOW.toISOString() }]);
-    expect(store.bumps).toEqual([]);
-    expect(store.backoffs).toEqual([]);
+    expect(store.failures).toEqual([]);
   });
 
   it("never claims a registered source it has no runner for", async () => {
@@ -126,7 +117,7 @@ describe("runDispatchTick", () => {
     expect(runner).not.toHaveBeenCalled();
     expect(store.runs).toEqual([]);
     expect(store.successes).toEqual([]);
-    expect(store.backoffs).toEqual([]);
+    expect(store.failures).toEqual([]);
   });
 
   it("a partial run still records, clears backoff, but does not advance last_ok_at", async () => {
@@ -136,7 +127,7 @@ describe("runDispatchTick", () => {
 
     expect(store.runs[0]?.status).toBe("partial");
     expect(store.successes).toEqual([{ source: "livewhale", okAt: null }]);
-    expect(store.bumps).toEqual([]);
+    expect(store.failures).toEqual([]);
   });
 
   it("a failed run records an error row and backs off with bounded full jitter", async () => {
@@ -145,9 +136,10 @@ describe("runDispatchTick", () => {
       items: 0,
       error: "GET https://events.brown.edu -> 503",
     });
-    const store = fakeStore([registryRow({ source: "livewhale", cadence_seconds: 600 })], {
-      failuresAfterBump: 2,
-    });
+    // One prior failure on the snapshot → this failure is the 2nd in a row.
+    const store = fakeStore([
+      registryRow({ source: "livewhale", cadence_seconds: 600, consecutive_failures: 1 }),
+    ]);
     await runDispatchTick(
       store,
       { livewhale: failingRunner },
@@ -164,22 +156,18 @@ describe("runDispatchTick", () => {
         error: "GET https://events.brown.edu -> 503",
       },
     ]);
-    expect(store.bumps).toEqual(["livewhale"]);
     // failures=2 → cap 600·2² = 2400 s; random 0.5 → 1200 s after the finish.
-    expect(store.backoffs).toEqual([
+    expect(store.failures).toEqual([
       { source: "livewhale", untilIso: new Date(NOW.getTime() + 1200_000).toISOString() },
     ]);
     expect(store.successes).toEqual([]);
   });
 
   it("a runner that THROWS is contained: error row recorded, backoff applied, next source runs", async () => {
-    const store = fakeStore(
-      [
-        registryRow({ source: "dedup", lane: "sql", cadence_seconds: 900 }),
-        registryRow({ source: "livewhale" }),
-      ],
-      { failuresAfterBump: 1 },
-    );
+    const store = fakeStore([
+      registryRow({ source: "dedup", lane: "sql", cadence_seconds: 900 }),
+      registryRow({ source: "livewhale" }),
+    ]);
     const outcomes = await runDispatchTick(
       store,
       {
@@ -199,7 +187,7 @@ describe("runDispatchTick", () => {
       ["dedup", "error"],
       ["livewhale", "ok"],
     ]);
-    const until = Date.parse(store.backoffs[0]?.untilIso ?? "");
+    const until = Date.parse(store.failures[0]?.untilIso ?? "");
     expect(until).toBeGreaterThanOrEqual(NOW.getTime());
     expect(until).toBeLessThanOrEqual(NOW.getTime() + BACKOFF_CAP_SECONDS * 1000);
   });
@@ -256,8 +244,7 @@ describe("runDispatchTick", () => {
 
       expect(outcomes.map((o) => o.source)).toEqual(["dedup", "livewhale"]);
       // Recording failed, but the registry still learned about the failure…
-      expect(store.bumps).toEqual(["dedup"]);
-      expect(store.backoffs).toHaveLength(1);
+      expect(store.failures.map((f) => f.source)).toEqual(["dedup"]);
       // …and the healthy source still ran and was marked successful.
       expect(store.successes).toEqual([{ source: "livewhale", okAt: NOW.toISOString() }]);
       expect(errorSpy).toHaveBeenCalled();

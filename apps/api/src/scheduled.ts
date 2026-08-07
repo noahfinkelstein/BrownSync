@@ -33,9 +33,8 @@ export type DispatcherStore = {
   recordRun: (run: SeedSourceRun) => Promise<void>;
   /** ok/partial: clear failures + backoff; okAt stamps last_ok_at (null keeps it). */
   markSuccess: (source: string, okAt: string | null) => Promise<void>;
-  /** Count one more consecutive failure; returns the new count. */
-  bumpFailures: (source: string) => Promise<number>;
-  setBackoff: (source: string, untilIso: string) => Promise<void>;
+  /** ONE statement: count the failure and set its backoff — no window between. */
+  markFailure: (source: string, backoffUntilIso: string) => Promise<void>;
 };
 
 export function createDispatcherStore(sql: Sql): DispatcherStore {
@@ -71,19 +70,11 @@ export function createDispatcherStore(sql: Sql): DispatcherStore {
         where source = ${source}
       `;
     },
-    bumpFailures: async (source) => {
-      const rows = await sql<{ consecutive_failures: number }[]>`
-        update source_registry
-        set consecutive_failures = consecutive_failures + 1
-        where source = ${source}
-        returning consecutive_failures
-      `;
-      return rows[0]?.consecutive_failures ?? 1;
-    },
-    setBackoff: async (source, untilIso) => {
+    markFailure: async (source, backoffUntilIso) => {
       await sql`
         update source_registry
-        set backoff_until = ${untilIso}::timestamptz
+        set consecutive_failures = consecutive_failures + 1,
+            backoff_until = ${backoffUntilIso}::timestamptz
         where source = ${source}
       `;
     },
@@ -165,9 +156,13 @@ export async function runDispatchTick(
 
     try {
       if (result.status === "error") {
-        const failures = await store.bumpFailures(source);
+        // The new failure count comes from this tick's registry snapshot —
+        // safe, because the claim serializes runs of one source: nothing else
+        // has incremented it since loadRegistry. One statement then counts
+        // the failure and sets its backoff with no window between.
+        const failures = row.consecutive_failures + 1;
         const delaySeconds = backoffDelaySeconds(row.cadence_seconds, failures, random);
-        await store.setBackoff(
+        await store.markFailure(
           source,
           new Date(finishedAt.getTime() + Math.round(delaySeconds * 1000)).toISOString(),
         );

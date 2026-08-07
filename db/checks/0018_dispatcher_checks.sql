@@ -154,20 +154,29 @@ begin
     raise exception '0018: disabled source was claimed';
   end if;
 
-  -- Failure bookkeeping: bumpFailures returns the post-increment count and
-  -- markSuccess resets it with the backoff.
-  update source_registry set consecutive_failures = consecutive_failures + 1
+  -- Failure bookkeeping: markFailure is ONE statement — the failure count
+  -- and its backoff move together, with no window between — and markSuccess
+  -- resets both.
+  update source_registry
+    set consecutive_failures = consecutive_failures + 1,
+        backoff_until = now() + interval '20 minutes'
     where source = 'chk_disp_overdue';
-  update source_registry set consecutive_failures = consecutive_failures + 1
+  update source_registry
+    set consecutive_failures = consecutive_failures + 1,
+        backoff_until = now() + interval '40 minutes'
     where source = 'chk_disp_overdue';
   if (select consecutive_failures from source_registry where source = 'chk_disp_overdue') <> 2 then
     raise exception '0018: consecutive_failures did not accumulate';
   end if;
+  if (select backoff_until from source_registry where source = 'chk_disp_overdue') is null then
+    raise exception '0018: markFailure did not set backoff_until';
+  end if;
   update source_registry
     set consecutive_failures = 0, backoff_until = null, last_ok_at = now()
     where source = 'chk_disp_overdue';
-  if (select consecutive_failures from source_registry where source = 'chk_disp_overdue') <> 0 then
-    raise exception '0018: markSuccess did not reset consecutive_failures';
+  if (select consecutive_failures from source_registry where source = 'chk_disp_overdue') <> 0
+     or (select backoff_until from source_registry where source = 'chk_disp_overdue') is not null then
+    raise exception '0018: markSuccess did not reset consecutive_failures + backoff';
   end if;
 end
 $chk$;
