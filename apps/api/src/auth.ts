@@ -27,7 +27,7 @@ export type Authenticator = MiddlewareHandler<AuthEnv>;
 
 export type AuthFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-export type AccountDeletionResult = "deleted" | "unavailable";
+export type AccountDeletionResult = "deleted" | "owner_transfer_required" | "unavailable";
 export type AccountDeleter = (user: AuthUser) => Promise<AccountDeletionResult>;
 
 export type AccountDeleterOptions = {

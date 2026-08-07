@@ -1,7 +1,7 @@
 {
   "operations": {
     "GET /api/me": "b741ce9c752048c1b3b346beb696a3593c58b7d207f587a13d5c307de16b9f6b",
-    "DELETE /api/account": "01df4bb694111ec8cce4d886e7d82335a3aa52b3faf381275cc0f3f3a431c7b6",
+    "DELETE /api/account": "26139b7abdf4530076eecc0c4e775a5db892e1ce5c8c9c62e52b61202938a4b2",
     "GET /api/me/organizations": "8d4888d8a8302e75c282aeb7da686f07b2d6a5ad5a8d8be6b2e24727069474fc",
     "POST /api/orgs": "62a145b1291a204bf62c15a0f71187b8e36b800e6293fa12fac2eb7d7b6096f9",
     "GET /api/orgs": "b572cab12c50b4ce497355c566137bc6589ac25c4b4ba96efe6688394278c522",

@@ -3419,6 +3419,16 @@
               }
             }
           },
+          "409": {
+            "description": "Sole board ownership must be transferred before account deletion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Authenticated write rate limit exceeded",
             "content": {
