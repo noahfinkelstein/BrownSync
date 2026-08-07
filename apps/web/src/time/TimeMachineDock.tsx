@@ -36,9 +36,14 @@ export function TimeMachineDock({ store = timeCursor, className }: TimeMachineDo
           The stepper costs the rail ~230 px, which is a trade worth naming —
           it exists precisely so nobody has to hit a 0.5 px/step target by
           hand, so the track it shortens is the track it makes less load-
-          bearing. Anything that shrinks the rail FURTHER belongs elsewhere. */}
-      <TimeStepper store={store} className="shrink-0" />
-      <TimePresets store={store} className="shrink-0" />
+          bearing. Anything that shrinks the rail FURTHER belongs elsewhere.
+          Below md the stepper and presets are gone entirely (UI audit: at
+          375 px the full row collapsed into an unusable pile) — mobile keeps
+          NOW + rail + readout, and exact steps stay a keyboard affordance. */}
+      <div className="hidden shrink-0 items-center gap-4 md:flex">
+        <TimeStepper store={store} className="shrink-0" />
+        <TimePresets store={store} className="shrink-0" />
+      </div>
     </div>
   );
 }

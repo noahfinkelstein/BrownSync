@@ -74,10 +74,13 @@ export function TimeScrubber({ store = timeCursor, className }: TimeScrubberProp
         />
       </div>
       {/* aria-live off: <output> defaults to polite, which would announce
-          every 30 s live tick. The slider's aria-valuetext covers AT. */}
+          every 30 s live tick. The slider's aria-valuetext covers AT.
+          The 10.5rem reservation (worst case "Sat 20:00 · 6 d 23 h ago",
+          held so the rail doesn't breathe as the text changes) is md-up
+          only — at 375 px it ate ~45% of the viewport (UI audit). */}
       <output
         aria-live="off"
-        className="min-w-[10.5rem] shrink-0 whitespace-nowrap text-right font-mono text-14 text-text-secondary tabular-nums"
+        className="shrink-0 whitespace-nowrap text-right font-mono text-14 text-text-secondary tabular-nums md:min-w-[10.5rem]"
       >
         {formatCursor(at, liveNow)}
       </output>
