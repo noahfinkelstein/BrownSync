@@ -103,7 +103,7 @@ export function HealthStrip({ className, compact = false, refreshMs }: HealthStr
             <StatusDot
               key={source.source}
               status={effectiveStatus(source, nowMs)}
-              label={sourceLabel(source.source)}
+              label={sourceLabel(source.source, source.label)}
               detail={formatAgo(source.lastOkAt, nowMs)}
             />
           ))
@@ -154,7 +154,10 @@ function HealthRow({ source, nowMs }: { source: SourceHealth; nowMs: number }) {
   return (
     <li data-testid={`health-row-${source.source}`} className="flex flex-col gap-0.5 px-3 py-2">
       <div className="flex items-baseline justify-between gap-3">
-        <StatusDot status={effectiveStatus(source, nowMs)} label={sourceLabel(source.source)} />
+        <StatusDot
+          status={effectiveStatus(source, nowMs)}
+          label={sourceLabel(source.source, source.label)}
+        />
         <span className="font-mono text-12 text-text-secondary">{statusWord(source, nowMs)}</span>
       </div>
       <div className="flex items-baseline justify-between gap-3 pl-3">

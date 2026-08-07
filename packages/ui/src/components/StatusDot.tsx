@@ -1,6 +1,6 @@
 import { cn } from "../cn";
 
-export type SourceStatus = "ok" | "stale" | "error";
+export type SourceStatus = "ok" | "stale" | "error" | "paused";
 
 /**
  * INDICATOR colours, not text colours.
@@ -16,6 +16,10 @@ const STATUS_COLOR: Record<SourceStatus, string> = {
   ok: "var(--status-ok)",
   stale: "var(--status-stale)",
   error: "var(--status-error)",
+  // Deliberately-disabled registry rows (legal/ToS refusals, pre-launch
+  // producers). Neutral hairline grey: a paused source is a recorded state,
+  // not a health problem, so it must never read as amber or red.
+  paused: "var(--line)",
 };
 
 export type StatusDotProps = {

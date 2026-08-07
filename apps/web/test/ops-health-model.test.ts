@@ -63,7 +63,51 @@ describe("aggregateStatus", () => {
   });
 });
 
+describe("per-source staleness thresholds (register §7)", () => {
+  it("uses the wire staleAfterSeconds instead of the global window", () => {
+    // Daily-cadence source (dining: 172800s): 2h old is FRESH even though it
+    // is far past the 45-min global fallback.
+    const twoHoursAgo = new Date(NOW - 2 * 60 * 60_000).toISOString();
+    expect(
+      effectiveStatus(source({ lastOkAt: twoHoursAgo, staleAfterSeconds: 172_800 }), NOW),
+    ).toBe("ok");
+    // …and past its own threshold it is stale.
+    const threeDaysAgo = new Date(NOW - 3 * 86_400_000).toISOString();
+    expect(
+      effectiveStatus(source({ lastOkAt: threeDaysAgo, staleAfterSeconds: 172_800 }), NOW),
+    ).toBe("stale");
+  });
+
+  it("falls back to STALE_AFTER_MS when the wire has no threshold", () => {
+    const old = new Date(NOW - STALE_AFTER_MS - 60_000).toISOString();
+    expect(effectiveStatus(source({ lastOkAt: old, staleAfterSeconds: null }), NOW)).toBe("stale");
+  });
+});
+
+describe("paused sources (register §7)", () => {
+  it("renders enabled=false as paused, never failure or stale", () => {
+    expect(effectiveStatus(source({ enabled: false }), NOW)).toBe("paused");
+    // Even a wire error on a disabled row reads paused — it was switched off.
+    expect(effectiveStatus(source({ enabled: false, status: "error" }), NOW)).toBe("paused");
+    expect(effectiveStatus(source({ enabled: false, status: "never", lastOkAt: null }), NOW)).toBe(
+      "paused",
+    );
+    expect(statusWord(source({ enabled: false }), NOW)).toBe("paused");
+  });
+
+  it("never worsens the aggregate", () => {
+    expect(aggregateStatus([source({}), source({ enabled: false, status: "error" })], NOW)).toBe(
+      "ok",
+    );
+  });
+});
+
 describe("sourceLabel", () => {
+  it("prefers the wire registry label when present", () => {
+    expect(sourceLabel("livewhale", "Events (LiveWhale)")).toBe("Events (LiveWhale)");
+    expect(sourceLabel("livewhale", null)).toBe("LiveWhale");
+  });
+
   it("uses reader-facing names for known slugs", () => {
     expect(sourceLabel("livewhale")).toBe("LiveWhale");
     expect(sourceLabel("athletics_ics")).toBe("Athletics");
