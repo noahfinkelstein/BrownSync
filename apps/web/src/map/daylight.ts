@@ -157,7 +157,12 @@ const DAY: DaylightPalette = {
   ageMid: CAMPUS_AGE_MID,
   ageLight: CAMPUS_AGE_LIGHT,
   road: tokens.map.road,
-  earth: tokens.bg.base,
+  // The static style.json `earth` fill — the map's own ground, NOT the page
+  // background. This briefly read `tokens.bg.base`, which was fine while the
+  // chrome was dark and became a pure-white landmass at noon the moment the
+  // chrome flipped light (same failure class as the label-halo bug documented
+  // in tokens.ts). The map is its own surface; its ground pins to the basemap.
+  earth: "#0B0E12",
   skyColor: "#2A3648",
   horizonColor: "#3A465A",
   lightIntensity: 0.45,

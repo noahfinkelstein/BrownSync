@@ -111,7 +111,10 @@ describe("palette", () => {
     expect(paletteAt(1).ageDark).toBe(CAMPUS_AGE_DARK.toLowerCase());
     expect(paletteAt(1).ageMid).toBe(CAMPUS_AGE_MID.toLowerCase());
     expect(paletteAt(1).ageLight).toBe(CAMPUS_AGE_LIGHT.toLowerCase());
-    expect(paletteAt(1).earth).toBe(tokens.bg.base.toLowerCase());
+    // The map's own ground — the static style.json `earth` fill, never a page
+    // token. Pinning to `tokens.bg.base` is how the daytime landmass once went
+    // pure white when the chrome flipped light.
+    expect(paletteAt(1).earth).toBe("#0b0e12");
     expect(paletteAt(1).road).toBe(tokens.map.road.toLowerCase());
   });
 
@@ -143,7 +146,10 @@ describe("palette", () => {
     // ratio, so brick vs glass costs nothing here.
     for (let level = 0; level <= 1; level += 0.02) {
       const palette = paletteAt(level);
-      for (const surface of [palette.ageDark, palette.ageMid, palette.ageLight]) {
+      // `earth` carries road/POI labels and sits under everything — it is a
+      // label-bearing surface and obeys the same ceiling. (It once escaped
+      // this loop, which let a white daytime landmass ship.)
+      for (const surface of [palette.ageDark, palette.ageMid, palette.ageLight, palette.earth]) {
         expect(relativeLuminance(surface), `${surface} at level ${level}`).toBeLessThanOrEqual(
           MAX_SURFACE_LUMINANCE,
         );
