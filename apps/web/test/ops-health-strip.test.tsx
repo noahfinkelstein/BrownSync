@@ -106,11 +106,25 @@ describe("HealthStrip", () => {
     expect(screen.getByText("sources")).toBeTruthy();
   });
 
-  it("collapses to one aggregate dot in compact mode", async () => {
+  it("rests as a bare status dot in compact mode — no ambient text", async () => {
+    // UI audit: the header chip read "5 sources · 4 min ago" with a red dot
+    // at rest, which alarmed users who never asked about ops. The trigger is
+    // dot-only; every readout moved behind the click.
     stubFetchOk(healthPayload());
     render(<HealthStrip compact />);
 
-    expect(await screen.findByText("2 sources")).toBeTruthy();
+    const trigger = await screen.findByRole("button", { name: "Source health" });
+    expect(trigger.textContent).not.toMatch(/sources|ago|error/);
     expect(screen.queryByText("LiveWhale")).toBeNull();
+  });
+
+  it("keeps the aggregate readout reachable inside the compact popover", async () => {
+    stubFetchOk(healthPayload());
+    render(<HealthStrip compact />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Source health" }));
+    const popover = screen.getByRole("dialog", { name: "Source health detail" });
+    expect(popover.textContent).toContain("2 sources");
+    expect(popover.textContent).toContain("LiveWhale");
   });
 });

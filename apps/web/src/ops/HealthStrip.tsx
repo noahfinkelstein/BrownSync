@@ -15,8 +15,9 @@ import { HEALTH_REFRESH_MS, useHealth } from "./useHealth";
 export type HealthStripProps = {
   className?: string;
   /**
-   * One aggregate dot ("5 sources · 4 min ago") instead of the full
-   * per-source readout — for narrow headers. Popover detail is identical.
+   * The status dot ALONE — for the header. The counts/age text lives in the
+   * popover (UI audit: an ambient "5 sources · 4 min ago · error" readout
+   * alarmed users who never asked about ops). Popover detail is identical.
    */
   compact?: boolean;
   /** Refresh cadence override (tests). */
@@ -82,17 +83,21 @@ export function HealthStrip({ className, compact = false, refreshMs }: HealthStr
         {phase === "loading" && !hasData ? (
           <Skeleton className="h-2.5 w-36" />
         ) : !hasData ? (
-          <StatusDot
-            status={phase === "error" ? "error" : "stale"}
-            label="sources"
-            detail={phase === "error" ? "unreachable" : "no runs yet"}
-          />
+          compact ? (
+            // Same demotion as below: even "unreachable" is popover detail,
+            // not ambient header copy.
+            <StatusDot status={phase === "error" ? "error" : "stale"} />
+          ) : (
+            <StatusDot
+              status={phase === "error" ? "error" : "stale"}
+              label="sources"
+              detail={phase === "error" ? "unreachable" : "no runs yet"}
+            />
+          )
         ) : compact ? (
-          <StatusDot
-            status={aggregateStatus(sources, nowMs)}
-            label={`${sources.length} sources`}
-            detail={formatAgo(latestOkAt(sources), nowMs)}
-          />
+          // Dot only at rest (UI audit) — the aggregate text moved into the
+          // popover footer, so everything stays reachable, just not ambient.
+          <StatusDot status={aggregateStatus(sources, nowMs)} />
         ) : (
           sources.map((source) => (
             <StatusDot
@@ -128,6 +133,8 @@ export function HealthStrip({ className, compact = false, refreshMs }: HealthStr
           )}
           <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2">
             <span className="font-mono text-12 text-text-secondary">
+              {/* The compact trigger's former readout, demoted here. */}
+              {hasData ? `${sources.length} sources · ok ${formatAgo(latestOkAt(sources), nowMs)} · ` : ""}
               checked {checkedAt ? formatAgo(new Date(checkedAt).toISOString(), nowMs) : "—"} · auto{" "}
               {Math.round(cadence / 1000)}s
             </span>
