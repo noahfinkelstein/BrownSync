@@ -43,6 +43,11 @@ where author_token in (
 );
 delete from public.board_account_deletion_fences
 where author_token in (repeat('7',64),repeat('8',64));
+-- 0019's last-owner DELETE guard blocks cascading away the final owner row;
+-- disposable-fixture teardown demotes them first so the cascade may proceed.
+update public.board_moderators
+set role = 'moderator'
+where user_id::text like 'b0000000-0000-4000-8000-00000000000_';
 delete from auth.users
 where id::text like 'b0000000-0000-4000-8000-00000000000_';
 SQL
