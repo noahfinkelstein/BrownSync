@@ -76,3 +76,24 @@ captured desktop/mobile screenshots + DOM inventories.
 - Workstream E adversarial review of the whole repo (incl. the landed social
   lane's auth/RLS) still owed.
 - 7-day freshness observation window starts today.
+
+## Addendum — Workstream D acceptance (PASS WITH NOTES)
+
+Freshman-lens re-run on the built result: desktop answers "what's happening
+near me right now?" in ~4-6s, mobile signals in ~3s (content one tap away).
+All five audited defects verified RESOLVED. Remaining polish queue (P2, non-
+blocking): (1) the demoted header health dot is now an unlabeled red/amber
+square a newcomer can't decode — needs a tooltip/aria affordance (partly
+mitigated by the paused/per-threshold fix landing after the screenshot);
+(2) "3 in class" phrasing ambiguous — "3 classes now"; (3) 24-hour times
+where freshmen expect 12-hour; (4) OSM attribution clipped behind the
+happening-now bar on mobile (attribution should stay visible).
+
+## Addendum — E adversarial review (14 agents, run wf_8956bfee-758)
+
+30 findings; 9 P0/P1 verified → 4 CONFIRMED P1 (fix in flight on
+ops/e-p1-fixes), 4 downgraded P2, 1 refuted. 21 unverified P2s recorded in
+the workflow journal for backlog triage — notable clusters: board read
+endpoints bypass rate limiting, vacuous ACL assertions in db/checks, RED-
+suffixed tests carry no expected-fail contract, unstable moderation-queue
+cursors, social RPC limiter gaps.
