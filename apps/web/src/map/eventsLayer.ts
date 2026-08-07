@@ -124,7 +124,9 @@ export function categoryColorExpression(): ExpressionSpecification {
     "match",
     ["get", "category"],
     ...branches,
-    tokens.text.faint,
+    // Unknown-category fallback: the map's muted grey, not the page's faint
+    // text (which is dark on the light chrome — invisible on a dark basemap).
+    tokens.map.labelMuted,
   ] as unknown as ExpressionSpecification;
 }
 
@@ -153,7 +155,7 @@ export const eventDotsLayer: CircleLayerSpecification = {
   paint: {
     "circle-color": categoryColorExpression(),
     "circle-radius": radiusExpression,
-    "circle-stroke-color": tokens.bg.base,
+    "circle-stroke-color": tokens.map.labelHalo,
     "circle-stroke-width": 1.5,
     "circle-opacity": ["+", 0.6, ["*", 0.4, IMM]] as unknown as ExpressionSpecification,
   },
@@ -185,8 +187,12 @@ export const eventClustersLayer: CircleLayerSpecification = {
   source: EVENTS_SOURCE_ID,
   filter: ["has", "point_count"],
   paint: {
-    "circle-color": tokens.bg.overlay,
-    "circle-stroke-color": tokens.line,
+    // Map-surface neutrals, NOT page tokens: `tokens.bg.overlay`/`tokens.line`
+    // went cream when the chrome flipped light, turning every cluster into a
+    // bright splotch on the dark basemap. #171C24 is the pre-flip overlay value,
+    // kept as the map's own neutral disc surface.
+    "circle-color": "#171C24",
+    "circle-stroke-color": tokens.map.line,
     "circle-stroke-width": 1.25,
     "circle-radius": [
       "step",
@@ -218,6 +224,6 @@ export const eventClusterCountsLayer: SymbolLayerSpecification = {
     "text-allow-overlap": true,
   },
   paint: {
-    "text-color": tokens.text.primary,
+    "text-color": tokens.map.label,
   },
 };

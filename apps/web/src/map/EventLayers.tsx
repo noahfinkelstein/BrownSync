@@ -29,7 +29,9 @@ export type EventLayersProps = {
 /** Rasterize the ui category glyphs (dark-on-dot) into the map's image atlas. */
 function registerCategoryImages(map: MaplibreMap): void {
   if (typeof OffscreenCanvas === "undefined") return; // jsdom/SSR: symbols just don't render
-  const images = buildMapImages(64, tokens.bg.base);
+  // Glyph colour pins to the map's dark (labelHalo), not the page background —
+  // "dark-on-dot" must survive the chrome going light.
+  const images = buildMapImages(64, tokens.map.labelHalo);
   for (const category of CATEGORY_IDS) {
     const id = mapIconId(category);
     if (!map.hasImage(id)) map.addImage(id, images[category], { pixelRatio: 4 });
