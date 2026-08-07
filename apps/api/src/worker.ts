@@ -22,6 +22,8 @@ import {
   normalizeEmbedOrigin,
 } from "./org-asset-services";
 import { createQueries, type Queries } from "./queries";
+import { createWorkerRunners } from "./schedule/runners";
+import { createDispatcherStore, runDispatchTick } from "./scheduled";
 
 /**
  * Cloudflare Workers entry (wrangler.toml `main`). The Node entry
@@ -76,6 +78,9 @@ export type WorkerEnv = {
 };
 
 type ExecutionContextLike = { waitUntil(promise: Promise<unknown>): void };
+
+/** `scheduled()` controller shape (local for the same reason as the env types). */
+type ScheduledControllerLike = { cron: string; scheduledTime: number };
 
 const noDatabaseQueries = new Proxy({} as Queries, {
   get(_target, property) {
@@ -248,6 +253,38 @@ function concealedEmbedNotFound(
 }
 
 export default {
+  /**
+   * Registry-driven cron dispatcher (src/scheduled.ts): the single
+   * `* * * * *` trigger in wrangler.toml. Per-source cadence, backoff and the
+   * kill switch are source_registry DATA — see DATA_CONTRACT.md §1 v1.1.
+   * Runs are awaited (not waitUntil'd) so a failed tick is visible in the
+   * cron log; only the connection teardown rides waitUntil, matching fetch().
+   */
+  async scheduled(
+    _controller: ScheduledControllerLike,
+    env: WorkerEnv,
+    ctx: ExecutionContextLike,
+  ): Promise<void> {
+    const connectionString = env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
+    if (connectionString === undefined) {
+      console.error(
+        "[scheduled] no HYPERDRIVE binding or DATABASE_URL secret — dispatcher tick skipped (DEPLOY.md)",
+      );
+      return;
+    }
+    const sql = postgres(connectionString, { max: 5, connect_timeout: 5, onnotice: () => {} });
+    try {
+      const outcomes = await runDispatchTick(createDispatcherStore(sql), createWorkerRunners(sql));
+      for (const o of outcomes) {
+        console.log(
+          `[scheduled] ${o.source}: ${o.status} (${o.items} items)${o.error === null ? "" : ` — ${o.error}`}`,
+        );
+      }
+    } finally {
+      ctx.waitUntil(sql.end({ timeout: 5 }));
+    }
+  },
+
   async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContextLike): Promise<Response> {
     // app.ts reads config via process.env (shared with the Node entry):
     // - NODE_ENV needs no bridging — wrangler's bundler inlines it as a

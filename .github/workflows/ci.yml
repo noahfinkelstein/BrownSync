@@ -23,6 +23,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm turbo run typecheck test build
+      - name: Worker bundles (wrangler dry-run, offline)
+        # The dispatcher makes the Worker a consumer of packages/sources; this
+        # is what fails CI — instead of the next deploy — if a node:* import
+        # ever sneaks into that package.
+        run: pnpm --filter @brownsync/api build:worker
       - name: Seed QA sweep (offline — schemas, FKs, manifest hashes)
         run: pnpm db:seed-check
       - name: Install Playwright chromium
@@ -136,6 +141,8 @@ jobs:
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0006_source_registry_checks.sql
       - name: Place resolution SQL checks (rollback-safe)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0007_place_resolution_checks.sql
+      - name: Worker dispatcher registry SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0018_dispatcher_checks.sql
       - name: Identity SQL checks (rollback-safe)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0010_identity_checks.sql
       - name: RLS SQL checks (rollback-safe)

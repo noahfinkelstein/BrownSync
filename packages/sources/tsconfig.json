@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Web-standard globals only (fetch/Response/URL) — this package must run
+    // on both Node >= 24 and Cloudflare Workers, so node types are BANNED.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"]
+}
