@@ -30,6 +30,8 @@ export type HttpClientOptions = {
   maxRetries?: number;
   /** First retry delay; doubles per retry. */
   baseDelayMs?: number;
+  /** Per-attempt ceiling on a single fetch; a hung socket becomes a normal error. */
+  timeoutMs?: number;
   userAgent?: string;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;

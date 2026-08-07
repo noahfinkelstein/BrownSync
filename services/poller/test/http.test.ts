@@ -108,4 +108,31 @@ describe("http client", () => {
       expect(res2.body).toBe("payload-v1");
     });
   });
+
+  describe("per-attempt deadline", () => {
+    it("times out a hung socket as a NORMAL fetch error, through the retry path", async () => {
+      // A fetch that never settles (and ignores its AbortSignal — worst
+      // case). Without the deadline this call would pin the caller forever;
+      // in the Worker dispatcher that means no source_runs row, no backoff,
+      // and a concurrent run on the next cron tick. The deadline uses a real
+      // timer, so timeoutMs is kept tiny here.
+      const sleeps: number[] = [];
+      const client = createHttpClient({
+        fetchImpl: (() => new Promise(() => {})) as typeof fetch,
+        cacheDir: null,
+        maxRetries: 1,
+        timeoutMs: 10,
+        baseDelayMs: 1,
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
+      });
+      await expect(client.get("https://events.brown.edu/hang")).rejects.toThrow(
+        /no response within 10 ms/,
+      );
+      // The retry delay was slept between the two timed-out attempts —
+      // proof the timeout surfaced through the ordinary error path.
+      expect(sleeps).toContain(1);
+    });
+  });
 });

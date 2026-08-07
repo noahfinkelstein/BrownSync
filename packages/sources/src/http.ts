@@ -5,6 +5,8 @@
  *   this to the registry's etiquette_min_interval_seconds where declared)
  * - ETag / If-None-Match revalidation against an INJECTED cache
  * - exponential-backoff retries on network errors, 429 and 5xx
+ * - a per-attempt deadline (DEFAULT_TIMEOUT_MS) so a hung socket fails like
+ *   any other fetch error instead of pinning the caller
  *
  * Every collaborator (fetch, clock, sleep, cache) is injectable so tests
  * never touch the network or real time. The cache is an interface rather
@@ -61,10 +63,22 @@ export type HttpCoreOptions = {
   maxRetries?: number;
   /** First retry delay; doubles per retry. */
   baseDelayMs?: number;
+  /** Per-attempt ceiling on a single fetch; a hung socket becomes a normal error. */
+  timeoutMs?: number;
   userAgent?: string;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
 };
+
+/**
+ * A hung socket must surface as an ORDINARY fetch failure. In the Worker
+ * dispatcher a fetch with no ceiling holds the scheduled invocation until
+ * the runtime kills it (~15 min): no source_runs row (contract §2 demands
+ * one per run, ALWAYS), no backoff, and the next cron tick starts a
+ * concurrent run. Timing out through the same throw path as a network error
+ * lets the existing retry → error → record → backoff machinery engage.
+ */
+export const DEFAULT_TIMEOUT_MS = 30_000;
 
 const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -74,9 +88,38 @@ export function createHttpCore(opts: HttpCoreOptions = {}): HttpClient {
   const minSpacingMs = opts.minSpacingMs ?? 1000;
   const maxRetries = opts.maxRetries ?? 3;
   const baseDelayMs = opts.baseDelayMs ?? 500;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const sleep = opts.sleep ?? realSleep;
   const now = opts.now ?? Date.now;
   const lastRequestAt = new Map<string, number>();
+
+  /**
+   * One attempt, bounded. Raced against a real timer (not the injected
+   * `sleep` — that one is stubbed by tests to count polite waits) AND
+   * aborted via the signal, so a runtime that respects AbortSignal releases
+   * the socket while a fetchImpl that ignores it still loses the race.
+   */
+  async function fetchWithDeadline(
+    url: string,
+    headers: Record<string, string>,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new Error(`GET ${url} -> no response within ${timeoutMs} ms`));
+      }, timeoutMs);
+    });
+    try {
+      return await Promise.race([
+        fetchImpl(url, { headers, redirect: "follow", signal: controller.signal }),
+        deadline,
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
 
   /** Wait until >= minSpacingMs since the previous request to this host. */
   async function spaceOut(host: string): Promise<void> {
@@ -102,7 +145,7 @@ export function createHttpCore(opts: HttpCoreOptions = {}): HttpClient {
       await spaceOut(host);
       let res: Response;
       try {
-        res = await fetchImpl(url, { headers, redirect: "follow" });
+        res = await fetchWithDeadline(url, headers);
       } catch (err) {
         lastError = err;
         continue;
