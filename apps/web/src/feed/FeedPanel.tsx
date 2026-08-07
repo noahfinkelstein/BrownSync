@@ -53,9 +53,11 @@ export function FeedPanel({
     const windowed = eventsInWindow(eventsQuery.data ?? [], cursor);
     const events =
       selected.length === 0 ? windowed : windowed.filter((e) => selected.includes(e.category));
+    // 15, down from 40 (UI audit): the feed is a glance surface next to a
+    // map, not an archive — a 40-row page was mostly weeks-old news.
     return buildFeed(
       { events, publications: publications.data, dining: dining.data },
-      { at, pageSize: 40 },
+      { at, pageSize: 15 },
     );
   }, [eventsQuery.data, publications.data, dining.data, selected, cursor, at]);
 

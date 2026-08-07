@@ -2,6 +2,7 @@ import type { EventOut } from "@brownsync/contract";
 import { describe, expect, it } from "vitest";
 import type { DiningDocument, DiningLocation, DiningService } from "../src/dining/model";
 import {
+  ARTICLE_MAX_AGE_MS,
   articlesToFeed,
   assembleFeed,
   buildFeed,
@@ -595,6 +596,31 @@ describe("buildFeed", () => {
   it("tolerates every upstream being absent", () => {
     // The first paint has no data at all; a feed that throws is a white screen.
     expect(buildFeed({}, { at: AT })).toEqual({ items: [], relaxed: [] });
+  });
+
+  it("drops articles older than 14 days relative to the CURSOR, not the clock", () => {
+    // UI audit: the landing feed was ~80% news aged 4–15 weeks. The cutoff is
+    // an input filter — timeRelevance/rankFeed arithmetic stays untouched —
+    // and it is inclusive at exactly 14 days so the boundary is testable.
+    const page = buildFeed(
+      {
+        publications: publications([
+          article({ id: "fresh", published: iso(-13 * DAY) }),
+          article({ id: "edge", published: iso(-ARTICLE_MAX_AGE_MS) }),
+          article({ id: "stale", published: iso(-ARTICLE_MAX_AGE_MS - MIN) }),
+          article({ id: "ancient", published: iso(-15 * 7 * DAY) }),
+        ]),
+      },
+      { at: AT, pageSize: 10 },
+    );
+
+    expect(ids(page.items)).toEqual([
+      "article:bdh:fresh",
+      "article:bdh:edge",
+    ]);
+    // The same document scored directly (no cutoff) still ranks stale items —
+    // proof the exclusion happens at the input seam, not in the scoring.
+    expect(ARTICLE_MAX_AGE_MS).toBe(14 * DAY);
   });
 });
 

@@ -305,6 +305,18 @@ export type FeedInput = {
   readonly dining?: DiningDocument | null;
 };
 
+/**
+ * Articles older than this (relative to the cursor) never enter the feed.
+ *
+ * An INPUT filter, not a scoring term (UI audit: the landing feed was ~80%
+ * news aged 4–15 weeks). The half-life design above deliberately never
+ * reaches zero so stale items order against each other — correct for
+ * ranking, but it also means that on a slow news day the page fills with
+ * months-old headlines. Cutting the input keeps `score_components`
+ * auditable; the arithmetic is untouched.
+ */
+export const ARTICLE_MAX_AGE_MS = 14 * 24 * HOUR_MS;
+
 export type BuildFeedOptions = RankFeedOptions &
   AssembleFeedOptions & {
     readonly diningLookaheadMs?: number;
@@ -324,7 +336,12 @@ export type BuildFeedOptions = RankFeedOptions &
 export function buildFeed(input: FeedInput, options: BuildFeedOptions): AssembledFeed {
   const items: FeedItem[] = [
     ...eventsToFeed(input.events ?? []),
-    ...articlesToFeed(input.publications),
+    // The age cutoff lives here, at the seam where articles become feed
+    // input, so `articlesToFeed` stays a pure adapter and the cutoff is
+    // always relative to the cursor rather than the wall clock.
+    ...articlesToFeed(input.publications).filter(
+      (item) => options.at - item.timestamp <= ARTICLE_MAX_AGE_MS,
+    ),
     ...diningToFeed(input.dining, options.at, options.diningLookaheadMs),
   ];
   return assembleFeed(rankFeed(dedupeFeed(items), options), options);
