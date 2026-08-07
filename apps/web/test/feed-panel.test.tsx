@@ -137,6 +137,16 @@ describe("FeedPanel destinations", () => {
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noreferrer");
   });
+
+  it("never shows raw source slugs on rows", async () => {
+    // UI audit: rows rendered item.sourceId ("livewhale"/"bdh") verbatim,
+    // which read as debug output and polluted every accessible name.
+    renderWithHarness(<FeedPanel />);
+    await screen.findByRole("button", { name: /Campus talk/ });
+    for (const slug of ["livewhale", "bdh", "brown-dining"]) {
+      expect(screen.queryByText(slug)).toBeNull();
+    }
+  });
 });
 
 describe("FeedPanel degraded sources", () => {

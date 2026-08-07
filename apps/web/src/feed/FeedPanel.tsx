@@ -145,17 +145,17 @@ function FeedRow({
   const when = feedTime(item.timestamp, at);
   const rowClassName =
     "block w-full px-3 py-2.5 text-left transition-colors duration-150 ease-out hover:bg-bg-overlay/60";
+  // No sourceId line (UI audit): "livewhale"/"bdh"/"bpr" are ingest slugs,
+  // not user-facing provenance, and they polluted every row's accessible
+  // name. The kind label carries the only distinction a reader acts on.
   const body = (
-    <>
-      <span className="flex items-baseline gap-2">
-        <span className="shrink-0 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
-          {KIND_LABEL[item.kind]}
-        </span>
-        <span className="grow text-14 text-text-primary">{item.title}</span>
-        <span className="shrink-0 font-mono text-12 tabular-nums text-text-secondary">{when}</span>
+    <span className="flex items-baseline gap-2">
+      <span className="shrink-0 font-mono text-12 uppercase tracking-[0.08em] text-text-secondary">
+        {KIND_LABEL[item.kind]}
       </span>
-      <span className="mt-0.5 block font-mono text-12 text-text-secondary">{item.sourceId}</span>
-    </>
+      <span className="grow text-14 text-text-primary">{item.title}</span>
+      <span className="shrink-0 font-mono text-12 tabular-nums text-text-secondary">{when}</span>
+    </span>
   );
 
   if (item.kind === "event" && onSelectEvent) {
