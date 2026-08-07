@@ -97,3 +97,21 @@ the workflow journal for backlog triage — notable clusters: board read
 endpoints bypass rate limiting, vacuous ACL assertions in db/checks, RED-
 suffixed tests carry no expected-fail contract, unstable moderation-queue
 cursors, social RPC limiter gaps.
+
+## Addendum — session close: P1 fixes merged and released
+
+- `ops/e-p1-fixes` merged (`272538f`), CI green (run 31221932622). All four
+  confirmed P1s fixed with red-proofs: last-owner guard (+ typed 409,
+  contract v1.8), pepper-keyed deletion cleanup, profiles CHECKs + shared
+  write limiter on direct PostgREST writes, millisecond-exact keyset cursor.
+- The standing red 0004 guid assertion fixed via corrective migration 0020
+  (independently re-confirmed by the P1 agent). CI fully green on main for
+  the first time since the register flagged the blocker.
+- Prod released with owner approval: migrations 0019+0020 applied (remote
+  now at parity 0001–0020), Worker redeployed (version ad2312df). Health
+  green, dispatcher ticking.
+- E remaining for next session: 21 unverified P2s (journal
+  wf_8956bfee-758) and a fresh find→verify round until dry; livewhale
+  Worker-migration PR (flips the release-gate test, retires poll.yml's
+  livewhale entry); Lane B producers + contract v2 articles table (unblocks
+  Workstream C producers).
