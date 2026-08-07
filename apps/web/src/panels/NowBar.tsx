@@ -4,7 +4,7 @@ import { useCategoryFilter } from "../browse/filter";
 import { useEventsWindow, useMeetingsInSession } from "../data/queries";
 import { aggregateMeetingActivity, totalMeetingCount } from "../map/classesLayer";
 import { eventsInWindow } from "../map/eventsLayer";
-import { formatCountdown, summarizeNow } from "./nowSummary";
+import { summarizeNow } from "./nowSummary";
 
 /**
  * The header's live readout — what the campus is doing at the cursor.
@@ -67,19 +67,9 @@ export function NowBar({ className }: { className?: string }) {
               a rendered `·` is text, aria-hidden or not (a11y-contrast.test). */}
           <span aria-hidden>·</span>
           <span className="shrink-0">{summary.classes} in class</span>
-          {summary.next && summary.nextInMs !== null && (
-            <>
-              <span aria-hidden className="hidden lg:inline">
-                ·
-              </span>
-              <span className="hidden min-w-0 lg:inline">
-                <span className="text-text-secondary">{formatCountdown(summary.nextInMs)}</span>{" "}
-                <span className="truncate font-display text-text-primary">
-                  {summary.next.title}
-                </span>
-              </span>
-            </>
-          )}
+          {/* No next-event teaser (UI audit): it was a non-interactive
+              duplicate of the HappeningNow panel's first row. The counts
+              are the readout; the panel is where events are named. */}
         </>
       )}
     </output>
