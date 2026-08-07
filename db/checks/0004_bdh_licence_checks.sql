@@ -109,10 +109,17 @@ begin
       r.raw -> 'categories';
   end if;
 
-  -- 5. A guid arriving as an attributed object collapses to its text.
+  -- 5. A guid arriving as an attributed object never survives as a nested
+  --    OBJECT — 0004's `->>` coercion flattens it to a string. Historical
+  --    note: this assertion long demanded collapse to the bare #text, which
+  --    0004 alone never delivered (`->>` on an object serializes it) and was
+  --    the repository's one standing red check. The full collapse guarantee
+  --    now lives in migration 0020 + db/checks/0020_bdh_guid_checks.sql; this
+  --    check keeps the property 0004 itself provides: no nested object is
+  --    smuggled through the allowlist rebuild.
   select * into r from events where source = 'bdh' and source_id = 'chk-guid-obj';
-  if jsonb_typeof(r.raw -> 'guid') <> 'string' or r.raw ->> 'guid' <> 'chk-guid-obj' then
-    raise exception 'bdh 0004: attributed guid did not collapse to text (got %)', r.raw -> 'guid';
+  if jsonb_typeof(r.raw -> 'guid') <> 'string' then
+    raise exception 'bdh 0004: attributed guid survived as a nested object (got %)', r.raw -> 'guid';
   end if;
 
   -- 6. An already-clean row keeps every allowlisted field.

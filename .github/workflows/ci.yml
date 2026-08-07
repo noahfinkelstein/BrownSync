@@ -135,6 +135,9 @@ jobs:
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0003_term_checks.sql
       - name: BDH licence SQL checks (rollback-safe, re-applies 0004 for idempotency)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0004_bdh_licence_checks.sql
+
+      - name: BDH guid-collapse SQL checks (rollback-safe, re-applies 0004+0020 for idempotency)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0020_bdh_guid_checks.sql
       - name: Index hygiene SQL checks (rollback-safe)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0005_index_checks.sql
       - name: Source registry SQL checks (rollback-safe)
