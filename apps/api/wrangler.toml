@@ -32,6 +32,12 @@ localConnectionString = "postgresql://postgres:postgres@127.0.0.1:54322/postgres
 [vars]
 CORS_ORIGINS = "https://brownsync.pages.dev"
 SUPABASE_URL = "https://hkrxahzdqqxxovvilalm.supabase.co"
+# Infrastructure launch gate. After the first true deployment it is sticky;
+# use board_control.enabled, not this flag, as the operational kill switch.
+# DEPLOY.md requires a real BOARD_WRITE_LIMITER binding and the server-only
+# BOARD_AUTHOR_PEPPER secret before this may become true. No binding ID is
+# guessed here; board writes fail closed until the operator provisions it.
+BOARD_ENABLED = "false"
 
 [[ratelimits]]
 name = "PUBLIC_READ_LIMITER"
@@ -42,3 +48,8 @@ simple = { limit = 120, period = 60 }
 name = "USER_WRITE_LIMITER"
 namespace_id = "1002"
 simple = { limit = 20, period = 60 }
+
+[[ratelimits]]
+name = "USER_READ_LIMITER"
+namespace_id = "1003"
+simple = { limit = 60, period = 60 }

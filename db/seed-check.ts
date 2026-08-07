@@ -280,7 +280,19 @@ async function main(): Promise<void> {
       );
       orgIds = new Set(orgs.map((o) => o.id));
       let dangling = 0;
+      let contactEntries = 0;
+      let advisors = 0;
+      let fundingCategories = 0;
+      let sourceWebsites = 0;
+      let instagramProfiles = 0;
+      let facebookProfiles = 0;
       for (const o of orgs) {
+        contactEntries += o.contact_emails.length;
+        if (o.advisor != null) advisors++;
+        if (o.funding_category != null) fundingCategories++;
+        if (o.website_url != null) sourceWebsites++;
+        if (o.instagram != null) instagramProfiles++;
+        if (o.facebook_url != null) facebookProfiles++;
         if (o.default_place_id != null && !places.has(o.default_place_id)) {
           dangling++;
           warn(
@@ -289,8 +301,33 @@ async function main(): Promise<void> {
           );
         }
       }
+      const measuredEnrichment = {
+        organizations: orgs.length,
+        contactEntries,
+        advisors,
+        fundingCategories,
+        sourceWebsites,
+        instagramProfiles,
+        facebookProfiles,
+      };
+      const expectedEnrichment = {
+        organizations: 457,
+        contactEntries: 459,
+        advisors: 386,
+        fundingCategories: 422,
+        sourceWebsites: 21,
+        instagramProfiles: 337,
+        facebookProfiles: 41,
+      };
+      if (JSON.stringify(measuredEnrichment) !== JSON.stringify(expectedEnrichment)) {
+        fail(
+          "organizations.ndjson: source-enrichment counts drifted — " +
+            `expected ${JSON.stringify(expectedEnrichment)}, got ${JSON.stringify(measuredEnrichment)}`,
+        );
+      }
       summary.push(
         `organizations     ${orgs.length} rows` +
+          ` · ${contactEntries} contact address(es)` +
           (dangling > 0 ? ` · ${dangling} dangling place ref(s)` : ""),
       );
     }

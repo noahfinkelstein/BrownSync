@@ -4,11 +4,13 @@ import {
   MeOutSchema,
   NowOutSchema,
   OrgDetailOutSchema,
+  OrgEnrichedDetailSchema,
   PlaceActivityOutSchema,
 } from "@brownsync/contract";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 import {
   type AccountDeleter,
   type AuthEnv,
@@ -19,6 +21,9 @@ import {
   createUserWriteRateLimitMiddleware,
   type RateLimiterBinding,
 } from "./auth";
+import { type BoardIdentity, createBoardIdentity } from "./board-identity";
+import type { BoardQueries } from "./board-queries";
+import { registerBoardRoutes } from "./board-routes";
 import { errorEnvelope, isDbUnavailable } from "./errors";
 import {
   aggregateHealth,
@@ -26,8 +31,19 @@ import {
   mapEvent,
   mapMeeting,
   mapOrg,
+  mapOrgEnrichment,
   mapPlace,
 } from "./mappers";
+import type { OrgAssetQueries } from "./org-asset-queries";
+import { registerOrgAssetRoutes } from "./org-asset-routes";
+import type {
+  IdFactory,
+  ImageProcessor,
+  InstagramOEmbedClient,
+  MediaCleanupScheduler,
+  MediaObjectStore,
+} from "./org-asset-services";
+import { registerOrganizationRoutes } from "./organization-routes";
 import type { Queries } from "./queries";
 import {
   ErrorEnvelopeSchema,
@@ -40,11 +56,13 @@ import {
   nowRoute,
   OrgsResponseSchema,
   orgByIdRoute,
+  orgProfileRoute,
   orgsRoute,
   PlacesResponseSchema,
   placeActivityRoute,
   placesRoute,
 } from "./routes";
+import { registerUserEventRoutes } from "./user-event-routes";
 
 /** /api/events default window when `to` is omitted: from + 7 days. */
 const EVENTS_DEFAULT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -114,9 +132,34 @@ function deleteOnly(middleware: MiddlewareHandler<AuthEnv>): MiddlewareHandler<A
 
 export type CreateAppOptions = {
   authenticator?: Authenticator;
+  userReadLimiter?: RateLimiterBinding;
   userWriteLimiter?: RateLimiterBinding;
   accountDeleter?: AccountDeleter;
+  orgAssetQueries?: OrgAssetQueries;
+  mediaWriteLimiter?: RateLimiterBinding;
+  socialWriteLimiter?: RateLimiterBinding;
+  boardQueries?: BoardQueries;
+  boardIdentity?: BoardIdentity;
+  boardWriteLimiter?: RateLimiterBinding;
+  imageProcessor?: ImageProcessor;
+  objectStore?: MediaObjectStore;
+  instagramClient?: InstagramOEmbedClient;
+  cleanupScheduler?: MediaCleanupScheduler;
+  idFactory?: IdFactory;
+  embedOrigin?: string | null;
 };
+
+const unavailableOrgAssetQueries = new Proxy({} as OrgAssetQueries, {
+  get() {
+    return async () => ({ kind: "unavailable" as const });
+  },
+});
+
+const unavailableBoardQueries = new Proxy({} as BoardQueries, {
+  get() {
+    return async () => ({ kind: "unavailable" as const });
+  },
+});
 
 /**
  * Contract Out-schema validation of response bodies — on everywhere except
@@ -152,7 +195,6 @@ export function createApp(queries: Queries, options: CreateAppOptions = {}) {
     scheme: "bearer",
     bearerFormat: "JWT",
   });
-
   // CORS for local dev (web app on any localhost port); extra origins via
   // env CORS_ORIGINS="https://brownsync.example,https://…" for deploys.
   app.use("/api/*", async (c, next) => {
@@ -171,6 +213,9 @@ export function createApp(queries: Queries, options: CreateAppOptions = {}) {
   );
 
   app.onError((err, c) => {
+    if (err instanceof HTTPException && err.status === 400) {
+      return c.json(errorEnvelope("bad_request", "Malformed request body."), 400);
+    }
     if (isDbUnavailable(err)) {
       return c.json(
         errorEnvelope("db_unavailable", "Database unreachable — try again shortly."),
@@ -207,6 +252,34 @@ export function createApp(queries: Queries, options: CreateAppOptions = {}) {
       );
     }
     return c.body(null, 204);
+  });
+
+  registerBoardRoutes(app, options.boardQueries ?? unavailableBoardQueries, {
+    authenticator: options.authenticator ?? createUnavailableAuthenticator(),
+    boardIdentity: options.boardIdentity ?? createBoardIdentity({}),
+    boardWriteLimiter: options.boardWriteLimiter,
+  });
+
+  registerOrganizationRoutes(app, queries, {
+    authenticator: options.authenticator ?? createUnavailableAuthenticator(),
+    userReadLimiter: options.userReadLimiter,
+    userWriteLimiter: options.userWriteLimiter,
+  });
+  registerUserEventRoutes(app, queries, {
+    authenticator: options.authenticator ?? createUnavailableAuthenticator(),
+    userReadLimiter: options.userReadLimiter,
+    userWriteLimiter: options.userWriteLimiter,
+  });
+  registerOrgAssetRoutes(app, options.orgAssetQueries ?? unavailableOrgAssetQueries, {
+    authenticator: options.authenticator ?? createUnavailableAuthenticator(),
+    mediaWriteLimiter: options.mediaWriteLimiter,
+    socialWriteLimiter: options.socialWriteLimiter,
+    imageProcessor: options.imageProcessor,
+    objectStore: options.objectStore,
+    instagramClient: options.instagramClient,
+    cleanupScheduler: options.cleanupScheduler,
+    idFactory: options.idFactory,
+    embedOrigin: options.embedOrigin,
   });
 
   app.openapi(eventsRoute, async (c) => {
@@ -289,6 +362,24 @@ export function createApp(queries: Queries, options: CreateAppOptions = {}) {
       past: past.map(mapEvent),
     };
     return c.json(validated(OrgDetailOutSchema, body), 200);
+  });
+
+  app.openapi(orgProfileRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const { at } = c.req.valid("query");
+    const orgRow = await queries.orgById(id);
+    if (orgRow === null) {
+      return c.json(errorEnvelope("not_found", `No org ${id}.`), 404);
+    }
+    const pivot = at !== undefined ? new Date(at) : new Date();
+    const { upcoming, past } = await queries.eventsByOrg(id, pivot);
+    const body = {
+      ...mapOrg(orgRow),
+      upcoming: upcoming.map(mapEvent),
+      past: past.map(mapEvent),
+      ...mapOrgEnrichment(orgRow),
+    };
+    return c.json(validated(OrgEnrichedDetailSchema, body), 200);
   });
 
   app.openapi(meetingsRoute, async (c) => {

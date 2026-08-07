@@ -208,3 +208,116 @@ Two related notes for the ingestion lane:
   append-only run history with no fixed generation to hash. It used to warn on
   every single run by construction, which is how real warnings get ignored; it
   now gets one explanatory summary line instead.
+
+## 9. Organization enrichment and private claim evidence — RESOLVED LOCALLY, Lane C
+
+- Contract v1.3 adds source-owned organization fields to the Python producer,
+  TypeScript seed validator, database loader, and migration `0013`; contract
+  v1.4 adds the separate ownership/overlay model in migration `0014`.
+- `contact_emails` is deliberately present in `organizations.ndjson` and
+  Postgres so an exact current Brown contact can bootstrap ownership. It is
+  PII-like claim evidence and must never appear in `/api/orgs`, generated
+  client response types, or direct `anon`/`authenticated` column access. The
+  raw source `logo_url` remains private. Contract v1.6 instead exposes only
+  separately uploaded, transformed, validated controlled media through the
+  attributed asset pipeline in migration `0017`.
+- User-authored club content must be read through the seed-surviving overlay
+  from migration `0014`; consumers must not write those edits back into the
+  weekly ingested `organizations` row.
+- Legacy `GET /api/orgs/{id}` remains shape-compatible. Enriched safe data is
+  additive at `GET /api/orgs/{id}/profile`; ownership/review operations are
+  authenticated Worker routes, and protected organization reads are bounded
+  by the fail-closed per-user read limiter.
+- The Lane C dependency gate is resolved: the seed loader/check, private-column
+  negatives, two author fresh-database sequences, an independent PostGIS
+  replay, 298 API tests, 32 contract tests, Worker binding dry-run, and
+  byte-identical canonical/iOS OpenAPI snapshots all pass.
+- The repository-wide SQL chain still fails in the separate Lane B-owned
+  `0004_bdh_licence_checks.sql` attributed-GUID assertion. Lane C did not
+  modify or waive that failure; it remains a merged-CI/deployment blocker
+  outside this dependency.
+
+## 10. Student-created event integration — RESOLVED LOCALLY, Lane C
+
+- Contract v1.5 and migration `0016` add a separate RLS-enabled
+  `user_events` write model. They do not change the source-ingested `events`
+  row, its seed artifacts, or any ingestion producer.
+- `v_events_api` keeps its exact 21-column legacy shape and source branch.
+  Published BrownSync rows are additive with source `brownsync`; they carry a
+  canonical place but never latitude or longitude.
+- Authenticated Worker routines own request-idempotent creation, optimistic
+  edits, idempotent cancellation, bounded management reads, detail, and
+  moderation. Direct client writes and routine execution remain revoked.
+- Personal creation requires a Brown account at least 24 hours old;
+  organization creation requires current org administration. An atomic limit
+  of ten per actor per fixed 24-hour window covers both, while exact committed
+  replays do not consume quota.
+- Account deletion removes personal visibility and attribution without
+  deleting organization-owned events. The posting switch gates public
+  visibility and enabling writes.
+- The local dependency gate is resolved: two full author database replays,
+  independent and root PostGIS 15 semantic/race runs, 404 API tests, 32
+  contract tests, both typechecks, Worker binding dry-run, byte-identical
+  OpenAPI snapshots, generated Swift assertions, simulator
+  build-for-testing, and the complete 14/14-task workspace pipeline pass.
+- The only repository-wide SQL failure remains the unchanged, unrelated
+  Lane B-owned `0004_bdh_licence_checks.sql` attributed-GUID assertion.
+
+## 11. Organization media and Instagram cards — RESOLVED LOCALLY, Lane C
+
+- Contract v1.6 and migration `0017` add eight RLS-enabled operational tables
+  and owner-only routines for controlled organization media, durable cleanup,
+  bounded link cards, provider capacity, mutation limits, and attribution
+  cleanup. They do not alter the source-ingested `organizations` row, seed
+  artifacts, manifest, or any ingestion producer.
+- Public media comes only from the controlled 8 MiB input → validated 2 MiB
+  WebP pipeline. The raw seed `logo_url`, storage paths, leases, actors,
+  service credentials, provider errors, and cached HTML remain private.
+  Gallery and social collections each cap at 12; actor media/social quotas are
+  30/hour and durable provider capacity is 900/hour with the switch disabled
+  by default.
+- Instagram is opt-in and link-first. Only exact canonical post/Reel
+  permalinks are stored. Missing, disabled, unsafe, stale, or unavailable
+  provider behavior degrades to a link card, and embed HTML is available only
+  from the isolated origin after a fresh safe-cache read.
+- Local proof is complete: 518 API tests, 40 contract tests, both typechecks,
+  Worker dry-run, byte-identical canonical/iOS OpenAPI, generated Swift
+  assertions, simulator compile, the 14/14-task workspace pipeline, and
+  author/reviewer/conductor PostGIS 15 semantic and deterministic-race runs
+  pass on the corrected exact snapshot.
+- Deployment still requires deliberate Cloudflare Images and limiter binding,
+  a restricted `org-media` Storage bucket plus server-only service role, Meta
+  business/oEmbed approval and token, a real club-supplied permalink staging
+  pass through the conservative sanitizer, and isolated embed origin/CSP
+  configuration. None is locally or publicly verified, provisioned, or
+  enabled.
+- The only repository-wide SQL failure remains the unchanged, unrelated Lane
+  B-owned `0004_bdh_licence_checks.sql` attributed-GUID assertion.
+
+## 12. Native Brown-only pseudonymous board — RESOLVED LOCALLY, Lane C
+
+- Contract v1.7 and migration `0015` add an isolated operational board model
+  with eleven RLS-enabled tables and owner-only routines. They do not alter an
+  ingestion producer, source row, seed artifact, or manifest.
+- The account link is a versioned HMAC derived only in the Worker from the
+  verified Brown actor UUID and a server secret. Board rows never store actor
+  UUIDs, emails, IPs, device identifiers, or the Worker pepper. Public and
+  member responses never expose the token. The disclosure explicitly calls
+  this pseudonymity, not cryptographic anonymity.
+- All board HTTP methods are Brown-authenticated; writes are protected by a
+  separate fail-closed limiter. SQL provides durable operation quotas,
+  replay-safe request IDs, moderation epochs, owner authority, kill-switch
+  recovery, and account-deletion fencing. After first infrastructure launch,
+  board cleanup must complete before Supabase Auth Admin deletion.
+- Local proof is complete on the corrected snapshot: two SQL-owner and two
+  independent conductor fresh PostGIS 15 sequences each applied every
+  migration `0001..0017`, passed the semantic suite, and passed the race
+  harness twice. The integrated state also passes 634 API tests, 49 contract
+  tests, both typechecks, contract/Worker builds, a focused repository G6
+  regression, generated Swift assertions, and byte-identical canonical/iOS
+  OpenAPI.
+- Deployment remains deliberately closed. `BOARD_ENABLED` is checked in as
+  `false`; production still requires hosted migration verification, an initial
+  verified owner, a dedicated limiter binding, a newly provisioned Worker-only
+  pepper, and disposable-account/moderation/quota smoke tests. No hosted system
+  was changed or claimed verified.

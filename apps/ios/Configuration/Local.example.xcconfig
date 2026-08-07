@@ -1,0 +1,9 @@
+// Copy this file to Local.xcconfig and assign the six public client values.
+// Local.xcconfig is ignored. Do not add server credentials to any iOS config.
+
+BROWNSYNC_API_BASE_URL =
+BROWNSYNC_SUPABASE_URL =
+BROWNSYNC_SUPABASE_PUBLISHABLE_KEY =
+BROWNSYNC_GOOGLE_IOS_CLIENT_ID =
+BROWNSYNC_GOOGLE_SERVER_CLIENT_ID =
+BROWNSYNC_GOOGLE_REVERSED_CLIENT_ID =

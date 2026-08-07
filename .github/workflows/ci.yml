@@ -144,6 +144,24 @@ jobs:
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0012_social_checks.sql
       - name: Social SQL two-session race checks
         run: BROWNSYNC_DISPOSABLE_SOCIAL_RACE=1 PGPASSWORD=postgres bash db/checks/0012_social_race.sh postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Organization enrichment SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0013_org_enrichment_checks.sql
+      - name: Organization administration SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0014_org_admin_checks.sql
+      - name: Organization administration multi-session race checks
+        run: BROWNSYNC_DISPOSABLE_ORG_RACE=1 PGPASSWORD=postgres bash db/checks/0014_org_admin_race.sh postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Native board SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0015_board_checks.sql
+      - name: Native board multi-session race checks
+        run: BROWNSYNC_DISPOSABLE_BOARD_RACE=1 PGPASSWORD=postgres bash db/checks/0015_board_race.sh postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Student-created event SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0016_user_events_checks.sql
+      - name: Student-created event multi-session race checks
+        run: BROWNSYNC_DISPOSABLE_USER_EVENT_RACE=1 PGPASSWORD=postgres bash db/checks/0016_user_events_race.sh postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Organization assets SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0017_org_assets_checks.sql
+      - name: Organization assets multi-session race checks
+        run: BROWNSYNC_DISPOSABLE_ORG_ASSET_RACE=1 PGPASSWORD=postgres bash db/checks/0017_org_assets_race.sh postgresql://postgres:postgres@localhost:5432/postgres
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

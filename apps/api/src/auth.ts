@@ -544,3 +544,13 @@ export function createUserWriteRateLimitMiddleware(
     await next();
   };
 }
+
+export function createUserReadRateLimitMiddleware(
+  limiter: RateLimiterBinding | undefined,
+): MiddlewareHandler<AuthEnv> {
+  return async (c, next) => {
+    const denied = await checkRateLimit(limiter, `read:${c.get("user").id}`);
+    if (denied !== null) return denied;
+    await next();
+  };
+}

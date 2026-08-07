@@ -140,9 +140,49 @@ cryptographically valid until expiry. Every future protected mutation must
 also require a surviving account/profile record (or an equivalent
 account-existence gate), not only a valid signature.
 
+### Native board launch gate
+
+The Brown-only pseudonymous board is deliberately unavailable while
+`BOARD_ENABLED` is anything other than the exact string `true`. Do not flip
+that infrastructure gate until all of these are complete:
+
+- [ ] Migration `0015_board.sql` and its semantic/race checks passed on the
+      exact release revision.
+- [ ] An initial verified owner was inserted into `board_moderators` through
+      the owner database connection. There is intentionally no public
+      self-bootstrap route.
+- [ ] A dedicated Cloudflare `BOARD_WRITE_LIMITER` binding exists at
+      **30 writes/minute**. Add it to `wrangler.toml` with a real, unused
+      namespace ID supplied by the Cloudflare account; do not copy or invent
+      one from another binding.
+- [ ] `BOARD_AUTHOR_PEPPER` was provisioned with
+      `npx wrangler secret put BOARD_AUTHOR_PEPPER` using canonical unpadded
+      base64url for at least 32 random bytes. Never print, log, commit, or send
+      that value to PostgreSQL.
+- [ ] Authenticated feed, write-limit, moderation, kill-switch, and disposable
+      account-deletion smoke tests passed.
+
+Only then change checked-in `BOARD_ENABLED` to `"true"` and deploy. That flip
+is **sticky**: after the first true deployment, never set it false, because
+doing so would bypass required board cleanup during account deletion. Use
+`board_control.enabled` through the owner API as the operational kill switch.
+The database switch blocks ordinary reads/writes while still allowing status,
+appeals, authored deletion, and account cleanup.
+
+Once launched, malformed/missing board identity configuration, a missing
+database cleanup routine, or cleanup failure returns a sanitized `503` and
+prevents Supabase Auth Admin deletion. Retrying is safe: the database keeps a
+token-only deletion fence and Auth Admin `404` remains idempotent success.
+
 Local sanity checks that need no Cloudflare auth:
 `pnpm --filter @brownsync/api build:worker` (bundle dry-run) and
 `pnpm --filter @brownsync/api dev:worker` (runs against local supabase).
+
+`apps/api/wrangler.toml` provisions three fail-closed native rate-limit
+bindings: public reads (`120/min` by IP), authenticated writes (`20/min` by
+user), and protected organization reads (`60/min` by user). Keep all three
+bindings when cloning or replacing the Worker configuration. After the board
+launch checklist, keep its separate `30/min` binding as well.
 
 ## 5. Deploy the web app (Pages)
 

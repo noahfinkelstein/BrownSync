@@ -5,6 +5,7 @@ import {
   type HealthOut,
   type MeetingOut,
   ORG_KINDS,
+  type OrgEnrichedDetail,
   type OrgKind,
   type OrgOut,
   PLACE_KINDS,
@@ -106,6 +107,35 @@ export function mapOrg(row: OrgRow): OrgOut {
     url: row.url,
     instagram: row.instagram,
     defaultPlaceId: row.default_place_id,
+  };
+}
+
+const ORG_OVERRIDE_FIELDS = {
+  description: "description",
+  about_md: "aboutMd",
+  meeting_info: "meetingInfo",
+  links: "links",
+  avatar_url: "avatarUrl",
+  banner_url: "bannerUrl",
+} as const;
+
+export function mapOrgEnrichment(
+  row: OrgRow,
+): Omit<OrgEnrichedDetail, keyof OrgOut | "upcoming" | "past"> {
+  return {
+    advisor: row.advisor ?? null,
+    fundingCategory: row.funding_category ?? null,
+    aboutMd: row.about_md ?? null,
+    meetingInfo: row.meeting_info ?? null,
+    links: row.links ?? [],
+    avatarUrl: row.avatar_url ?? null,
+    bannerUrl: row.banner_url ?? null,
+    overriddenFields: (row.overridden_fields ?? []).flatMap((field) => {
+      const mapped = ORG_OVERRIDE_FIELDS[field as keyof typeof ORG_OVERRIDE_FIELDS];
+      return mapped === undefined ? [] : [mapped];
+    }),
+    revision: Number(row.revision ?? 0),
+    updatedAt: row.updated_at?.toISOString() ?? null,
   };
 }
 

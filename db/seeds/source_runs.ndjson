@@ -111,3 +111,4 @@
 {"id":111,"source":"dining","started_at":"2026-07-30T01:39:49.104436Z","finished_at":"2026-07-30T01:39:49.116015Z","status":"ok","items_upserted":1143}
 {"id":112,"source":"publications","started_at":"2026-07-30T01:39:49.117800Z","finished_at":"2026-07-30T01:39:49.133223Z","status":"ok","items_upserted":45}
 {"id":113,"source":"libraries","started_at":"2026-07-30T01:39:49.135175Z","finished_at":"2026-07-30T01:39:49.188588Z","status":"ok","items_upserted":548}
+{"id":114,"source":"clubs","started_at":"2026-07-30T04:14:50.994524Z","finished_at":"2026-07-30T04:14:51.578246Z","status":"ok","items_upserted":457}

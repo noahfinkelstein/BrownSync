@@ -1,0 +1,9 @@
+#include "Base.xcconfig"
+
+BROWNSYNC_BUILD_ENVIRONMENT = ci
+BROWNSYNC_API_BASE_URL = https:/$()/api.brownsync.invalid
+BROWNSYNC_SUPABASE_URL = https:/$()/project.supabase.co
+BROWNSYNC_SUPABASE_PUBLISHABLE_KEY = sb_publishable_ci-value
+BROWNSYNC_GOOGLE_IOS_CLIENT_ID = 123456789-ci.apps.googleusercontent.com
+BROWNSYNC_GOOGLE_SERVER_CLIENT_ID = 987654321-ci.apps.googleusercontent.com
+BROWNSYNC_GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.123456789-ci

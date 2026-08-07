@@ -7,6 +7,7 @@ import {
   MeetingOutSchema,
   NowOutSchema,
   OrgDetailOutSchema,
+  OrgEnrichedDetailSchema,
   OrgOutSchema,
   PlaceActivityOutSchema,
   PlaceOutSchema,
@@ -121,6 +122,23 @@ export const orgByIdRoute = createRoute({
   },
   responses: {
     200: json(OrgDetailOutSchema, "Org detail"),
+    400: badRequest,
+    404: notFound,
+    503: unavailable,
+  },
+});
+
+export const orgProfileRoute = createRoute({
+  method: "get",
+  path: "/api/orgs/{id}/profile",
+  operationId: "getOrganizationProfile",
+  summary: "One organization's public enriched profile and events",
+  request: {
+    params: z.object({ id: z.string().min(1) }),
+    query: AtQuerySchema,
+  },
+  responses: {
+    200: json(OrgEnrichedDetailSchema, "Enriched organization profile"),
     400: badRequest,
     404: notFound,
     503: unavailable,

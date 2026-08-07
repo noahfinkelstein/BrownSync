@@ -7,6 +7,7 @@ import {
   mapEvent,
   mapMeeting,
   mapOrg,
+  mapOrgEnrichment,
   mapPlace,
   normalizeCategory,
 } from "../src/mappers";
@@ -76,6 +77,23 @@ describe("mapPlace / mapOrg", () => {
     expect(out.kind).toBe("club");
     expect(mapOrg({ ...orgRow, kind: "??" }).kind).toBe("external");
     expect(mapOrg({ ...orgRow, category: "not-a-category" }).category).toBeNull();
+  });
+
+  it("never promotes an uncontrolled raw logo URL to the public avatar", () => {
+    expect(
+      mapOrgEnrichment({
+        ...orgRow,
+        avatar_url: null,
+        logo_url: "https://untrusted.example/raw-logo.svg",
+      }).avatarUrl,
+    ).toBeNull();
+    expect(
+      mapOrgEnrichment({
+        ...orgRow,
+        avatar_url: "https://cdn.brownsync.example/controlled-avatar.png",
+        logo_url: "https://untrusted.example/raw-logo.svg",
+      }).avatarUrl,
+    ).toBe("https://cdn.brownsync.example/controlled-avatar.png");
   });
 });
 

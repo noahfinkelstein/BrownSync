@@ -3,10 +3,12 @@ import MapLibre
 import SwiftUI
 
 struct MapViewRepresentable: UIViewRepresentable {
+    let markers: [MapEventMarker]
     @Binding var status: MapLoadStatus
+    let onSelect: (AppRoute) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(status: $status)
+        Coordinator(status: $status, onSelect: onSelect)
     }
 
     func makeUIView(context: Context) -> MLNMapView {
@@ -29,9 +31,12 @@ struct MapViewRepresentable: UIViewRepresentable {
                 isDirectory: true
             )
 
-            _ = try CampusBuildings.decode(
-                try bundledData(named: "campus-buildings", extension: "geojson")
+            let campusBuildingsData = try bundledData(
+                named: "campus-buildings",
+                extension: "geojson"
             )
+            _ = try CampusBuildings.decode(campusBuildingsData)
+            context.coordinator.setCampusBuildingsData(campusBuildingsData)
             let camera = try StyleLoader.camera(
                 from: try Data(contentsOf: styleURL)
             )
@@ -46,6 +51,11 @@ struct MapViewRepresentable: UIViewRepresentable {
             )
             configure(mapView, coordinator: context.coordinator)
             apply(camera, to: mapView)
+            context.coordinator.update(
+                markers: markers,
+                onSelect: onSelect,
+                in: mapView
+            )
             return mapView
         } catch {
             let mapView = MLNMapView(frame: .zero, styleURL: nil)
@@ -55,7 +65,13 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
     }
 
-    func updateUIView(_ mapView: MLNMapView, context: Context) {}
+    func updateUIView(_ mapView: MLNMapView, context: Context) {
+        context.coordinator.update(
+            markers: markers,
+            onSelect: onSelect,
+            in: mapView
+        )
+    }
 
     private func bundledData(named name: String, extension fileExtension: String) throws -> Data {
         guard let url = Bundle.main.url(
@@ -92,11 +108,84 @@ struct MapViewRepresentable: UIViewRepresentable {
         mapView.setCamera(pitchedCamera, animated: false)
     }
 
-    final class Coordinator: NSObject, MLNMapViewDelegate {
-        @Binding private var status: MapLoadStatus
+    @MainActor
+    final class Coordinator: NSObject, @MainActor MLNMapViewDelegate {
+        private static let campusSourceIdentifier = "brown-campus-buildings"
+        private static let campusLabelLayerIdentifier =
+            "brown-campus-building-labels"
 
-        init(status: Binding<MapLoadStatus>) {
+        @Binding private var status: MapLoadStatus
+        private var campusBuildingsData: Data?
+        private var renderedMarkers: [MapEventMarker] = []
+        private var markerAnnotations: [MLNPointAnnotation] = []
+        private var routesByAnnotation: [ObjectIdentifier: AppRoute] = [:]
+        private var onSelect: (AppRoute) -> Void
+
+        init(
+            status: Binding<MapLoadStatus>,
+            onSelect: @escaping (AppRoute) -> Void
+        ) {
             _status = status
+            self.onSelect = onSelect
+        }
+
+        func setCampusBuildingsData(_ data: Data) {
+            campusBuildingsData = data
+        }
+
+        func update(
+            markers: [MapEventMarker],
+            onSelect: @escaping (AppRoute) -> Void,
+            in mapView: MLNMapView
+        ) {
+            self.onSelect = onSelect
+            guard markers != renderedMarkers else { return }
+
+            if !markerAnnotations.isEmpty {
+                mapView.removeAnnotations(markerAnnotations)
+            }
+            renderedMarkers = markers
+            markerAnnotations = markers.map { marker in
+                let annotation = MLNPointAnnotation()
+                annotation.coordinate = CLLocationCoordinate2D(
+                    latitude: marker.coordinate.latitude,
+                    longitude: marker.coordinate.longitude
+                )
+                annotation.title = marker.title
+                return annotation
+            }
+            routesByAnnotation = Dictionary(
+                uniqueKeysWithValues: zip(markerAnnotations, markers).map {
+                    (ObjectIdentifier($0.0), $0.1.route)
+                }
+            )
+            if !markerAnnotations.isEmpty {
+                mapView.addAnnotations(markerAnnotations)
+            }
+        }
+
+        func mapView(
+            _ mapView: MLNMapView,
+            didFinishLoading style: MLNStyle
+        ) {
+            do {
+                try installCampusBuildings(in: style)
+            } catch {
+                fail(error)
+            }
+        }
+
+        func mapView(
+            _ mapView: MLNMapView,
+            didSelect annotation: MLNAnnotation
+        ) {
+            guard let route = routesByAnnotation[
+                ObjectIdentifier(annotation)
+            ] else {
+                return
+            }
+            mapView.deselectAnnotation(annotation, animated: false)
+            onSelect(route)
         }
 
         func mapViewDidFinishRenderingMap(
@@ -120,6 +209,47 @@ struct MapViewRepresentable: UIViewRepresentable {
             let message = error.localizedDescription
             status = .failed(message)
             print("BROWNSYNC_MAP_FAILED \(message)")
+        }
+
+        private func installCampusBuildings(in style: MLNStyle) throws {
+            guard
+                style.source(
+                    withIdentifier: Self.campusSourceIdentifier
+                ) == nil,
+                let campusBuildingsData
+            else {
+                return
+            }
+
+            let shape = try MLNShape(
+                data: campusBuildingsData,
+                encoding: String.Encoding.utf8.rawValue
+            )
+            let source = MLNShapeSource(
+                identifier: Self.campusSourceIdentifier,
+                shape: shape,
+                options: nil
+            )
+            style.addSource(source)
+
+            let labels = MLNSymbolStyleLayer(
+                identifier: Self.campusLabelLayerIdentifier,
+                source: source
+            )
+            labels.minimumZoomLevel = 15
+            labels.text = NSExpression(forKeyPath: "label")
+            labels.textFontNames = NSExpression(
+                forConstantValue: ["Noto Sans Medium"]
+            )
+            labels.textFontSize = NSExpression(forConstantValue: 11)
+            labels.textColor = NSExpression(
+                forConstantValue: UIColor.label
+            )
+            labels.textHaloColor = NSExpression(
+                forConstantValue: UIColor.systemBackground
+            )
+            labels.textHaloWidth = NSExpression(forConstantValue: 1)
+            style.addLayer(labels)
         }
     }
 }

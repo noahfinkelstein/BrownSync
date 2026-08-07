@@ -134,12 +134,26 @@ async function main() {
         await sql.begin(async (tx) => {
           for (const o of batch) {
             await tx`
-              insert into organizations (id, name, kind, category, description, url, instagram, default_place_id, source)
+              insert into organizations (
+                id, name, kind, category, description, url, instagram,
+                contact_emails, advisor, funding_category, website_url,
+                facebook_url, linkedin_url, youtube_url, twitter_url, tiktok_url,
+                default_place_id, source
+              )
               values (${o.id}, ${o.name}, ${o.kind}, ${o.category ?? null}, ${o.description ?? null},
-                      ${o.url ?? null}, ${o.instagram ?? null}, ${placeRef(o.default_place_id)}, ${o.source})
+                      ${o.url ?? null}, ${o.instagram ?? null}, ${o.contact_emails},
+                      ${o.advisor ?? null}, ${o.funding_category ?? null}, ${o.website_url ?? null},
+                      ${o.facebook_url ?? null}, ${o.linkedin_url ?? null}, ${o.youtube_url ?? null},
+                      ${o.twitter_url ?? null}, ${o.tiktok_url ?? null},
+                      ${placeRef(o.default_place_id)}, ${o.source})
               on conflict (id) do update set
                 name = excluded.name, kind = excluded.kind, category = excluded.category,
                 description = excluded.description, url = excluded.url, instagram = excluded.instagram,
+                contact_emails = excluded.contact_emails, advisor = excluded.advisor,
+                funding_category = excluded.funding_category, website_url = excluded.website_url,
+                facebook_url = excluded.facebook_url, linkedin_url = excluded.linkedin_url,
+                youtube_url = excluded.youtube_url, twitter_url = excluded.twitter_url,
+                tiktok_url = excluded.tiktok_url,
                 default_place_id = excluded.default_place_id, source = excluded.source`;
           }
         });

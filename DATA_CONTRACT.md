@@ -1,9 +1,59 @@
-# BrownSync — Shared Data Contract v1.2
+# BrownSync — Shared Data Contract v1.7
 
 **This file is the single source of truth for how the frontend/API side (Claude Code) and the ingestion side (Codex) integrate.** Both handoffs reference it. Neither side may change it unilaterally — changes require bumping the version header and updating both sides in the same PR.
 
 ## Version history
 
+- **v1.7** (migration `0015`, 2026-07-30) — adds the Brown-only
+  pseudonymous native board as an isolated operational model. Eleven
+  RLS-enabled tables and owner-only routines provide content, engagement,
+  moderation, bans, appeals, durable abuse limits, a runtime kill switch, and
+  deletion fencing. The Worker derives a stable HMAC author token from a
+  private secret and the admitted account UUID; PostgreSQL never receives the
+  secret and board responses never expose that token, account IDs, emails,
+  reporter identities, or moderator notes. Every board route is
+  Brown-authenticated, writes have a dedicated coarse edge limiter, and
+  account deletion fails closed until unlinking cleanup succeeds.
+- **v1.6** (migration `0017`, 2026-07-30) — adds controlled
+  organization avatar, banner, gallery, and opt-in Instagram link-card state
+  without changing the source-ingested `organizations` row or any seed
+  producer. Eight RLS-enabled operational tables and owner-only routines
+  provide immutable transformed media, bounded gallery/social collections,
+  durable cleanup, safe public projections, fail-closed oEmbed capacity, and
+  deletion-safe attribution cleanup. Raw uploads are bounded at 8 MiB and
+  40 million pixels, then reduced to validated WebP at at most 2 MiB. Public
+  reads never expose source contact evidence, raw seed logos, storage paths,
+  leases, provider errors, cached HTML, actors, or secrets.
+- **v1.5** (migration `0016`, 2026-07-30) — adds student-created
+  events as a separate operational write model without changing the ingested
+  `events` row or the legacy 21-column event API projection. Authenticated
+  Worker routines provide request-idempotent create, optimistic edit,
+  idempotent cancel, and bounded owner management. Personal accounts must be
+  at least 24 hours old; current organization administrators may post
+  immediately; all new events share an atomic limit of ten per actor per fixed
+  24-hour window. Every event resolves to a canonical campus place, stores no
+  coordinates, and enters public reads only while published, active,
+  nondeleted, and enabled by the posting switch.
+- **v1.4** (migration `0014`, 2026-07-30) — adds operational
+  organization ownership without changing the v1.3 ingestion row. Claims,
+  administration, seed-surviving overrides, immutable audit history, and
+  durable write limits live in separate RLS-enabled tables. The seeded
+  `organizations` row remains source-owned. Public consumers read the safe
+  merged projection: contact addresses and the raw seed logo are excluded,
+  while a future controlled `avatar_url`/`banner_url` may be exposed from the
+  overlay. The legacy `GET /api/orgs/{id}` response remains unchanged; enriched
+  organization data is additive at `GET /api/orgs/{id}/profile`. Protected
+  claim/administration operations are Worker-only owner routines, and the
+  review queue is bounded to 100 rows with a paired positional keyset cursor.
+- **v1.3** (migration `0013`, 2026-07-29) — strictly additive organization
+  source enrichment. Organization seed rows now retain normalized published
+  contact addresses, advisor/funding metadata, and named social URLs that the
+  pinned Brown directory export already carries. `contact_emails` is private
+  claim evidence: it is stored for exact Brown-account ownership checks but is
+  excluded from every public API and from direct `anon`/`authenticated`
+  column grants. User-authored organization content is deliberately not part
+  of this seed row; it lives in a separate overlay so weekly re-ingestion
+  cannot erase club edits.
 - **v1.2** (2026-07-29) — strictly additive, and **entirely outside Postgres**. Adds four
   *static map/data artifacts* published by the Python lane into `db/seeds/` and fetched by the
   web app as plain assets. No table, column, row shape or route response changed; a client
@@ -44,6 +94,16 @@ create table organizations (
   description   text,
   url           text,
   instagram     text,
+  contact_emails text[] not null default '{}', -- private claim evidence; never public API output
+  advisor       text,
+  funding_category text,
+  website_url   text,
+  facebook_url  text,
+  linkedin_url  text,
+  youtube_url   text,
+  twitter_url   text,
+  tiktok_url    text,
+  logo_url      text,                          -- Brown-published directory asset only
   default_place_id text references places(id),
   source        text not null
 );
@@ -109,6 +169,156 @@ create table source_runs (
   error       text
 );
 ```
+
+### Organization ownership and safe reads (v1.4)
+
+The source-owned `organizations` row is never the write target for member
+edits. Migration `0014` keeps member state in:
+
+- `org_claims` and `org_admins` for ownership and roles;
+- `org_overrides` for the current seed-surviving member-authored content;
+- `org_edits` for append-only before/after audit history;
+- owner-only reviewer and fixed-window limit tables.
+
+Direct client DML and routine execution are revoked. The verified Worker passes
+the authenticated actor UUID to atomic database-owner routines, which
+independently require a surviving Brown/Google `auth.users` identity and
+profile. Account deletion cascades claims/roles and nulls durable attribution
+without deleting organization content or audit history.
+
+`public.v_organizations_api` is the enriched organization read model. It must
+never expose `contact_emails` or the source `logo_url`. Migration `0017` may
+publish only its separately uploaded, transformed, and validated controlled
+`avatar_url` or `banner_url`; gallery media uses its own bounded public
+projection. Existing `GET /api/orgs/{id}` clients retain the v1 response
+shape. Consumers that need enrichment use `GET /api/orgs/{id}/profile` and
+`GET /api/orgs/{id}/media`.
+
+The protected review queue is finite and ordered by
+`(created_at, claim_id)`. Its cursor is valid only when both
+`afterCreatedAt` and `afterClaimId` are supplied, and `limit` is 1–100
+(default 50).
+
+### Student-created events (v1.5)
+
+Migration `0016` keeps user authorship separate from source ingestion in
+`user_events`. Ingestion continues to own `events`, and existing public
+consumers continue to read the exact 21-column `v_events_api` contract. Its
+new branch labels these rows with source `brownsync` and exposes only
+switch-enabled, published, active, nondeleted records. No user-event table,
+routine, or response carries latitude or longitude.
+
+Authenticated creation requires a durable client request UUID. A retry with
+the same actor, request ID, and canonical payload returns the original event
+without consuming quota; a changed payload conflicts. Personal events require
+an admitted Brown account at least 24 hours old. Organization events require
+current administration of that organization and have no account-age delay.
+Both consume the same atomic maximum of ten new events per actor per fixed
+24-hour window, including drafts.
+
+Location is exactly one canonical `place_id` or one raw string of at most 500
+characters that must resolve unambiguously to a canonical place. Creation,
+optimistic edit, idempotent cancel, bounded keyset management reads, detail,
+and moderation are owner-only Worker routines; direct client DML and routine
+execution are revoked. The management cursor is positional and bounded to
+100 rows (default 50).
+
+Account deletion cancels and soft-deletes personal events, preserves
+organization-owned events, clears deleted-user attribution, and removes actor
+quota state. The posting switch gates new/enabling writes and public
+visibility, while committed exact create replays remain safe during a switch
+change.
+
+### Organization media and Instagram link cards (v1.6)
+
+Migration `0017` keeps all member-authored asset and social state outside the
+source-owned `organizations` row. It adds exactly eight RLS-enabled operational
+tables for upload reservations, controlled assets/collections, durable cleanup,
+social cards, mutation limits, oEmbed control, and append-only edits. Direct
+client table access and routine execution are revoked; verified Worker
+operations cross only owner-only routines. Ingestion emits no new row or seed
+artifact and no producer, manifest, or weekly refresh behavior changes.
+
+Avatar, banner, and gallery input is exactly one JPEG, PNG, or WebP stream,
+bounded to 8,388,608 bytes, 12,000 pixels per dimension, and 40,000,000 total
+pixels. The Worker transforms it to nonanimated, metadata-free WebP and
+revalidates an output no larger than 2,097,152 bytes before immutable storage.
+Public media reads expose only the controlled URL, dimensions, size, alt text,
+position, and revisions. They never expose upload paths, leases, actors,
+cleanup state, source contact evidence, or the raw seed logo. A gallery has at
+most 12 active items; media mutations are limited to 30 per actor per hour.
+
+Organizations may opt into at most 12 canonical Instagram post/Reel
+permalinks. Public JSON is link-first and contains no cached provider HTML.
+Only the isolated embed origin can read a fresh safe fragment. Missing,
+disabled, unavailable, or unsafe provider behavior degrades to a link card
+without a provider call. The database oEmbed switch defaults disabled and
+admits at most 900 committed calls per hour; social mutations are limited to
+30 per actor per hour.
+
+Account deletion preserves organization-owned ready media and cards while
+removing actor attribution, failing live reservations safely, queuing any
+possibly stored object, releasing refresh leases, converting affected pending
+cards to link-only, and deleting the actor's mutation counters. Hosted Storage,
+Images, Meta approval/token, limiter bindings, and isolated-origin routing are
+deployment gates rather than part of this local data-contract proof.
+
+### Brown-only pseudonymous board (v1.7)
+
+Migration `0015` is operational state only: ingestion emits no board artifact
+and no seed, manifest, or source-owned row changes. It adds
+`board_control`, `board_moderators`, `board_posts`, `board_comments`,
+`board_votes`, `board_reports`, `board_bans`, `board_appeals`,
+`board_moderation_actions`, `board_rate_limits`, and
+`board_account_deletion_fences`. RLS is enabled on all eleven tables, raw
+privileges and client-role routine execution are revoked, and production
+access crosses only owner-connection `SECURITY DEFINER` routines after Worker
+authentication.
+
+The Worker derives `author_token` version 1 as lowercase HMAC-SHA256 over the
+lowercase canonical account UUID using a canonical unpadded-base64url secret
+with at least 32 decoded random bytes. The secret and raw account UUID never
+cross the board SQL seam. Board content stores only the derived token and
+returns a deterministic alias plus `isMine`; it stores no IP address, device
+identifier, JWT claim, email, profile ID, or token-to-profile mapping. The
+identifiable moderator table is authority only and never joins moderator
+identity to pseudonymous authorship.
+
+The required member disclosure is:
+
+> Posts are pseudonymous, not untraceable. BrownSync stores a stable anonymous
+> identifier so it can enforce bans, rate limits, and abuse controls. The board
+> database does not store your BrownSync account ID with your posts. Your posts
+> can be linked to each other, and someone who obtained both BrownSync’s private
+> board secret and a list of Brown account IDs could reconstruct that link.
+> Board moderators do not see your name or email through the moderation tools.
+
+Clients also state that Cloudflare processes normal edge request metadata,
+including IP addresses, to deliver and protect the service.
+
+Post and comment creation is request-idempotent only for the same normalized
+payload. Edits use optimistic revisions; votes converge atomically; reports
+count distinct reporters within a moderation epoch; threshold hiding emits one
+system audit action; and restore/dismiss/approved-appeal transitions advance
+the epoch before new reports can affect restored content. Durable per-token
+limits are 5 posts/hour and 20/day, 30 comments/hour, 120 votes/10 minutes,
+20 reports/day, 3 appeals/day, and 60 edits or deletes/hour. A separate
+Cloudflare binding adds a 30-writes/minute coarse gate.
+
+Every non-OPTIONS method below `/api/board` requires current Brown admission
+and is excluded from the public-read limiter; GET and HEAD remain private,
+while OPTIONS is dependency-free. `BOARD_ENABLED` defaults closed and becomes
+sticky after its first true deployment. Operators then use
+`board_control.enabled` as the runtime kill switch, which preserves status,
+appeal, authored deletion, and account-cleanup paths.
+
+After infrastructure launch, account deletion must derive the same token and
+complete `brownsync_delete_board_account` before Supabase Auth Admin deletion.
+Cleanup installs a durable token-only fence, removes engagement and abuse
+state, nulls authored text, and gives every surviving body-free tombstone its
+own unlinkable random token. A missing secret/routine or cleanup failure
+returns a sanitized unavailable response and leaves the Auth account intact;
+both cleanup and a subsequent Auth-not-found result are safe to retry.
 
 ### v1.1 operational tables (migrations 0006, 0007)
 

@@ -1,0 +1,4 @@
+#include "Base.xcconfig"
+#include? "Local.xcconfig"
+
+BROWNSYNC_BUILD_ENVIRONMENT = debug

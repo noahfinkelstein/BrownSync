@@ -56,7 +56,6 @@ declare
 begin
   foreach table_name in array array[
     'places',
-    'organizations',
     'events',
     'course_meetings',
     'term_calendar'
@@ -70,6 +69,51 @@ begin
         raise exception '% lacks SELECT on public.%', role_name, table_name;
       end if;
     end loop;
+  end loop;
+
+  -- 0013 stores published contact addresses on organizations for private,
+  -- owner-side claim verification. Public clients retain explicit safe-column
+  -- reads but must not retain the old table-wide SELECT grant.
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if has_table_privilege(
+      role_name,
+      'public.organizations',
+      'select'
+    ) then
+      raise exception '% unexpectedly has table-wide organizations SELECT', role_name;
+    end if;
+
+    if not has_column_privilege(
+      role_name,
+      'public.organizations',
+      'id',
+      'select'
+    ) or not has_column_privilege(
+      role_name,
+      'public.organizations',
+      'name',
+      'select'
+    ) then
+      raise exception '% lacks safe organization column reads', role_name;
+    end if;
+
+    if has_column_privilege(
+      role_name,
+      'public.organizations',
+      'contact_emails',
+      'select'
+    ) then
+      raise exception '% can read private organization contacts', role_name;
+    end if;
+
+    if has_column_privilege(
+      role_name,
+      'public.organizations',
+      'logo_url',
+      'select'
+    ) then
+      raise exception '% can read raw organization logo provenance', role_name;
+    end if;
   end loop;
 
   foreach table_name in array array[
