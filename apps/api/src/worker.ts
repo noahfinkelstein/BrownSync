@@ -61,7 +61,12 @@ export type WorkerEnv = {
   MEDIA_WRITE_LIMITER?: RateLimiterBinding;
   /** Dedicated authenticated organization-social write bucket. */
   SOCIAL_WRITE_LIMITER?: RateLimiterBinding;
-  /** Sticky infrastructure launch gate; board_control is the runtime switch. */
+  /**
+   * Sticky infrastructure launch gate for BOARD ROUTES only; board_control is
+   * the runtime switch. Account-deletion board cleanup deliberately keys on
+   * BOARD_AUTHOR_PEPPER instead, so flipping this flag back off can never
+   * skip the deletion contract.
+   */
   BOARD_ENABLED?: string;
   /** Server-only board identity key. Never sent to SQL, clients, or logs. */
   BOARD_AUTHOR_PEPPER?: string;
@@ -338,9 +343,18 @@ export default {
       serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
     });
     const boardLaunched = env.BOARD_ENABLED === "true";
+    // Board ROUTES stay gated on the launch flag (pepper withheld → 503).
     const boardIdentity = createBoardIdentity({
       encodedPepper: boardLaunched ? env.BOARD_AUTHOR_PEPPER : undefined,
     });
+    // Account deletion must NOT depend on the runtime launch flag: board
+    // content can only exist once the pepper secret was provisioned, so its
+    // presence — not BOARD_ENABLED — decides whether deletion requires board
+    // cleanup. A provisioned-but-malformed pepper fails deletion closed.
+    const boardCleanupConfigured = env.BOARD_AUTHOR_PEPPER !== undefined;
+    const boardCleanupIdentity = boardLaunched
+      ? boardIdentity
+      : createBoardIdentity({ encodedPepper: env.BOARD_AUTHOR_PEPPER });
     let objectStore: MediaObjectStore | undefined;
     if (env.SUPABASE_URL !== undefined && env.SUPABASE_SERVICE_ROLE_KEY !== undefined) {
       try {
@@ -385,19 +399,20 @@ export default {
       isProtectedBoard ||
       isPublicOrgAssetJson ||
       isSocialEmbed ||
-      (isAccount && boardLaunched)
+      (isAccount && boardCleanupConfigured)
     ) {
       const connectionString = env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
       const lazy = lazyWorkerQueries(connectionString, ctx, embedOrigin);
-      const accountDeleter = boardLaunched
+      const accountDeleter = boardCleanupConfigured
         ? createBoardAwareAccountDeleter({
             adminDeleter: adminAccountDeleter,
             cleanup: async (actorId, authorToken) => {
               const result = await lazy.boardQueries.deleteAccount(actorId, authorToken);
-              return result.kind === "ok" ? "cleaned" : "unavailable";
+              if (result.kind === "ok") return "cleaned";
+              return result.kind === "conflict" ? "owner_transfer_required" : "unavailable";
             },
-            identity: boardIdentity,
-            launchState: "launched",
+            identity: boardCleanupIdentity,
+            cleanupState: "configured",
           })
         : adminAccountDeleter;
       try {

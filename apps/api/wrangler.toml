@@ -41,8 +41,10 @@ localConnectionString = "postgresql://postgres:postgres@127.0.0.1:54322/postgres
 [vars]
 CORS_ORIGINS = "https://brownsync.pages.dev"
 SUPABASE_URL = "https://hkrxahzdqqxxovvilalm.supabase.co"
-# Infrastructure launch gate. After the first true deployment it is sticky;
-# use board_control.enabled, not this flag, as the operational kill switch.
+# Infrastructure launch gate for board ROUTES. After the first true
+# deployment it is sticky; use board_control.enabled, not this flag, as the
+# operational kill switch. Account-deletion board cleanup keys on the
+# BOARD_AUTHOR_PEPPER secret, never this flag (migration 0019).
 # DEPLOY.md requires a real BOARD_WRITE_LIMITER binding and the server-only
 # BOARD_AUTHOR_PEPPER secret before this may become true. No binding ID is
 # guessed here; board writes fail closed until the operator provisions it.

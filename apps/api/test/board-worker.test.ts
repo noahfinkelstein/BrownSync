@@ -5,6 +5,19 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AuthFetch } from "../src/auth";
 import worker from "../src/worker";
 
+// Escape hatch for the sole-owner conflict test: worker.ts constructs its SQL
+// client internally, so the only seam is the postgres module itself. Default
+// behavior delegates to the real client (other tests rely on real connection
+// failures); a test may install a synthetic client via postgresBehavior.impl.
+const postgresBehavior: { impl?: () => unknown } = {};
+vi.mock("postgres", async (importOriginal) => {
+  const actual = (await importOriginal()) as { default: (...values: unknown[]) => unknown };
+  return {
+    default: (...args: unknown[]) =>
+      postgresBehavior.impl !== undefined ? postgresBehavior.impl() : actual.default(...args),
+  };
+});
+
 const SUPABASE_URL = "https://board-worker-test.supabase.co";
 const ISSUER = `${SUPABASE_URL}/auth/v1`;
 const JWKS_URL = `${ISSUER}/.well-known/jwks.json`;
@@ -228,6 +241,115 @@ describe("Worker native-board isolation and launch gates", () => {
     expect(response.status).toBe(503);
     expect(publicLimit).not.toHaveBeenCalled();
     expect(executionContext.waitUntil).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["false", "false"],
+    ["absent", undefined],
+  ] as const)(
+    "requires board cleanup for account deletion even when BOARD_ENABLED is %s",
+    async (_label, boardEnabled) => {
+      // Deletion semantics must key on the provisioned pepper, never the
+      // runtime launch flag: a launched-then-reverted flag must not let the
+      // plain Admin deleter skip board cleanup. Cleanup here fails (no
+      // reachable database), so the account deletion must fail closed
+      // instead of returning 204 via the legacy path.
+      const adminUrl = `${SUPABASE_URL}/auth/v1/admin/users/${ACTOR_ID}`;
+      const fetcher = stubJwks((url) =>
+        url === adminUrl ? new Response(null, { status: 204 }) : undefined,
+      );
+      const userLimit = vi.fn(async () => ({ success: true }));
+
+      const response = await worker.fetch(
+        new Request("https://api.example/api/account", {
+          method: "DELETE",
+          headers: { Authorization: await bearer() },
+        }),
+        {
+          BOARD_AUTHOR_PEPPER: CANONICAL_PEPPER,
+          ...(boardEnabled === undefined ? {} : { BOARD_ENABLED: boardEnabled }),
+          DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:9/postgres",
+          SUPABASE_SERVICE_ROLE_KEY: "service-role-test-secret",
+          SUPABASE_URL,
+          USER_WRITE_LIMITER: { limit: userLimit },
+        },
+        context(),
+      );
+
+      expect(response.status).toBe(503);
+      expect(fetcher.mock.calls.some(([input]) => input.toString() === adminUrl)).toBe(false);
+    },
+  );
+
+  it("fails account deletion closed before Admin when the pepper is malformed and the flag is off", async () => {
+    // The launched-then-reverted misconfiguration: the pepper secret is still
+    // provisioned (malformed here) while BOARD_ENABLED was flipped back off.
+    // The deleter must fail closed rather than fall back to the plain Admin
+    // path that skips cleanup.
+    const adminUrl = `${SUPABASE_URL}/auth/v1/admin/users/${ACTOR_ID}`;
+    const fetcher = stubJwks((url) =>
+      url === adminUrl ? new Response(null, { status: 204 }) : undefined,
+    );
+    const userLimit = vi.fn(async () => ({ success: true }));
+
+    const response = await worker.fetch(
+      new Request("https://api.example/api/account", {
+        method: "DELETE",
+        headers: { Authorization: await bearer() },
+      }),
+      {
+        BOARD_AUTHOR_PEPPER: "malformed",
+        BOARD_ENABLED: "false",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-test-secret",
+        SUPABASE_URL,
+        USER_WRITE_LIMITER: { limit: userLimit },
+      },
+      context(),
+    );
+
+    expect(response.status).toBe(503);
+    expect(fetcher.mock.calls.some(([input]) => input.toString() === adminUrl)).toBe(false);
+  });
+
+  it("maps a sole-owner board cleanup conflict to a typed 409 without Admin deletion", async () => {
+    const adminUrl = `${SUPABASE_URL}/auth/v1/admin/users/${ACTOR_ID}`;
+    const fetcher = stubJwks((url) =>
+      url === adminUrl ? new Response(null, { status: 204 }) : undefined,
+    );
+    const userLimit = vi.fn(async () => ({ success: true }));
+    const terminalConflict = vi.fn(async () => {
+      throw new Error("BROWNSYNC_BOARD_TERMINAL_CONFLICT");
+    });
+    const sqlStub = Object.assign(terminalConflict, {
+      end: vi.fn(async () => undefined),
+    });
+    postgresBehavior.impl = () => sqlStub;
+
+    try {
+      const response = await worker.fetch(
+        new Request("https://api.example/api/account", {
+          method: "DELETE",
+          headers: { Authorization: await bearer() },
+        }),
+        {
+          BOARD_AUTHOR_PEPPER: CANONICAL_PEPPER,
+          BOARD_ENABLED: "false",
+          DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:9/postgres",
+          SUPABASE_SERVICE_ROLE_KEY: "service-role-test-secret",
+          SUPABASE_URL,
+          USER_WRITE_LIMITER: { limit: userLimit },
+        },
+        context(),
+      );
+
+      expect(response.status).toBe(409);
+      const payload = (await response.json()) as { error?: { code?: string } };
+      expect(payload.error?.code).toBe("board_owner_transfer_required");
+      expect(terminalConflict).toHaveBeenCalled();
+      expect(fetcher.mock.calls.some(([input]) => input.toString() === adminUrl)).toBe(false);
+    } finally {
+      postgresBehavior.impl = undefined;
+    }
   });
 
   it("fails launched account deletion closed before Admin when board identity is malformed", async () => {
