@@ -614,10 +614,7 @@ describe("buildFeed", () => {
       { at: AT, pageSize: 10 },
     );
 
-    expect(ids(page.items)).toEqual([
-      "article:bdh:fresh",
-      "article:bdh:edge",
-    ]);
+    expect(ids(page.items)).toEqual(["article:bdh:fresh", "article:bdh:edge"]);
     // The same document scored directly (no cutoff) still ranks stale items —
     // proof the exclusion happens at the input seam, not in the scoring.
     expect(ARTICLE_MAX_AGE_MS).toBe(14 * DAY);

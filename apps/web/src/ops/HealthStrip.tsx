@@ -134,7 +134,9 @@ export function HealthStrip({ className, compact = false, refreshMs }: HealthStr
           <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2">
             <span className="font-mono text-12 text-text-secondary">
               {/* The compact trigger's former readout, demoted here. */}
-              {hasData ? `${sources.length} sources · ok ${formatAgo(latestOkAt(sources), nowMs)} · ` : ""}
+              {hasData
+                ? `${sources.length} sources · ok ${formatAgo(latestOkAt(sources), nowMs)} · `
+                : ""}
               checked {checkedAt ? formatAgo(new Date(checkedAt).toISOString(), nowMs) : "—"} · auto{" "}
               {Math.round(cadence / 1000)}s
             </span>
