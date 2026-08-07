@@ -25,6 +25,16 @@ body {
   padding: 1px 6px;
 }
 
+/* On mobile the HappeningNow bar floats across the map's bottom edge and was
+   clipping the attribution chip ("…ma ⓘ" — flagged by the freshman-lens
+   acceptance pass). Attribution must stay visible (OSM licence), so lift the
+   whole bottom-right control stack above the bar below md. */
+@media (max-width: 767px) {
+  .maplibregl-ctrl-bottom-right {
+    bottom: 3.5rem;
+  }
+}
+
 .maplibregl-ctrl-attrib a {
   color: var(--text-secondary);
   text-decoration: none;

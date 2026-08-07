@@ -65,6 +65,9 @@ export function HealthStrip({ className, compact = false, refreshMs }: HealthStr
       <button
         type="button"
         aria-label="Source health"
+        // Resting state is a bare dot (audit demotion) — the tooltip is the
+        // sighted-user hint the freshman-lens pass asked for.
+        title="Source health"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? popoverId : undefined}

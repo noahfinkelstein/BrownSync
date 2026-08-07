@@ -135,7 +135,9 @@ export function HappeningNow({ onSelect, className }: HappeningNowProps) {
               <p className="border-t border-line px-2.5 py-1.5 font-mono text-12 tabular-nums text-text-secondary">
                 {[
                   model.soon > 0 ? `${model.soon} starting soon` : null,
-                  classes > 0 ? `${classes} in class` : null,
+                  // Matches NowBar: "classes now" (sections meeting), never
+                  // the ambiguous "in class".
+                  classes > 0 ? `${classes} classes now` : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
