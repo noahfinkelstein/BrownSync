@@ -105,8 +105,7 @@ describe("parseBrownNewsListing (hostile/drifted input)", () => {
 
     // If a separate plain headline anchor for the same href SURVIVES the
     // redesign, the item recovers with the bounded headline — never the blob.
-    const cardPlusHeadline =
-      `${card}\n<a href="/news/2026-08-06/card-redesign">Real headline inside the card</a>`;
+    const cardPlusHeadline = `${card}\n<a href="/news/2026-08-06/card-redesign">Real headline inside the card</a>`;
     const recovered = parseBrownNewsListing(cardPlusHeadline);
     expect(recovered).toHaveLength(1);
     expect(recovered[0]?.title).toBe("Real headline inside the card");

@@ -11,9 +11,11 @@
   licence rule 0004 had to enforce by purge is now structural: CHECK
   constraints make the database physically reject `description`/`body_text`
   for a `license = 'headline_only'` row, bound `body_text` to
-  `license = 'full'`, and bound `raw` to an immutable metadata allowlist
-  (guid, link, pubDate, published, author, categories, section,
-  listing_date). Nothing hard-deletes: `is_removed` is a soft flag the read
+  `license = 'full'`, and bound `raw` by an immutable allowlist that is both
+  key-closed and value-closed: keys from {guid, link, pubDate, published,
+  author, categories, section, listing_date}, values scalars of ≤ 512
+  serialized characters (categories may instead be an array of such
+  strings). Nothing hard-deletes: `is_removed` is a soft flag the read
   model filters on. New route `GET /api/articles?from&to` (defaults
   to=now, from=to−14 days) returns `{ articles: Article[] }`, where each
   row exposes `license` (so clients cannot render more than permitted) and
@@ -461,11 +463,20 @@ create table articles (
 **The licence CHECKs are the legal gate made structural** — the lesson of
 migration 0004, which had to purge BDH bodies a normalizer had stored. A
 `headline_only` row physically cannot carry prose: not in `description`, not
-in `body_text`, and not smuggled into `raw` (the allowlist function admits
-only `guid`, `link`, `pubDate`, `published`, `author`, `categories`,
-`section`, `listing_date`, and requires a jsonb object). Widening a source's
-licence is an explicit, auditable `UPDATE` of `source_registry.license` plus
-a reviewed normalizer change — never a code path that quietly stores more.
+in `body_text`, and not smuggled into `raw`. The allowlist function is
+key-closed AND value-closed: `raw` must be a jsonb object whose keys come
+from {`guid`, `link`, `pubDate`, `published`, `author`, `categories`,
+`section`, `listing_date`} and whose values are scalars of at most 512
+serialized characters — `categories` alone may instead be an array of
+strings under the same bound. A body under a new key fails the key rule; a
+body inside an allowed key (`{"section": <prose>}`, a nested object) fails
+the value rule. Separately, the `brown_news` parser caps accepted headlines
+at 200 characters so a redesign that wraps a whole card (headline + dek) in
+one anchor can never smuggle dek prose into `title`, the one text column the
+CHECKs exempt — an over-cap anchor is rejected and enough rejections trip
+the fail-closed gate. Widening a source's licence is an explicit, auditable
+`UPDATE` of `source_registry.license` plus a reviewed normalizer change —
+never a code path that quietly stores more.
 
 Upsert semantics follow §2: upsert on `(source, source_id)`, refresh
 `last_seen_at` on every sighting, never hard-delete (`is_removed` is the soft

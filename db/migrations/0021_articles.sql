@@ -26,18 +26,36 @@
 -- plus a normalizer change — never a code path that quietly starts storing
 -- more.
 --
--- `raw` is bounded the same way: an immutable allowlist function admits
--- identifiers and bibliographic facts only (mirroring 0004's rebuild
--- allowlist), so a body smuggled under a future element name is rejected at
--- write time rather than purged after the fact.
+-- `raw` is bounded the same way: an immutable allowlist function constrains
+-- BOTH keys and value shapes (mirroring 0004's rebuild allowlist, enforced at
+-- write time rather than purged after the fact). Keys must come from the
+-- allowlist; every value must be a scalar of at most 512 serialized
+-- characters, except `categories`, which may instead be an array of such
+-- strings. So a body smuggled under a NEW element name is rejected by the key
+-- rule, and a body smuggled INSIDE an allowlisted key ({"section": <5000
+-- words>} or a nested object) is rejected by the value rule.
 --
 -- NO POSTGRES ENUM TYPES; CHECK constraints on this NEW table only
 -- (DATA_CONTRACT.md §1 recorded decision).
 
 -- ---------------------------------------------------------------------------
 -- raw allowlist — identifiers and bibliographic facts, never article text.
--- Extending the allowlist is a deliberate `create or replace` in a future
--- migration, reviewed like any other schema change.
+--
+-- Key-closed AND value-closed. A key allowlist alone is value-open:
+-- {"section": <a whole article>} or {"categories": {"body": ...}} would pass
+-- it, and `raw` would become the smuggling path 0004 existed to shut. So the
+-- rule is:
+--
+--   * raw is NULL, or a jsonb object;
+--   * every key is on the allowlist;
+--   * every value is a SCALAR (string/number/boolean/null) whose jsonb text
+--     serialization is at most 512 characters — long enough for any real
+--     guid/link/byline, far too short for prose;
+--   * `categories` alone may instead be an array, each element a string
+--     under the same 512-character bound.
+--
+-- Extending the allowlist or the shapes is a deliberate `create or replace`
+-- in a future migration, reviewed like any other schema change.
 -- ---------------------------------------------------------------------------
 create or replace function articles_raw_allowlisted(p_raw jsonb)
 returns boolean
@@ -48,16 +66,34 @@ as $$
       or (jsonb_typeof(p_raw) = 'object'
           and not exists (
             select 1
-            from jsonb_object_keys(p_raw) as k(key)
-            where k.key not in
-              ('guid', 'link', 'pubDate', 'published', 'author',
-               'categories', 'section', 'listing_date')
+            from jsonb_each(p_raw) as e(key, value)
+            where
+              -- key must be allowlisted…
+              e.key not in
+                ('guid', 'link', 'pubDate', 'published', 'author',
+                 'categories', 'section', 'listing_date')
+              -- …and the value must be a bounded scalar,
+              or not (
+                (jsonb_typeof(e.value) in ('string', 'number', 'boolean', 'null')
+                 and length(e.value::text) <= 512)
+                -- or, for categories only, an array of bounded strings.
+                or (e.key = 'categories'
+                    and jsonb_typeof(e.value) = 'array'
+                    and not exists (
+                      select 1
+                      from jsonb_array_elements(e.value) as a(item)
+                      where jsonb_typeof(a.item) <> 'string'
+                         or length(a.item::text) > 512
+                    ))
+              )
           ));
 $$;
 
 comment on function articles_raw_allowlisted(jsonb) is
-  'CHECK helper for articles.raw: metadata allowlist (0004''s BDH allowlist, '
-  'enforced at write time instead of purged after the fact).';
+  'CHECK helper for articles.raw: key allowlist + value-shape bound (scalars '
+  '<= 512 serialized chars; categories may be an array of such strings). '
+  '0004''s BDH allowlist, enforced at write time instead of purged after '
+  'the fact.';
 
 create table if not exists articles (
   id            uuid primary key default gen_random_uuid(),

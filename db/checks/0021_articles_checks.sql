@@ -88,13 +88,59 @@ begin
   exception when check_violation then null;
   end;
 
-  -- 7. ADMISSION: the shape the brown_news producer actually writes.
+  -- 6b. REJECTION: the allowlist is value-closed, not just key-closed —
+  --     prose under an ALLOWED key must fail (the review finding: a key-only
+  --     allowlist admits {"section": <a whole article>}).
+  begin
+    insert into articles (source, source_id, title, url, published_at, license, raw)
+    values ('brown_news', 'chk-raw-prose-value', 'Chk', 'https://x.test/chk',
+            timestamptz '2026-08-06T04:00:00Z', 'headline_only',
+            jsonb_build_object('section', repeat('licensed editorial prose ', 40)));
+    raise exception 'articles 0021: prose under an allowlisted key was accepted';
+  exception when check_violation then null;
+  end;
+
+  -- 6c. REJECTION: a nested object under an allowed key must fail
+  --     ({"categories": {"body": ...}} is not an array of short strings).
+  begin
+    insert into articles (source, source_id, title, url, published_at, license, raw)
+    values ('brown_news', 'chk-raw-nested', 'Chk', 'https://x.test/chk',
+            timestamptz '2026-08-06T04:00:00Z', 'headline_only',
+            jsonb_build_object('categories', jsonb_build_object('body', 'smuggled')));
+    raise exception 'articles 0021: nested object under an allowlisted key was accepted';
+  exception when check_violation then null;
+  end;
+
+  -- 6d. REJECTION: an over-bound array element under categories must fail.
+  begin
+    insert into articles (source, source_id, title, url, published_at, license, raw)
+    values ('brown_news', 'chk-raw-long-cat', 'Chk', 'https://x.test/chk',
+            timestamptz '2026-08-06T04:00:00Z', 'headline_only',
+            jsonb_build_object('categories',
+                               jsonb_build_array(repeat('prose ', 100))));
+    raise exception 'articles 0021: over-bound categories element was accepted';
+  exception when check_violation then null;
+  end;
+
+  -- 7. ADMISSION: the shape the brown_news producer actually writes, plus
+  --    the widest LEGITIMATE raw (bounded scalars + categories string array).
   insert into articles (source, source_id, title, url, published_at, license, raw)
   values ('brown_news', '/news/2026-08-06/chk-slug',
           'Chk: a real headline-only row',
           'https://www.brown.edu/news/2026-08-06/chk-slug',
           timestamptz '2026-08-06T04:00:00Z', 'headline_only',
           jsonb_build_object('listing_date', '2026-08-06'));
+  insert into articles (source, source_id, title, url, published_at, license, raw)
+  values ('bpr', 'chk-raw-full-allowlist', 'Chk bibliographic raw',
+          'https://x.test/chk-bib',
+          timestamptz '2026-08-06T04:00:00Z', 'excerpt',
+          jsonb_build_object(
+            'guid', 'https://x.test/chk-bib',
+            'link', 'https://x.test/chk-bib',
+            'pubDate', 'Thu, 06 Aug 2026 00:00:00 -0400',
+            'author', 'A Reporter',
+            'section', 'Science',
+            'categories', jsonb_build_array('Research', 'Campus')));
 
   -- 8. UPSERT IDEMPOTENCY: the producer's on-conflict clause, twice, must
   --    leave exactly one row with the refreshed title and never a duplicate.
