@@ -882,3 +882,67 @@ class TestMain:
         assert [entry["source"] for entry in manifest["fixtures"]] == ["good_src", "other_src"]
         # The bad group was not selected, so its stale gap survives untouched.
         assert manifest["gaps"] == [{"source": "bad_declared", "reason": "stale 403"}]
+
+    def test_a_rolling_window_source_prunes_the_file_it_no_longer_produces(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Mirrors capture_libraries: each run writes a date-stamped file for
+        # "this week" and the previous week's file falls out of the window.
+        # Without pruning, last week's bytes linger on disk unmanifested.
+        weeks = iter(["2026-08-02", "2026-08-09"])
+
+        def rolling(session: harness.CaptureSession) -> None:
+            stamp = next(weeks)
+            relpath = f"recorded/rolling/week-{stamp}.html"
+            (session.fixtures_root / relpath).parent.mkdir(parents=True, exist_ok=True)
+            (session.fixtures_root / relpath).write_text("grid", encoding="utf-8")
+            session.entries.append({"path": relpath, "source": "rolling_src"})
+
+        monkeypatch.setattr(harness, "GROUPS", {"rolling": rolling})
+        monkeypatch.setattr(harness, "GROUP_SOURCES", {"rolling": ("rolling_src",)})
+        root = tmp_path / "fixtures"
+        root.mkdir()
+
+        first = harness.main(["--root", str(root), "--cache-dir", str(tmp_path / "cache"), "--groups", "rolling"])
+        assert first == 0
+        old_file = root / "recorded/rolling/week-2026-08-02.html"
+        assert old_file.is_file()
+
+        second = harness.main(["--root", str(root), "--cache-dir", str(tmp_path / "cache"), "--groups", "rolling"])
+        assert second == 0
+
+        assert not old_file.is_file(), "the week that scrolled out of the window should be pruned"
+        new_file = root / "recorded/rolling/week-2026-08-09.html"
+        assert new_file.is_file()
+        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+        assert [entry["path"] for entry in manifest["fixtures"]] == ["recorded/rolling/week-2026-08-09.html"]
+
+    def test_an_untouched_groups_stale_looking_file_is_never_pruned(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Pruning is scoped to the sources selected for this run — a file for
+        # a group we didn't touch must survive even if it isn't in the fresh
+        # manifest's selected-source entries.
+        self._patch_groups(monkeypatch)
+        root = tmp_path / "fixtures"
+        root.mkdir()
+        untouched = root / "recorded/other/kept.json"
+        untouched.parent.mkdir(parents=True)
+        untouched.write_text("{}", encoding="utf-8")
+        (root / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "notes": [],
+                    "gaps": [],
+                    "fixtures": [{"path": "recorded/other/kept.json", "source": "other_src"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        exit_code = harness.main(
+            ["--root", str(root), "--cache-dir", str(tmp_path / "cache"), "--groups", "good"]
+        )
+        assert exit_code == 0
+        assert untouched.is_file()
