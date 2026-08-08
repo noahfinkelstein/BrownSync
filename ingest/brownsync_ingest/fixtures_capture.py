@@ -1089,27 +1089,38 @@ GROUP_SOURCES: dict[str, tuple[str, ...]] = {
 }
 
 
-def preload_manifest(session: CaptureSession, *, selected_sources: set[str]) -> None:
+def preload_manifest(session: CaptureSession, *, selected_sources: set[str]) -> set[str]:
     """Carry forward existing manifest evidence for sources NOT being recaptured.
 
     Entries, gaps, and ``<source>:``-prefixed notes owned by the selected
     sources are dropped so the fresh run replaces them; everything else —
     including user_provided inputs, which no capture group owns — survives
     verbatim.
+
+    Returns the on-disk paths the previous manifest recorded for the selected
+    sources. The caller diffs this against what the fresh run actually
+    produces so it can prune files this run no longer reproduces — a rolling,
+    date-stamped window (the library hours grid) advances its filenames every
+    run, and without this the file that fell out of the window would linger
+    on disk, unmanifested, forever.
     """
     path = session.fixtures_root / "manifest.json"
     if not path.is_file():
-        return
+        return set()
     existing = json.loads(path.read_text(encoding="utf-8"))
+    previous_paths: set[str] = set()
     for entry in existing.get("fixtures", []):
         if entry.get("source") not in selected_sources:
             session.entries.append(entry)
+        else:
+            previous_paths.add(entry["path"])
     for gap in existing.get("gaps", []):
         if gap.get("source") not in selected_sources:
             session.gaps.append(gap)
     for note in existing.get("notes", []):
         if note.split(":", 1)[0] not in selected_sources:
             session.notes.append(note)
+    return previous_paths
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1130,7 +1141,7 @@ def main(argv: list[str] | None = None) -> int:
     session = CaptureSession(
         contact_email=arguments.contact, fixtures_root=arguments.root, cache_dir=arguments.cache_dir
     )
-    preload_manifest(
+    previous_paths = preload_manifest(
         session,
         selected_sources={source for group in selected_groups for source in GROUP_SOURCES[group]},
     )
@@ -1146,6 +1157,18 @@ def main(argv: list[str] | None = None) -> int:
                 if source not in captured and source not in declared:
                     session.gap(source, f"capture failed after polite retries: {type(error).__name__}: {error}")
     manifest_path = session.write_manifest()
+    # Delete files a rolling window left behind: previously manifested under a
+    # source we just recaptured, but not reproduced by this run (e.g. a
+    # library-hours week that has since scrolled out of the 7-week horizon).
+    # Scoped to exactly that diff, so an untouched group's files are never at
+    # risk even if this run's capture partially failed.
+    stale = sorted(previous_paths - {entry["path"] for entry in session.entries})
+    for relpath in stale:
+        target = session.fixtures_root / relpath
+        if target.is_file():
+            target.unlink()
+    if stale:
+        print(f"pruned {len(stale)} stale fixture file(s) no longer produced by this capture: {', '.join(stale)}")
     print(f"wrote {manifest_path} with {len(session.entries)} fixtures and {len(session.gaps)} gap(s)")
     return 0
 
