@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { fetchEventDetail, fetchEvents, fetchMeetings, fetchNow } from "./api";
+import { fetchArticles, fetchEventDetail, fetchEvents, fetchMeetings, fetchNow } from "./api";
 import { useCursorDate } from "./cursor";
 
 /**
@@ -28,10 +28,26 @@ export function meetingsBucketFor(cursor: Date): string {
   return new Date(Math.floor(cursor.getTime() / (5 * MIN)) * (5 * MIN)).toISOString();
 }
 
+/**
+ * Articles window: [cursor−14 d, cursor], keyed on the hour bucket. 14 days
+ * is the feed's ARTICLE_MAX_AGE_MS cutoff (feed/rank.ts) — fetching further
+ * back would download rows the feed is contractually going to drop. `to`
+ * rounds UP to the next hour so a story published "just now" is never
+ * excluded by bucketing.
+ */
+export function articlesWindowFor(cursor: Date): { from: string; to: string } {
+  const toMs = Math.ceil(cursor.getTime() / HOUR) * HOUR;
+  return {
+    from: new Date(toMs - 14 * DAY).toISOString(),
+    to: new Date(toMs).toISOString(),
+  };
+}
+
 export const queryKeys = {
   events: (from: string) => ["events", from] as const,
   eventDetail: (id: string) => ["event", id] as const,
   meetings: (at: string) => ["meetings", at] as const,
+  articles: (from: string) => ["articles", from] as const,
   now: () => ["now"] as const,
 };
 
@@ -47,6 +63,23 @@ export function useEventsWindow() {
     placeholderData: keepPreviousData,
   });
   return { ...query, cursor, isLive };
+}
+
+/**
+ * News articles in the feed's 14-day window ending at the cursor
+ * (contract v1.9, GET /api/articles — currently the brown_news producer).
+ */
+export function useArticlesWindow() {
+  const { cursor, isLive } = useCursorDate();
+  const window = articlesWindowFor(cursor);
+  return useQuery({
+    queryKey: queryKeys.articles(window.from),
+    queryFn: () => fetchArticles(window),
+    // The producer's cadence is 30 min; refetching faster buys nothing.
+    staleTime: 5 * MIN,
+    refetchInterval: isLive ? 5 * MIN : false,
+    placeholderData: keepPreviousData,
+  });
 }
 
 /** Course meetings in session at the (5-min bucketed) cursor. */

@@ -1,4 +1,6 @@
 import {
+  ArticleOutSchema,
+  ArticlesQuerySchema,
   AtQuerySchema,
   EventDetailOutSchema,
   EventOutSchema,
@@ -39,6 +41,9 @@ export const OrgsResponseSchema = z
 export const MeetingsResponseSchema = z
   .object({ meetings: z.array(MeetingOutSchema) })
   .meta({ id: "MeetingsResponse" });
+export const ArticlesResponseSchema = z
+  .object({ articles: z.array(ArticleOutSchema) })
+  .meta({ id: "ArticlesResponse" });
 
 const json = <S>(schema: S, description: string) => ({
   content: { "application/json": { schema } },
@@ -141,6 +146,23 @@ export const orgProfileRoute = createRoute({
     200: json(OrgEnrichedDetailSchema, "Enriched organization profile"),
     400: badRequest,
     404: notFound,
+    503: unavailable,
+  },
+});
+
+export const articlesRoute = createRoute({
+  method: "get",
+  path: "/api/articles",
+  summary: "News articles (headline + link + date), newest first",
+  description:
+    "Contract v1.9. Backed by the articles table; headline_only rows carry no body text " +
+    "by database CHECK. Defaults: to=now, from=to-14 days (the feed's article age cutoff). " +
+    "Each row carries license and publication so clients render exactly what is permitted, " +
+    "with attribution.",
+  request: { query: ArticlesQuerySchema },
+  responses: {
+    200: json(ArticlesResponseSchema, "Matching articles, published_at desc (max 500)"),
+    400: badRequest,
     503: unavailable,
   },
 });

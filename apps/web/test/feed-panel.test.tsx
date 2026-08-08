@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { EventOut } from "@brownsync/contract";
+import type { ArticleOut, EventOut } from "@brownsync/contract";
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { delay, HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
@@ -60,6 +60,18 @@ const PUBLICATIONS: PublicationsDocument = {
   ],
 };
 
+/** One /api/articles row (contract v1.9) — the brown_news producer's shape. */
+const API_ARTICLE: ArticleOut = {
+  id: "6f2d9a1c-7b3e-4c8d-9e0f-2a4b6c8d0e1f",
+  title: "Brown breaks ground on new labs",
+  url: "https://www.brown.edu/news/2026-07-29/new-labs",
+  publishedAt: "2026-07-29T14:00:00.000Z",
+  author: null,
+  source: "brown_news",
+  publication: "Brown News",
+  license: "headline_only",
+};
+
 const DINING: DiningDocument = {
   schema_version: 1,
   generated_at: AT.toISOString(),
@@ -87,6 +99,7 @@ const DINING: DiningDocument = {
 
 const successHandlers = [
   http.get("*/api/events", () => HttpResponse.json({ events: [EVENT] })),
+  http.get("*/api/articles", () => HttpResponse.json({ articles: [API_ARTICLE] })),
   http.get("*/data/publications.json", () => HttpResponse.json(PUBLICATIONS)),
   http.get("*/data/dining-menus.json", () => HttpResponse.json(DINING)),
 ];
@@ -143,9 +156,28 @@ describe("FeedPanel destinations", () => {
     // which read as debug output and polluted every accessible name.
     renderWithHarness(<FeedPanel />);
     await screen.findByRole("link", { name: /News headline/ });
-    for (const slug of ["livewhale", "bdh", "brown-dining"]) {
+    for (const slug of ["livewhale", "bdh", "brown_news", "brown-dining"]) {
       expect(screen.queryByText(slug)).toBeNull();
     }
+  });
+
+  it("renders API articles with their publication label and off-site click-through", async () => {
+    // Attribution is the licence condition headline-only rows exist under:
+    // the row shows "Brown News" (registry label, never the slug) and links
+    // straight to brown.edu with the referrer stripped.
+    renderWithHarness(<FeedPanel />);
+
+    const link = await screen.findByRole("link", { name: /Brown breaks ground on new labs/ });
+    expect(link.getAttribute("href")).toBe("https://www.brown.edu/news/2026-07-29/new-labs");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noreferrer");
+    expect(link.textContent).toContain("Brown News");
+  });
+
+  it("labels publications-artifact articles with their outlet name too", async () => {
+    renderWithHarness(<FeedPanel />);
+    const link = await screen.findByRole("link", { name: /News headline/ });
+    expect(link.textContent).toContain("Brown Daily Herald");
   });
 });
 
@@ -155,6 +187,10 @@ describe("FeedPanel degraded sources", () => {
       http.get("*/api/events", async () => {
         await delay(100);
         return HttpResponse.json({ events: [] });
+      }),
+      http.get("*/api/articles", async () => {
+        await delay(100);
+        return HttpResponse.json({ articles: [] });
       }),
       http.get("*/data/publications.json", async () => {
         await delay(100);
@@ -175,6 +211,7 @@ describe("FeedPanel degraded sources", () => {
   it("does not describe an all-source failure as an empty feed", async () => {
     server.use(
       http.get("*/api/events", () => new HttpResponse(null, { status: 503 })),
+      http.get("*/api/articles", () => new HttpResponse(null, { status: 503 })),
       http.get("*/data/publications.json", () => new HttpResponse(null, { status: 503 })),
       http.get("*/data/dining-menus.json", () => new HttpResponse(null, { status: 503 })),
     );
@@ -188,6 +225,7 @@ describe("FeedPanel degraded sources", () => {
 
   it.each([
     ["events", "*/api/events"],
+    ["articles", "*/api/articles"],
     ["publications", "*/data/publications.json"],
     ["dining", "*/data/dining-menus.json"],
   ] as const)("keeps partial results visible when %s fails", async (_source, url) => {

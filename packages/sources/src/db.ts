@@ -201,6 +201,73 @@ export async function cancelUnseen(
   return result.count;
 }
 
+/**
+ * One `articles` row as a producer emits it (migration 0021). There is NO
+ * description or body_text field here ON PURPOSE: the only current producer
+ * (brown_news) is headline_only, and the upsert below never names those
+ * columns, so a normalizer that starts carrying prose cannot get it into the
+ * database through this path — and the table's CHECK constraints reject it
+ * even if someone writes their own SQL.
+ */
+export type ArticleUpsertRow = {
+  source: string;
+  source_id: string;
+  title: string;
+  url: string;
+  /** ISO-8601 UTC. */
+  published_at: string;
+  author: string | null;
+  license: "headline_only" | "excerpt" | "full";
+  /** Metadata allowlist only — the articles_raw_allowlist_ck CHECK enforces it. */
+  raw: Record<string, unknown> | null;
+};
+
+/**
+ * Upsert articles on (source, source_id), refreshing last_seen_at on every
+ * sighting (contract §2). `is_removed` is deliberately NOT in the conflict
+ * clause: soft removal is an operator decision and a story reappearing in a
+ * listing must not silently resurrect it.
+ */
+export async function upsertArticles(sql: Sql, rows: readonly ArticleUpsertRow[]): Promise<number> {
+  let upserted = 0;
+  for (const chunk of chunks(rows, UPSERT_CHUNK)) {
+    const payload = chunk.map((r) => ({
+      source: r.source,
+      source_id: r.source_id,
+      title: r.title,
+      url: r.url,
+      published_at: r.published_at,
+      author: r.author,
+      license: r.license,
+      raw: r.raw,
+    }));
+    const result = await sql`
+      insert into articles (source, source_id, title, url, published_at, author, license, raw)
+      select x.source, x.source_id, x.title, x.url, x.published_at, x.author, x.license, x.raw
+      from jsonb_to_recordset(${sql.json(payload as never)}::jsonb) as x(
+        source       text,
+        source_id    text,
+        title        text,
+        url          text,
+        published_at timestamptz,
+        author       text,
+        license      text,
+        raw          jsonb
+      )
+      on conflict (source, source_id) do update set
+        title        = excluded.title,
+        url          = excluded.url,
+        published_at = excluded.published_at,
+        author       = excluded.author,
+        license      = excluded.license,
+        raw          = excluded.raw,
+        last_seen_at = now()
+    `;
+    upserted += result.count;
+  }
+  return upserted;
+}
+
 /** One row per run, always — including failed runs (ops dashboard + staleness). */
 export async function recordSourceRun(sql: Sql, run: SeedSourceRun): Promise<void> {
   await sql`

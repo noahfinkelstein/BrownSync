@@ -173,3 +173,42 @@ export const AtQuerySchema = z.object({
   at: z.iso.datetime({ offset: true }).optional(),
 });
 export type AtQuery = z.infer<typeof AtQuerySchema>;
+
+/**
+ * Contract v1.9 — articles (news headlines) as their own read shape, backed
+ * by the `articles` table (migration 0021) rather than by `events`.
+ *
+ * `license` is exposed ON PURPOSE so no client can render more than the
+ * source permits: `headline_only` rows carry title+URL+date and nothing else
+ * — the database CHECK physically rejects body text for them. `publication`
+ * is the registry display label ("Brown News") so attribution + click-through
+ * is structural, not a client-side lookup table.
+ */
+export const ArticleLicenseSchema = z
+  .enum(["headline_only", "excerpt", "full"])
+  .meta({ id: "ArticleLicense" });
+export type ArticleLicense = z.infer<typeof ArticleLicenseSchema>;
+
+export const ArticleOutSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    /** Canonical off-site link — the click-through attribution target. */
+    url: z.string(),
+    /** ISO-8601 UTC. */
+    publishedAt: z.string(),
+    author: z.string().nullable(),
+    /** Registry slug, e.g. "brown_news". */
+    source: z.string(),
+    /** Registry display label for attribution, e.g. "Brown News". */
+    publication: z.string(),
+    license: ArticleLicenseSchema,
+  })
+  .meta({ id: "Article" });
+export type ArticleOut = z.infer<typeof ArticleOutSchema>;
+
+export const ArticlesQuerySchema = z.object({
+  from: z.iso.datetime({ offset: true }).optional(),
+  to: z.iso.datetime({ offset: true }).optional(),
+});
+export type ArticlesQuery = z.infer<typeof ArticlesQuerySchema>;

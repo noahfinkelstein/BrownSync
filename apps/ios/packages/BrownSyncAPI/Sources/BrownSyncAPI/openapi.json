@@ -3220,6 +3220,61 @@
         ],
         "additionalProperties": false
       },
+      "ArticlesResponse": {
+        "type": "object",
+        "properties": {
+          "articles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Article"
+            }
+          }
+        },
+        "required": ["articles"]
+      },
+      "Article": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "author": {
+            "type": ["string", "null"]
+          },
+          "source": {
+            "type": "string"
+          },
+          "publication": {
+            "type": "string"
+          },
+          "license": {
+            "$ref": "#/components/schemas/ArticleLicense"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "url",
+          "publishedAt",
+          "author",
+          "source",
+          "publication",
+          "license"
+        ]
+      },
+      "ArticleLicense": {
+        "type": "string",
+        "enum": ["headline_only", "excerpt", "full"]
+      },
       "MeetingsResponse": {
         "type": "object",
         "properties": {
@@ -9999,6 +10054,64 @@
           },
           "404": {
             "description": "No such resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/articles": {
+      "get": {
+        "summary": "News articles (headline + link + date), newest first",
+        "description": "Contract v1.9. Backed by the articles table; headline_only rows carry no body text by database CHECK. Defaults: to=now, from=to-14 days (the feed's article age cutoff). Each row carries license and publication so clients render exactly what is permitted, with attribution.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching articles, published_at desc (max 500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticlesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed query/path parameters",
             "content": {
               "application/json": {
                 "schema": {

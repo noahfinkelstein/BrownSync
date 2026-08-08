@@ -1,7 +1,7 @@
-import type { EventOut } from "@brownsync/contract";
+import type { ArticleOut, EventOut } from "@brownsync/contract";
 import type { DiningDocument } from "../dining/model";
 import type { FeedItem, FeedKind, PublicationsDocument } from "./model";
-import { articlesToFeed, dedupeFeed, diningToFeed, eventsToFeed } from "./model";
+import { apiArticlesToFeed, articlesToFeed, dedupeFeed, diningToFeed, eventsToFeed } from "./model";
 
 /**
  * Feed ranking, as arithmetic you can audit.
@@ -302,6 +302,8 @@ export function assembleFeed(
 export type FeedInput = {
   readonly events?: readonly EventOut[];
   readonly publications?: PublicationsDocument | null;
+  /** API-backed articles (contract v1.9, e.g. brown_news) — same age cutoff. */
+  readonly articles?: readonly ArticleOut[];
   readonly dining?: DiningDocument | null;
 };
 
@@ -334,14 +336,17 @@ export type BuildFeedOptions = RankFeedOptions &
  * blank screen for no reason.
  */
 export function buildFeed(input: FeedInput, options: BuildFeedOptions): AssembledFeed {
+  // The age cutoff lives here, at the seam where articles become feed
+  // input, so the adapters stay pure and the cutoff is always relative to
+  // the cursor rather than the wall clock. It applies identically to both
+  // article upstreams — the static publications artifact and the v1.9
+  // articles API — because the reader has one notion of "old news".
+  const freshArticle = (item: { timestamp: number }) =>
+    options.at - item.timestamp <= ARTICLE_MAX_AGE_MS;
   const items: FeedItem[] = [
     ...eventsToFeed(input.events ?? []),
-    // The age cutoff lives here, at the seam where articles become feed
-    // input, so `articlesToFeed` stays a pure adapter and the cutoff is
-    // always relative to the cursor rather than the wall clock.
-    ...articlesToFeed(input.publications).filter(
-      (item) => options.at - item.timestamp <= ARTICLE_MAX_AGE_MS,
-    ),
+    ...articlesToFeed(input.publications).filter(freshArticle),
+    ...apiArticlesToFeed(input.articles ?? []).filter(freshArticle),
     ...diningToFeed(input.dining, options.at, options.diningLookaheadMs),
   ];
   return assembleFeed(rankFeed(dedupeFeed(items), options), options);

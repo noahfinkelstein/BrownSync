@@ -1,4 +1,5 @@
 import {
+  ArticleOutSchema,
   EventDetailOutSchema,
   EventOutSchema,
   HealthOutSchema,
@@ -12,7 +13,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createApp } from "../src/app";
-import type { EventsFilter } from "../src/queries";
+import type { ArticlesFilter, EventsFilter } from "../src/queries";
 import { eventRow, fakeQueries, meetingRow, orgRow, placeRow } from "./fixtures";
 
 const ErrorEnvelope = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
@@ -179,6 +180,63 @@ describe("GET /api/orgs and /api/orgs/:id", () => {
     const app = createApp(fakeQueries());
     const res = await app.request("/api/orgs/illuminati");
     expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /api/articles", () => {
+  it("returns contract-shaped articles with license and publication attribution", async () => {
+    const app = createApp(fakeQueries());
+    const res = await app.request("/api/articles");
+    expect(res.status).toBe(200);
+    const body = z.object({ articles: z.array(ArticleOutSchema) }).parse(await res.json());
+    expect(body.articles).toHaveLength(1);
+    const article = body.articles[0];
+    expect(article?.source).toBe("brown_news");
+    expect(article?.publication).toBe("Brown News");
+    expect(article?.license).toBe("headline_only");
+    expect(article?.publishedAt).toBe("2026-08-03T04:00:00.000Z");
+    // The contract shape has NO description/body field: headline+URL+date is
+    // the whole story a client can render, by construction.
+    expect(article !== undefined && "description" in article).toBe(false);
+    expect(article !== undefined && "bodyText" in article).toBe(false);
+  });
+
+  it("defaults the window to [now - 14 days, now] — the feed's article cutoff", async () => {
+    let captured: ArticlesFilter | undefined;
+    const app = createApp(
+      fakeQueries({
+        articles: async (f) => {
+          captured = f;
+          return [];
+        },
+      }),
+    );
+    const before = Date.now();
+    await app.request("/api/articles");
+    const from = captured?.from.getTime() ?? 0;
+    const to = captured?.to.getTime() ?? 0;
+    expect(to).toBeGreaterThanOrEqual(before - 1000);
+    expect(to - from).toBe(14 * 24 * 60 * 60 * 1000);
+  });
+
+  it("passes explicit bounds through and 400s malformed ones", async () => {
+    let captured: ArticlesFilter | undefined;
+    const app = createApp(
+      fakeQueries({
+        articles: async (f) => {
+          captured = f;
+          return [];
+        },
+      }),
+    );
+    const ok = await app.request("/api/articles?from=2026-08-01T00:00:00Z&to=2026-08-07T00:00:00Z");
+    expect(ok.status).toBe(200);
+    expect(captured?.from.toISOString()).toBe("2026-08-01T00:00:00.000Z");
+    expect(captured?.to.toISOString()).toBe("2026-08-07T00:00:00.000Z");
+
+    const bad = await app.request("/api/articles?from=yesterday");
+    expect(bad.status).toBe(400);
+    expect(ErrorEnvelope.parse(await bad.json()).error.code).toBe("bad_request");
   });
 });
 

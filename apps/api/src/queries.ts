@@ -246,6 +246,23 @@ export type EventsFilter = {
   q?: string;
 };
 
+/** One row of v_articles_api / api_articles() (migration 0021). */
+export type ArticleApiRow = {
+  id: string;
+  title: string;
+  url: string;
+  published_at: Date;
+  author: string | null;
+  source: string;
+  publication: string;
+  license: string;
+};
+
+export type ArticlesFilter = {
+  from: Date;
+  to: Date;
+};
+
 export interface Queries {
   events(filter: EventsFilter): Promise<EventApiRow[]>;
   eventById(id: string): Promise<EventApiRow | null>;
@@ -262,6 +279,8 @@ export interface Queries {
   ): Promise<{ upcoming: EventApiRow[]; past: EventApiRow[] }>;
   meetingsAt(at: Date): Promise<MeetingRow[]>;
   meetingsAtByPlace(at: Date, placeId: string): Promise<MeetingRow[]>;
+  /** Articles with published_at in [from, to], newest first (contract v1.9). */
+  articles(filter: ArticlesFilter): Promise<ArticleApiRow[]>;
   health(): Promise<SourceHealthRow[]>;
   /** Owner-only Worker seam; absent only in legacy unit-test fakes. */
   myOrganizations?(actorId: string): Promise<OrganizationQueryResult<MyOrganizations>>;
@@ -582,6 +601,12 @@ export function createQueries(sql: Sql): Queries {
       const rows = await sql`
         select * from api_meetings_at(${at}::timestamptz) where place_id = ${placeId}`;
       return rows as unknown as MeetingRow[];
+    },
+
+    async articles(f) {
+      const rows = await sql`
+        select * from api_articles(${f.from}::timestamptz, ${f.to}::timestamptz)`;
+      return rows as unknown as ArticleApiRow[];
     },
 
     async health() {

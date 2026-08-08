@@ -6,6 +6,7 @@
  * nodejs_compat provides). Runtime-specific glue — the fs-backed ETag cache,
  * fixture replay, the CLI, sidecar file loading — stays in the consumers.
  */
+export * from "./brown_news/index";
 export * from "./db";
 export * from "./dedup/index";
 export * from "./http";

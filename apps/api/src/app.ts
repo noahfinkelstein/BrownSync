@@ -28,6 +28,7 @@ import { errorEnvelope, isDbUnavailable } from "./errors";
 import {
   aggregateHealth,
   buildCountsByCategory,
+  mapArticle,
   mapEvent,
   mapMeeting,
   mapOrg,
@@ -46,6 +47,8 @@ import type {
 import { registerOrganizationRoutes } from "./organization-routes";
 import type { Queries } from "./queries";
 import {
+  ArticlesResponseSchema,
+  articlesRoute,
   ErrorEnvelopeSchema,
   EventsResponseSchema,
   eventByIdRoute,
@@ -68,6 +71,12 @@ import { registerUserEventRoutes } from "./user-event-routes";
 const EVENTS_DEFAULT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /** /api/now looks ahead 2 h: "in progress or starting soon". */
 const NOW_LOOKAHEAD_MS = 2 * 60 * 60 * 1000;
+/**
+ * /api/articles default window when `from` is omitted: to − 14 days — the
+ * same horizon as the web feed's ARTICLE_MAX_AGE_MS cutoff, so the default
+ * response is exactly what the feed can use.
+ */
+const ARTICLES_DEFAULT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 /** /api/places/:id/activity event window: [at, at + 24 h]. */
 const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -393,6 +402,17 @@ export function createApp(queries: Queries, options: CreateAppOptions = {}) {
       ...mapOrgEnrichment(orgRow),
     };
     return c.json(validated(OrgEnrichedDetailSchema, body), 200);
+  });
+
+  app.openapi(articlesRoute, async (c) => {
+    const query = c.req.valid("query");
+    const to = query.to !== undefined ? new Date(query.to) : new Date();
+    const from =
+      query.from !== undefined
+        ? new Date(query.from)
+        : new Date(to.getTime() - ARTICLES_DEFAULT_WINDOW_MS);
+    const rows = await queries.articles({ from, to });
+    return c.json(validated(ArticlesResponseSchema, { articles: rows.map(mapArticle) }), 200);
   });
 
   app.openapi(meetingsRoute, async (c) => {

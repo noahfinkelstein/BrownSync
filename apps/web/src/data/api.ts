@@ -1,4 +1,5 @@
 import type {
+  ArticleOut,
   Category,
   EventDetailOut,
   EventOut,
@@ -7,6 +8,7 @@ import type {
   NowOut,
 } from "@brownsync/contract";
 import {
+  ArticleOutSchema,
   EventDetailOutSchema,
   EventOutSchema,
   HealthOutSchema,
@@ -35,6 +37,7 @@ import {
 
 const EventsResponseSchema = z.object({ events: z.array(EventOutSchema) });
 const MeetingsResponseSchema = z.object({ meetings: z.array(MeetingOutSchema) });
+const ArticlesResponseSchema = z.object({ articles: z.array(ArticleOutSchema) });
 
 export class ApiError extends Error {
   readonly status: number;
@@ -95,6 +98,19 @@ export async function fetchEventDetail(id: string): Promise<EventDetailOut> {
     return detail;
   }
   return getJson(`/api/events/${encodeURIComponent(id)}`, EventDetailOutSchema);
+}
+
+/**
+ * Articles (contract v1.9): headline+URL+date rows from the `articles` table,
+ * newest first. The fixture dataset carries no articles — an empty list is
+ * the honest zero-backend answer, and the feed degrades gracefully.
+ */
+export async function fetchArticles(
+  params: { from?: string; to?: string } = {},
+): Promise<ArticleOut[]> {
+  if (fixturesEnabled()) return [];
+  const body = await getJson("/api/articles", ArticlesResponseSchema, { ...params });
+  return body.articles;
 }
 
 export async function fetchMeetings(at?: string): Promise<MeetingOut[]> {
