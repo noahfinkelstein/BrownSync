@@ -30,6 +30,24 @@ export const BROWN_NEWS_URL = "https://www.brown.edu/news";
 /** Below this, the parse is presumed broken and the run must not upsert. */
 export const MIN_LISTING_ITEMS = 10;
 
+/**
+ * Ceiling on an accepted headline, in stripped characters. THIS IS A LICENCE
+ * GUARD, not tidiness: `title` is the one text column the headline_only CHECK
+ * constraints exempt, so it must never become a smuggling path for excerpt
+ * prose. A common accessibility-driven Drupal redesign wraps the WHOLE card
+ * in one anchor — headline + category + date + dek together — and a
+ * longest-text-wins recovery would then be guaranteed to pick the dek-bearing
+ * blob while the item count stays healthy and the fail-closed gate never
+ * fires. The cap makes that blob unacceptable: an over-cap anchor is
+ * REJECTED for its href, and if the rejections drop the unique-item count
+ * below MIN_LISTING_ITEMS the run fails closed, which is exactly right.
+ *
+ * 200 comfortably clears every real headline in the recorded fixture (max
+ * observed 105 chars) while a card-wide blob carrying even one dek sentence
+ * plus its date/category chrome lands far past it.
+ */
+export const MAX_HEADLINE_CHARS = 200;
+
 export type BrownNewsItem = {
   /** The dateful listing path, e.g. "/news/2026-08-06/some-slug" — the stable source_id. */
   source_id: string;
@@ -46,8 +64,12 @@ export type BrownNewsItem = {
  * Every anchor whose href matches the dateful pattern. The listing links each
  * story up to three times (image tile, headline, "Read Article" chip); the
  * headline anchor is recovered per href by keeping the longest stripped
- * anchor text — boilerplate ("Read Article") and empty image anchors lose to
- * a real headline by construction.
+ * anchor text AMONG anchors that pass the MAX_HEADLINE_CHARS cap. Longest-
+ * wins alone would fail OPEN under a whole-card anchor (headline + dek in one
+ * <a>) — the cap is the guarantee: it rejects anything too long to plausibly
+ * be a headline before length is ever used as a tiebreak, so boilerplate
+ * ("Read Article") and empty image anchors lose to a real headline, and a
+ * dek-bearing blob loses to everything.
  */
 const ANCHOR_RE =
   /<a\b[^>]*href="(\/news\/(\d{4})-(\d{2})-(\d{2})\/[a-z0-9][a-z0-9\-_.]*)"[^>]*>([\s\S]*?)<\/a>/gi;
@@ -75,6 +97,12 @@ export function parseBrownNewsListing(html: string): BrownNewsItem[] {
 
     const title = stripHtml(inner);
     if (title.length === 0) continue;
+    // Licence guard, not a truncation: an over-cap anchor (a whole-card blob
+    // carrying dek prose) is rejected outright for this href. Truncating it
+    // instead would STORE excerpt text under the one column the CHECKs
+    // exempt. If the rejections leave this href with no acceptable anchor,
+    // the item is simply absent and the MIN_LISTING_ITEMS gate judges the run.
+    if (title.length > MAX_HEADLINE_CHARS) continue;
 
     const existing = byHref.get(href);
     if (existing !== undefined && existing.title.length >= title.length) continue;

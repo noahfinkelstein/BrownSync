@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { MIN_LISTING_ITEMS, parseBrownNewsListing } from "@brownsync/sources/brown_news/index";
+import {
+  MAX_HEADLINE_CHARS,
+  MIN_LISTING_ITEMS,
+  parseBrownNewsListing,
+} from "@brownsync/sources/brown_news/index";
 import { describe, expect, it } from "vitest";
 import { FIXTURES_DIR } from "../src/paths";
 
@@ -26,6 +30,7 @@ describe("parseBrownNewsListing (recorded fixture)", () => {
   it("keeps the headline anchor, never the Read-Article chip or an image tile", () => {
     for (const item of items) {
       expect(item.title.length).toBeGreaterThan(0);
+      expect(item.title.length).toBeLessThanOrEqual(MAX_HEADLINE_CHARS);
       expect(item.title).not.toMatch(/read article/i);
       // stripHtml leaves no markup or collapsed-whitespace artifacts behind.
       expect(item.title).not.toMatch(/[<>]/);
@@ -79,6 +84,34 @@ describe("parseBrownNewsListing (hostile/drifted input)", () => {
     // A redesign that drops the dateful path shape must yield zero, so the
     // runner's <MIN_LISTING_ITEMS gate fires and nothing is upserted.
     expect(parseBrownNewsListing('<a href="/news/some-slug">Headline</a>')).toEqual([]);
+  });
+
+  it("never stores a card-wide anchor blob as a title (licence guard, fails CLOSED)", () => {
+    // The accessibility-driven Drupal card pattern: ONE anchor wrapping the
+    // whole card — headline + category + date + dek. Longest-text-wins alone
+    // would be GUARANTEED to store the dek-bearing blob under `title`, the
+    // one text column the headline_only CHECKs exempt. The cap must reject
+    // the blob; with no other anchor for the href, the ITEM fails — and a
+    // page of such cards then trips the MIN_LISTING_ITEMS gate.
+    const dek =
+      "A sweeping new dek paragraph describing the research in licensed editorial prose, " +
+      "long enough that no plausible headline could ever reach it, repeated for weight. ".repeat(3);
+    const card =
+      '<a href="/news/2026-08-06/card-redesign" class="card">' +
+      "<h3>Real headline inside the card</h3>" +
+      '<span class="category">Science</span><time>August 6, 2026</time>' +
+      `<p>${dek}</p></a>`;
+    expect(parseBrownNewsListing(card)).toEqual([]);
+
+    // If a separate plain headline anchor for the same href SURVIVES the
+    // redesign, the item recovers with the bounded headline — never the blob.
+    const cardPlusHeadline =
+      `${card}\n<a href="/news/2026-08-06/card-redesign">Real headline inside the card</a>`;
+    const recovered = parseBrownNewsListing(cardPlusHeadline);
+    expect(recovered).toHaveLength(1);
+    expect(recovered[0]?.title).toBe("Real headline inside the card");
+    expect(recovered[0]?.title.length).toBeLessThanOrEqual(MAX_HEADLINE_CHARS);
+    expect(recovered[0]?.title).not.toContain("dek");
   });
 
   it("skips impossible dates and empty anchors, never fabricates", () => {
