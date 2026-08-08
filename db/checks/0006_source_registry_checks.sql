@@ -69,14 +69,21 @@ begin
   if not found then
     raise exception '0006: bdh registry row is missing';
   end if;
-  if r.enabled then
-    raise exception '0006: bdh is enabled — it is ToS-gated pending written permission';
+  -- POLICY CHANGE, recorded: 0006 seeded bdh disabled (pre-P1 stance). On
+  -- 2026-08-07 the owner approved the headline-only interim posture while the
+  -- written-permission email is out (G1; reports/ops/2026-08-07-launch-
+  -- session-1.md), applied by migration 0022. The pin flips direction — bdh
+  -- must be ENABLED with the decision recorded in its tos_note — and the
+  -- licence/note pins stay as strong as before.
+  if not r.enabled then
+    raise exception
+      '0006: bdh is disabled — the 2026-08-07 owner decision (migration 0022) enables the headline-only interim';
   end if;
   if r.license <> 'headline_only' then
     raise exception '0006: bdh license = %, want headline_only', r.license;
   end if;
-  if r.tos_note is null then
-    raise exception '0006: bdh carries no ToS note — the gate must record its reason';
+  if r.tos_note is null or position('2026-08-07 owner decision' in r.tos_note) = 0 then
+    raise exception '0006: bdh ToS note must record the 2026-08-07 interim decision (got %)', r.tos_note;
   end if;
 
   select * into r from source_registry where source = 'athletics_ics';
