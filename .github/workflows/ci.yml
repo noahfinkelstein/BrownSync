@@ -176,6 +176,8 @@ jobs:
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0019_p1_hardening_checks.sql
       - name: Articles licence-CHECK SQL checks (rollback-safe, re-applies 0021 for idempotency)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0021_articles_checks.sql
+      - name: Seed-lane source registry SQL checks (rollback-safe)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f db/checks/0024_seed_lane_registry_checks.sql
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
