@@ -12,6 +12,7 @@ bytes alone.
 """
 from __future__ import annotations
 
+from datetime import date, timedelta
 import hashlib
 import json
 from pathlib import Path
@@ -818,6 +819,40 @@ class TestCaptureOverpassDiningAthletics:
         assert entry["expected"]["vevent_count"] == 1
         assert entry["expected"]["published_ttl"] == "PT120M"
         assert any("poll no more often" in note for note in session.notes)
+
+    def test_libraries_grids_are_captured_weekly_from_the_anchored_sunday(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path,
+            lambda request: httpx.Response(200, content=b"<table><tr><td>Rockefeller</td></tr></table>"),
+        )
+        harness.capture_libraries(session, start=date(2026, 8, 12))  # a Wednesday
+        window = [date(2026, 8, 9) + timedelta(weeks=w) for w in range(7)]
+        assert [entry["path"] for entry in session.entries] == [
+            f"recorded/libraries/hours-grid-{stamp.isoformat()}.html" for stamp in window
+        ]
+
+    def test_a_stale_grid_outside_the_new_window_is_pruned_from_disk(self, tmp_path: Path) -> None:
+        # A file left behind by a previous run's window. preload_manifest()
+        # already drops its manifest entry on every recapture (libraries_hours
+        # is never carried forward) — if the byte survives on disk it fails
+        # test_every_stored_fixture_is_manifested on every run after, not just
+        # once, since nothing else ever revisits it.
+        directory = tmp_path / "fixtures" / "recorded" / "libraries"
+        directory.mkdir(parents=True)
+        stale = directory / "hours-grid-2026-07-26.html"
+        stale.write_text("<table><tr><td>Rockefeller</td></tr></table>", encoding="utf-8")
+
+        session = offline_session(
+            tmp_path,
+            lambda request: httpx.Response(200, content=b"<table><tr><td>Rockefeller</td></tr></table>"),
+        )
+        harness.capture_libraries(session, start=date(2026, 8, 12))
+
+        assert not stale.exists()
+        window = [date(2026, 8, 9) + timedelta(weeks=w) for w in range(7)]
+        assert {path.name for path in directory.glob("hours-grid-*.html")} == {
+            f"hours-grid-{stamp.isoformat()}.html" for stamp in window
+        }
 
 
 # -- main --------------------------------------------------------------------
