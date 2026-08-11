@@ -1033,8 +1033,9 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
-    for week in range(LIBCAL_WEEKS):
-        stamp = sunday + timedelta(weeks=week)
+    stamps = [sunday + timedelta(weeks=week) for week in range(LIBCAL_WEEKS)]
+    _prune_stale_library_grids(session, keep_stamps=stamps)
+    for stamp in stamps:
         try:
             session.capture(
                 source="libraries_hours",
@@ -1049,6 +1050,26 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."
     )
+
+
+def _prune_stale_library_grids(session: CaptureSession, *, keep_stamps: list[date]) -> None:
+    """Delete hours-grid snapshots left behind by a previous run's window.
+
+    The 7-week window re-anchors to "today" on every refresh, so a file
+    recorded last run can fall out of the window. preload_manifest() already
+    drops that file's manifest entry (libraries_hours is always a selected
+    source when this group runs) — without this, the now-unmanifested file
+    just sits in recorded/libraries/ and fails
+    test_every_stored_fixture_is_manifested on every future run, not just
+    once, since nothing ever recaptures or removes it.
+    """
+    keep = {f"hours-grid-{stamp.isoformat()}.html" for stamp in keep_stamps}
+    directory = session.fixtures_root / "recorded" / "libraries"
+    if not directory.is_dir():
+        return
+    for path in sorted(directory.glob("hours-grid-*.html")):
+        if path.name not in keep:
+            path.unlink()
 
 
 def _libcal_expected(body: bytes) -> dict[str, Any]:
