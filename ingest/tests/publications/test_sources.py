@@ -41,15 +41,27 @@ from brownsync_ingest.publications.sources import (
 )
 
 
+#: `collect_widened`/`collect_articles` default to `FIXTURE_DIR`, which is
+#: `fixtures/recorded/publications/` — the same directory `refresh.yml`
+#: overwrites daily from the live feeds. This suite pins specific outcomes
+#: (an exact duplicate count, a named story, an exact source that loses a
+#: row) against a real corpus, which only holds still if the corpus itself
+#: is frozen: RSS windows roll forward, so the live directory cannot host a
+#: same-day-stable regression pin. This is a one-time snapshot of that
+#: corpus, kept solely for these tests — it is never touched by the daily
+#: capture and never read by production ingestion.
+FROZEN_DEDUPE_FIXTURES = Path(__file__).resolve().parent / "frozen_dedupe_fixtures"
+
+
 @pytest.fixture(scope="module")
 def widened():
-    return collect_widened(ALL_SOURCES)
+    return collect_widened(ALL_SOURCES, fixture_dir=FROZEN_DEDUPE_FIXTURES)
 
 
 @pytest.fixture(scope="module")
 def raw_widened():
     """Parsed but NOT redeuped or redacted — the pre-treatment corpus."""
-    return collect_articles(ALL_SOURCES)
+    return collect_articles(ALL_SOURCES, FROZEN_DEDUPE_FIXTURES)
 
 
 # -- what answered -----------------------------------------------------------

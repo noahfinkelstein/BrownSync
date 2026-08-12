@@ -1033,18 +1033,33 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+    kept_names = set()
     for week in range(LIBCAL_WEEKS):
         stamp = sunday + timedelta(weeks=week)
+        relpath = f"recorded/libraries/hours-grid-{stamp.isoformat()}.html"
+        kept_names.add(Path(relpath).name)
         try:
             session.capture(
                 source="libraries_hours",
-                relpath=f"recorded/libraries/hours-grid-{stamp.isoformat()}.html",
+                relpath=relpath,
                 method="GET",
                 url=LIBCAL_GRID.format(date=stamp.isoformat()),
                 expected=_libcal_expected,
             )
         except Exception as error:  # noqa: BLE001
             session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+    # The window is a 7-week rolling slice, not an accumulating archive: a
+    # week that has scrolled out of range leaves a same-named file behind
+    # from a prior run, which is real evidence for nothing this manifest
+    # claims and trips the "every fixture on disk is manifested" gate. Only
+    # ever prune inside this source's own directory, and only filenames this
+    # capture itself would ever produce.
+    libraries_dir = session.fixtures_root / "recorded" / "libraries"
+    if libraries_dir.is_dir():
+        for stale in sorted(libraries_dir.glob("hours-grid-*.html")):
+            if stale.name not in kept_names:
+                stale.unlink()
+                session.note(f"libraries_hours: pruned stale fixture {stale.name} (scrolled out of the 7-week window)")
     session.note(
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."
