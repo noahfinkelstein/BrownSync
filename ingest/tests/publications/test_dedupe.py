@@ -16,6 +16,7 @@ the drop attributed to both sides.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import random
 import subprocess
 import sys
@@ -450,19 +451,31 @@ class TestKeepsTheEarliestAndSaysWhatItDropped:
 # -- the real corpus ---------------------------------------------------------
 
 
+#: `collect_widened` defaults to `FIXTURE_DIR` (`fixtures/recorded/
+#: publications/`), the same directory `refresh.yml` overwrites daily from
+#: the live feeds. This class pins exact outcomes — a duplicate count, a
+#: named story — against a real corpus, which only holds still if the
+#: corpus is frozen: RSS windows roll forward daily, so the live directory
+#: can never host a stable regression pin. This is a one-time snapshot of
+#: that corpus kept solely for this class; never touched by the daily
+#: capture, never read by production ingestion. See
+#: `test_sources.py::FROZEN_DEDUPE_FIXTURES` for the sibling copy.
+_FROZEN_DEDUPE_FIXTURES = Path(__file__).resolve().parent / "frozen_dedupe_fixtures"
+
+
 class TestAgainstTheRecordedFeeds:
     def test_the_hit_rate_over_real_data_is_pinned(self) -> None:
         # 155 recorded articles across four sources collapse to 154 — one true
         # cross-outlet duplicate. Pinned as an equality, not a bound: a jump
         # would mean the fuzzy layers started eating real coverage, and that
         # failure is invisible on the page.
-        articles, _, diagnostics = collect_widened(ALL_SOURCES)
+        articles, _, diagnostics = collect_widened(ALL_SOURCES, fixture_dir=_FROZEN_DEDUPE_FIXTURES)
         drops = [note for note in diagnostics if note.startswith("dedupe[")]
         assert len(articles) == 154
         assert len(drops) == 1
 
     def test_the_one_real_duplicate_is_the_one_we_expect(self) -> None:
-        articles, _, diagnostics = collect_widened(ALL_SOURCES)
+        articles, _, diagnostics = collect_widened(ALL_SOURCES, fixture_dir=_FROZEN_DEDUPE_FIXTURES)
         note = next(n for n in diagnostics if n.startswith("dedupe["))
         # Rhode Island Current filed it at 09:05Z; Brown's newsroom linked to it
         # at 17:40Z. The outlet that broke it keeps the row.
@@ -475,5 +488,5 @@ class TestAgainstTheRecordedFeeds:
     def test_every_source_still_contributes_after_dedupe(self) -> None:
         # A layer that quietly consumed one publication whole would still leave
         # a plausible-looking artifact.
-        articles, _, _ = collect_widened(ALL_SOURCES)
+        articles, _, _ = collect_widened(ALL_SOURCES, fixture_dir=_FROZEN_DEDUPE_FIXTURES)
         assert {a.source_id for a in articles} == {s.id for s in ALL_SOURCES}
