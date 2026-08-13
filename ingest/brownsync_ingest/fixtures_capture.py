@@ -1033,18 +1033,34 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+    kept_relpaths = set()
     for week in range(LIBCAL_WEEKS):
         stamp = sunday + timedelta(weeks=week)
+        relpath = f"recorded/libraries/hours-grid-{stamp.isoformat()}.html"
+        kept_relpaths.add(relpath)
         try:
             session.capture(
                 source="libraries_hours",
-                relpath=f"recorded/libraries/hours-grid-{stamp.isoformat()}.html",
+                relpath=relpath,
                 method="GET",
                 url=LIBCAL_GRID.format(date=stamp.isoformat()),
                 expected=_libcal_expected,
             )
         except Exception as error:  # noqa: BLE001
             session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+    # The window rolls forward one week at a time, so last run's earliest
+    # grid is outside this run's window. write_manifest() only ever records
+    # what THIS run captured (preload_manifest carries forward every OTHER
+    # source's entries, but this source's old ones are dropped on purpose) —
+    # so a stale file left on disk from a prior run has no manifest entry and
+    # permanently trips test_every_stored_fixture_is_manifested until someone
+    # notices and deletes it by hand. Prune anything this source owns that
+    # fell out of the window instead.
+    library_dir = session.fixtures_root / "recorded" / "libraries"
+    if library_dir.is_dir():
+        for stale in library_dir.glob("hours-grid-*.html"):
+            if f"recorded/libraries/{stale.name}" not in kept_relpaths:
+                stale.unlink()
     session.note(
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."
