@@ -12,6 +12,7 @@ bytes alone.
 """
 from __future__ import annotations
 
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -818,6 +819,40 @@ class TestCaptureOverpassDiningAthletics:
         assert entry["expected"]["vevent_count"] == 1
         assert entry["expected"]["published_ttl"] == "PT120M"
         assert any("poll no more often" in note for note in session.notes)
+
+    def test_libraries_prunes_grids_that_roll_out_of_the_window(self, tmp_path: Path) -> None:
+        # The window is Sunday-anchored and slides forward one week at a time.
+        # A stale grid left on disk from a prior run has no manifest entry
+        # once the window moves past it (write_manifest only ever records
+        # what a run actually captured for the source it owns) and that
+        # permanently trips test_every_stored_fixture_is_manifested — so the
+        # capture itself must delete what it no longer owns.
+        body = b"<table><tr><td>Rockefeller</td></tr></table>"
+        session1 = offline_session(tmp_path, lambda request: httpx.Response(200, content=body))
+        harness.capture_libraries(session1, start=date(2026, 8, 2))  # a Sunday
+        first_window = {entry["path"] for entry in session1.entries}
+        assert len(first_window) == harness.LIBCAL_WEEKS
+        for relpath in first_window:
+            assert (session1.fixtures_root / relpath).is_file()
+
+        session2 = harness.CaptureSession(
+            contact_email=CONTACT, fixtures_root=session1.fixtures_root, cache_dir=tmp_path / "cache2"
+        )
+        session2.client = CachedHttpClient(
+            contact_email=CONTACT,
+            cache_dir=tmp_path / "cache2",
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, content=body)),
+            min_interval_seconds=0.0,
+        )
+        harness.capture_libraries(session2, start=date(2026, 8, 9))  # one week later
+        second_window = {entry["path"] for entry in session2.entries}
+        rolled_off = first_window - second_window
+        assert rolled_off, "expected the oldest grid to roll out of the window"
+        for relpath in rolled_off:
+            assert not (session1.fixtures_root / relpath).is_file()
+        # Everything still in the window survives untouched.
+        for relpath in first_window & second_window:
+            assert (session1.fixtures_root / relpath).is_file()
 
 
 # -- main --------------------------------------------------------------------

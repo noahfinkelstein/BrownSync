@@ -7,8 +7,19 @@ name: Refresh data artifacts
 #   campus_amenities.geojson  Facilities ArcGIS      weekly
 #   campus_buildings.geojson  Facilities ArcGIS      weekly
 #   campus_landmarks.geojson  Facilities ArcGIS      weekly
-#   publications.json         student-press RSS      daily
+#   publications.json         student-press RSS      on demand (see below)
 #   library_hours.json        Brown Library          daily
+#
+# WHY PUBLICATIONS IS NOT ON THE SCHEDULE. tests/publications/test_dedupe.py
+# ("TestAgainstTheRecordedFeeds") pins an exact article count and a specific
+# cross-outlet duplicate against whatever is sitting in
+# ingest/fixtures/recorded/publications/ — it is a frozen regression corpus,
+# not a live smoke test. Live RSS turns over in hours, so an unattended daily
+# recapture eventually stops containing that exact duplicate, "Offline suite
+# must pass" goes red, and no PR ever opens to fix it (2026-08-08 through
+# 2026-08-13, every scheduled run). Refreshing publications is `group:
+# publications` via workflow_dispatch, on demand, so a human reviews the new
+# corpus and updates the pinned expectations in the same PR.
 #
 # `poll.yml` is the sibling for DB-backed sources (LiveWhale, athletics, BDH).
 # The split is not arbitrary: those upsert rows into Postgres and need
@@ -38,6 +49,7 @@ on:
         options:
           - daily
           - arcgis
+          - publications
         default: daily
   schedule:
     # 09:12 UTC ≈ 05:12 America/New_York — before breakfast service, and off
@@ -73,13 +85,22 @@ jobs:
             *)            group="${{ inputs.group || 'daily' }}" ;;
           esac
           echo "group=$group" >> "$GITHUB_OUTPUT"
-          if [ "$group" = "arcgis" ]; then
-            echo "capture=arcgis"          >> "$GITHUB_OUTPUT"
-            echo "jobs=campus amenities"   >> "$GITHUB_OUTPUT"
-          else
-            echo "capture=dining publications libraries" >> "$GITHUB_OUTPUT"
-            echo "jobs=dining publications libraries"    >> "$GITHUB_OUTPUT"
-          fi
+          case "$group" in
+            arcgis)
+              echo "capture=arcgis"          >> "$GITHUB_OUTPUT"
+              echo "jobs=campus amenities"   >> "$GITHUB_OUTPUT"
+              ;;
+            publications)
+              # workflow_dispatch only — never scheduled. See the file header:
+              # the pinned regression corpus needs a human in the loop.
+              echo "capture=publications"    >> "$GITHUB_OUTPUT"
+              echo "jobs=publications"       >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "capture=dining libraries" >> "$GITHUB_OUTPUT"
+              echo "jobs=dining libraries"    >> "$GITHUB_OUTPUT"
+              ;;
+          esac
           echo "refreshing group=$group"
 
       - name: Install uv
