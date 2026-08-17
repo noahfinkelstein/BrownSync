@@ -1026,6 +1026,13 @@ LIBCAL_GRID = "https://libcal.brown.edu/widget/hours/grid?iid=1403&lid=0&date={d
 #: widget itself paginates through, which is as far ahead as Brown publishes.
 LIBCAL_WEEKS = 7
 
+#: `TestAgainstTheUserCsv` in tests/libraries/test_hours.py checks the LibCal
+#: parser against a hand-captured CSV snapshot of this exact week — it reads
+#: this path directly, never through load_grids(). It must survive every
+#: prune below forever, even once the rolling window has moved past it; only
+#: this one relpath is exempted.
+LIBRARY_WITNESS_RELPATH = "recorded/libraries/hours-grid-2026-07-26.html"
+
 
 def capture_libraries(session: CaptureSession, *, start: date | None = None) -> None:
     # Anchored to the Sunday on or before the start date: the widget returns a
@@ -1033,22 +1040,57 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+    fresh_relpaths: set[str] = set()
     for week in range(LIBCAL_WEEKS):
         stamp = sunday + timedelta(weeks=week)
+        relpath = f"recorded/libraries/hours-grid-{stamp.isoformat()}.html"
+        fresh_relpaths.add(relpath)
         try:
             session.capture(
                 source="libraries_hours",
-                relpath=f"recorded/libraries/hours-grid-{stamp.isoformat()}.html",
+                relpath=relpath,
                 method="GET",
                 url=LIBCAL_GRID.format(date=stamp.isoformat()),
                 expected=_libcal_expected,
             )
         except Exception as error:  # noqa: BLE001
             session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+    _prune_stale_library_grids(session, fresh_relpaths=fresh_relpaths)
     session.note(
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."
     )
+
+
+def _prune_stale_library_grids(session: CaptureSession, *, fresh_relpaths: set[str]) -> None:
+    """Delete grids from a previous run's window that this run didn't refresh.
+
+    The widget's 7-week window slides forward every Sunday. Without this, a
+    week that ages out of the window is never deleted — it sits on disk,
+    absent from the manifest (`preload_manifest` already dropped its entry
+    since `libraries_hours` was recaptured), and picked up anyway by
+    `libraries/hours.py:load_grids()`, which globs the whole directory rather
+    than reading the manifest. Every day the window advanced, one more stale
+    week accumulated: unmanifested (failing
+    `test_fixtures.py::test_every_stored_fixture_is_manifested`) AND silently
+    re-added to "current" hours data (corrupting TestNormalization's counts).
+    This is what made `.github/workflows/refresh.yml` fail on every scheduled
+    run since launch — see reports/ops/2026-08-17-freshness-audit.md.
+    """
+    directory = session.fixtures_root / "recorded" / "libraries"
+    if not directory.is_dir():
+        return
+    pruned: list[str] = []
+    for existing in sorted(directory.glob("hours-grid-*.html")):
+        relpath = f"recorded/libraries/{existing.name}"
+        if relpath in fresh_relpaths or relpath == LIBRARY_WITNESS_RELPATH:
+            continue
+        existing.unlink()
+        pruned.append(relpath)
+    if pruned:
+        session.note(
+            "libraries_hours: pruned " + ", ".join(pruned) + " — aged out of the current 7-week window"
+        )
 
 
 def _libcal_expected(body: bytes) -> dict[str, Any]:
