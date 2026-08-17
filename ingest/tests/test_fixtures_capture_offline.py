@@ -12,6 +12,7 @@ bytes alone.
 """
 from __future__ import annotations
 
+from datetime import date, timedelta
 import hashlib
 import json
 from pathlib import Path
@@ -818,6 +819,69 @@ class TestCaptureOverpassDiningAthletics:
         assert entry["expected"]["vevent_count"] == 1
         assert entry["expected"]["published_ttl"] == "PT120M"
         assert any("poll no more often" in note for note in session.notes)
+
+
+class TestCaptureLibraries:
+    """Regression coverage for reports/ops/2026-08-17-freshness-audit.md.
+
+    The widget's 7-week window slides forward every Sunday; a week that ages
+    out must be deleted, not orphaned. Without pruning, refresh.yml's offline
+    suite failed on every scheduled run since launch: the stale files were
+    both unmanifested (test_fixtures.py) AND still picked up by
+    libraries/hours.py's load_grids(), which globs the whole directory.
+    """
+
+    @staticmethod
+    def _grid_response(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"<table><tr>grid</tr></table>")
+
+    def test_seven_sunday_anchored_weeks_are_captured(self, tmp_path: Path) -> None:
+        session = offline_session(tmp_path, self._grid_response)
+        # 2026-08-17 is a Monday; the widget always returns a Sunday-anchored
+        # week, so asking mid-week must not shift the window by a day.
+        harness.capture_libraries(session, start=date(2026, 8, 17))
+        sunday = date(2026, 8, 16)
+        expected = [
+            f"recorded/libraries/hours-grid-{(sunday + timedelta(weeks=w)).isoformat()}.html"
+            for w in range(harness.LIBCAL_WEEKS)
+        ]
+        assert [entry["path"] for entry in session.entries] == expected
+        assert session.gaps == []
+
+    def test_a_week_that_aged_out_of_the_window_is_pruned_from_disk(self, tmp_path: Path) -> None:
+        libraries_dir = tmp_path / "fixtures" / "recorded" / "libraries"
+        libraries_dir.mkdir(parents=True)
+        stale = libraries_dir / "hours-grid-2026-07-05.html"
+        stale.write_text("last run's grid, now three weeks stale")
+
+        session = offline_session(tmp_path, self._grid_response)
+        harness.capture_libraries(session, start=date(2026, 8, 17))
+
+        assert not stale.exists()
+        assert any("pruned recorded/libraries/hours-grid-2026-07-05.html" in note for note in session.notes)
+
+    def test_the_csv_witness_week_survives_a_prune_even_when_out_of_window(self, tmp_path: Path) -> None:
+        libraries_dir = tmp_path / "fixtures" / "recorded" / "libraries"
+        libraries_dir.mkdir(parents=True)
+        witness = tmp_path / "fixtures" / harness.LIBRARY_WITNESS_RELPATH
+        witness.write_text("the hand-verified week TestAgainstTheUserCsv checks against")
+
+        session = offline_session(tmp_path, self._grid_response)
+        # Far enough past 2026-07-26 that it is nowhere near the fresh
+        # 7-week window, which is the whole point of this test.
+        harness.capture_libraries(session, start=date(2026, 8, 17))
+
+        assert witness.read_text() == "the hand-verified week TestAgainstTheUserCsv checks against"
+        assert not any("pruned" in note for note in session.notes)
+
+    def test_a_second_run_on_the_same_week_prunes_nothing(self, tmp_path: Path) -> None:
+        session = offline_session(tmp_path, self._grid_response)
+        harness.capture_libraries(session, start=date(2026, 8, 17))
+        session.write_manifest()
+
+        second = offline_session(tmp_path, self._grid_response)
+        harness.capture_libraries(second, start=date(2026, 8, 18))  # same week, next day
+        assert not any("pruned" in note for note in second.notes)
 
 
 # -- main --------------------------------------------------------------------
