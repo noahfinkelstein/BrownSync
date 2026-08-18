@@ -253,6 +253,30 @@ class CaptureSession:
         print(f"  captured {source}: {relpath} ({len(stored)} bytes)")
         return stored
 
+    def prune(self, directory: str, *, keep: set[str]) -> list[str]:
+        """Delete files under ``directory`` that this run did not (re)write.
+
+        For sources named by a rolling calendar window — library hours grids
+        are the one case today — the window advances every week but nothing
+        else ever removes last week's file. Left alone, that file survives on
+        disk (checked out from git) while ``write_manifest`` no longer
+        references it, so the very next run trips
+        ``test_every_stored_fixture_is_manifested``, and any offline reader
+        that globs the directory (``load_grids``) silently ingests it as if
+        it were still current. ``keep`` is the relpaths this run just wrote or
+        preserved for ``directory``; everything else there is stale.
+        """
+        target = self.fixtures_root / directory
+        if not target.is_dir():
+            return []
+        removed = []
+        for path in sorted(target.iterdir()):
+            relpath = f"{directory}/{path.name}"
+            if path.is_file() and relpath not in keep:
+                path.unlink()
+                removed.append(relpath)
+        return removed
+
     def gap(self, source: str, reason: str) -> None:
         # Keep reasons single-line and free of library boilerplate.
         reason = " ".join(reason.split("\nFor more information")[0].split())
@@ -1033,18 +1057,32 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+    window = set()
     for week in range(LIBCAL_WEEKS):
         stamp = sunday + timedelta(weeks=week)
+        relpath = f"recorded/libraries/hours-grid-{stamp.isoformat()}.html"
+        window.add(relpath)
         try:
             session.capture(
                 source="libraries_hours",
-                relpath=f"recorded/libraries/hours-grid-{stamp.isoformat()}.html",
+                relpath=relpath,
                 method="GET",
                 url=LIBCAL_GRID.format(date=stamp.isoformat()),
                 expected=_libcal_expected,
             )
         except Exception as error:  # noqa: BLE001
             session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+    # The window rolls forward every week; without this, last week's grid
+    # never gets deleted and both `load_grids()` (extra weeks skew every
+    # normalized library's day count) and the fixture-manifest integrity gate
+    # (an on-disk file the fresh manifest no longer references) break — the
+    # 2026-08-08 through 2026-08-18 `refresh.yml` failures, root-caused.
+    stale = session.prune("recorded/libraries", keep=window)
+    if stale:
+        session.note(
+            f"libraries_hours: pruned {len(stale)} grid(s) that rolled out of the "
+            f"{LIBCAL_WEEKS}-week window: {', '.join(sorted(stale))}."
+        )
     session.note(
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."
