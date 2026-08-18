@@ -12,6 +12,7 @@ bytes alone.
 """
 from __future__ import annotations
 
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -818,6 +819,72 @@ class TestCaptureOverpassDiningAthletics:
         assert entry["expected"]["vevent_count"] == 1
         assert entry["expected"]["published_ttl"] == "PT120M"
         assert any("poll no more often" in note for note in session.notes)
+
+
+class TestCaptureSessionPrune:
+    def test_files_outside_keep_are_removed_and_reported(self, tmp_path: Path) -> None:
+        session = offline_session(tmp_path, lambda request: httpx.Response(200, content=b""))
+        target = session.fixtures_root / "recorded/libraries"
+        target.mkdir(parents=True)
+        (target / "hours-grid-2026-07-05.html").write_bytes(b"stale")
+        (target / "hours-grid-2026-08-16.html").write_bytes(b"current")
+        removed = session.prune(
+            "recorded/libraries", keep={"recorded/libraries/hours-grid-2026-08-16.html"}
+        )
+        assert removed == ["recorded/libraries/hours-grid-2026-07-05.html"]
+        assert not (target / "hours-grid-2026-07-05.html").exists()
+        assert (target / "hours-grid-2026-08-16.html").read_bytes() == b"current"
+
+    def test_a_missing_directory_is_a_silent_no_op(self, tmp_path: Path) -> None:
+        session = offline_session(tmp_path, lambda request: httpx.Response(200, content=b""))
+        assert session.prune("recorded/nothing-here", keep=set()) == []
+
+
+class TestCaptureLibraries:
+    GRID_HTML = "<table><tr><td>Rockefeller</td></tr></table>"
+
+    def test_seven_weeks_are_captured_anchored_to_the_prior_sunday(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path, lambda request: httpx.Response(200, content=self.GRID_HTML.encode())
+        )
+        # 2026-08-18 is a Tuesday; the widget's Sunday-to-Saturday grid means
+        # the anchor is 2026-08-16.
+        harness.capture_libraries(session, start=date(2026, 8, 18))
+        paths = sorted(entry["path"] for entry in session.entries)
+        assert paths == [
+            f"recorded/libraries/hours-grid-2026-{month:02d}-{day:02d}.html"
+            for month, day in [(8, 16), (8, 23), (8, 30), (9, 6), (9, 13), (9, 20), (9, 27)]
+        ]
+        assert session.gaps == []
+
+    def test_a_grid_that_rolled_out_of_the_window_is_pruned_and_noted(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path, lambda request: httpx.Response(200, content=self.GRID_HTML.encode())
+        )
+        stale_dir = session.fixtures_root / "recorded/libraries"
+        stale_dir.mkdir(parents=True)
+        # A leftover from a run three weeks before this one's anchor Sunday —
+        # exactly the shape of the 2026-08-08..2026-08-18 refresh.yml
+        # failures (last week's grid never got deleted).
+        (stale_dir / "hours-grid-2026-07-26.html").write_bytes(b"three weeks stale")
+        harness.capture_libraries(session, start=date(2026, 8, 18))
+        on_disk = sorted(p.name for p in stale_dir.iterdir())
+        assert "hours-grid-2026-07-26.html" not in on_disk
+        assert on_disk == [
+            f"hours-grid-2026-{month:02d}-{day:02d}.html"
+            for month, day in [(8, 16), (8, 23), (8, 30), (9, 6), (9, 13), (9, 20), (9, 27)]
+        ]
+        assert any(
+            "pruned 1 grid" in note and "hours-grid-2026-07-26.html" in note
+            for note in session.notes
+        )
+
+    def test_nothing_stale_means_no_prune_note(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path, lambda request: httpx.Response(200, content=self.GRID_HTML.encode())
+        )
+        harness.capture_libraries(session, start=date(2026, 8, 18))
+        assert not any("pruned" in note for note in session.notes)
 
 
 # -- main --------------------------------------------------------------------
