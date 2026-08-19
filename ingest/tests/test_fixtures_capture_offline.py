@@ -820,6 +820,63 @@ class TestCaptureOverpassDiningAthletics:
         assert any("poll no more often" in note for note in session.notes)
 
 
+class TestCaptureLibraries:
+    GRID_BODY = b"<table><tr><td>Rockefeller</td></tr></table>"
+
+    def test_writes_one_grid_per_week_in_the_current_window(self, tmp_path: Path) -> None:
+        from datetime import date
+
+        session = offline_session(tmp_path, lambda request: httpx.Response(200, content=self.GRID_BODY))
+        harness.capture_libraries(session, start=date(2026, 8, 19))
+        paths = sorted(entry["path"] for entry in session.entries)
+        assert paths == [
+            f"recorded/libraries/hours-grid-{stamp}.html"
+            for stamp in (
+                "2026-08-16",
+                "2026-08-23",
+                "2026-08-30",
+                "2026-09-06",
+                "2026-09-13",
+                "2026-09-20",
+                "2026-09-27",
+            )
+        ]
+
+    def test_a_prior_windows_leftover_grids_are_pruned_not_orphaned(self, tmp_path: Path) -> None:
+        # Regression: a previous refresh (anchored to an earlier Sunday) wrote
+        # hours-grid-2026-07-26.html et al. Re-recording from a later Sunday
+        # must not leave those bytes on disk unlisted in the fresh manifest —
+        # that is exactly what tripped `test_every_stored_fixture_is_manifested`
+        # on every scheduled refresh.
+        from datetime import date
+
+        stale_dir = tmp_path / "fixtures" / "recorded" / "libraries"
+        stale_dir.mkdir(parents=True)
+        stale = stale_dir / "hours-grid-2026-07-26.html"
+        stale.write_bytes(b"stale, from a prior window")
+        # A same-named-pattern file that isn't a valid date must be left alone.
+        not_ours = stale_dir / "hours-grid-not-a-date.html"
+        not_ours.write_bytes(b"unrelated")
+
+        session = offline_session(tmp_path, lambda request: httpx.Response(200, content=self.GRID_BODY))
+        harness.capture_libraries(session, start=date(2026, 8, 19))
+
+        assert not stale.exists()
+        assert not_ours.exists()
+        on_disk = {path.name for path in stale_dir.glob("hours-grid-*.html")}
+        manifested = {Path(entry["path"]).name for entry in session.entries}
+        assert on_disk == manifested | {"hours-grid-not-a-date.html"}
+
+    def test_a_capture_failure_still_records_a_gap(self, tmp_path: Path) -> None:
+        from datetime import date
+
+        session = offline_session(tmp_path, lambda request: httpx.Response(500))
+        harness.capture_libraries(session, start=date(2026, 8, 19))
+        assert session.entries == []
+        assert len(session.gaps) == 7
+        assert all(gap["source"] == "libraries_hours" for gap in session.gaps)
+
+
 # -- main --------------------------------------------------------------------
 
 
