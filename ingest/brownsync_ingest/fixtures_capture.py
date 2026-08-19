@@ -1027,14 +1027,41 @@ LIBCAL_GRID = "https://libcal.brown.edu/widget/hours/grid?iid=1403&lid=0&date={d
 LIBCAL_WEEKS = 7
 
 
+def _prune_stale_library_grids(session: CaptureSession, *, keep: set[date]) -> None:
+    """Remove hours-grid fixtures left over from a previous rolling window.
+
+    Every refresh re-anchors the window to the current Sunday, so each run
+    captures a different set of `hours-grid-<date>.html` filenames than the
+    last one. `capture()` only ever writes bytes; nothing ever removed the
+    files from the previous window, so they piled up on disk, stopped being
+    listed in the manifest (rightly — `preload_manifest` drops entries for
+    recaptured sources before the fresh ones are written), and tripped
+    `test_every_stored_fixture_is_manifested` on every refresh. They carry no
+    evidence the current manifest vouches for, so discarding them is cleanup
+    of a stale HTTP recording, not a deletion of retained data.
+    """
+    directory = session.fixtures_root / "recorded" / "libraries"
+    if not directory.is_dir():
+        return
+    for path in sorted(directory.glob("hours-grid-*.html")):
+        stamp_text = path.stem.removeprefix("hours-grid-")
+        try:
+            stamp = date.fromisoformat(stamp_text)
+        except ValueError:
+            continue  # not one of ours to manage
+        if stamp not in keep:
+            path.unlink()
+
+
 def capture_libraries(session: CaptureSession, *, start: date | None = None) -> None:
     # Anchored to the Sunday on or before the start date: the widget returns a
     # Sunday-to-Saturday grid regardless of which day you ask for, so asking
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
-    for week in range(LIBCAL_WEEKS):
-        stamp = sunday + timedelta(weeks=week)
+    stamps = [sunday + timedelta(weeks=week) for week in range(LIBCAL_WEEKS)]
+    _prune_stale_library_grids(session, keep=set(stamps))
+    for stamp in stamps:
         try:
             session.capture(
                 source="libraries_hours",
