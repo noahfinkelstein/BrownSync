@@ -126,3 +126,49 @@ describe("parseBrownNewsListing (hostile/drifted input)", () => {
     expect(items[0]?.title).toBe("A & real headline");
   });
 });
+
+describe("parseBrownNewsListing (2026-08-21 /index.php front-controller drift)", () => {
+  // Observed live 2026-08-21: most cards now render their href with a
+  // URL-encoded `/index.php` front-controller segment ahead of `/news/...`
+  // (a handful of the very newest cards still render the bare alias). Both
+  // forms are live, equivalent URLs for the same story — this must recover
+  // as ONE item under the canonical `/news/...` identity, not zero (which is
+  // what tripped the MIN_LISTING_ITEMS fail-closed gate in production) and
+  // not two duplicate rows for the same story.
+  it("recovers the item and normalizes away the /index%2Ephp prefix", () => {
+    const items = parseBrownNewsListing(
+      '<a href="/index%2Ephp/news/2026-08-18/training-careers-skilled-trades">Real headline</a>',
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]?.source_id).toBe("/news/2026-08-18/training-careers-skilled-trades");
+    expect(items[0]?.url).toBe(
+      "https://www.brown.edu/news/2026-08-18/training-careers-skilled-trades",
+    );
+  });
+
+  it("normalizes the literal /index.php form the same way", () => {
+    const items = parseBrownNewsListing(
+      '<a href="/index.php/news/2026-08-18/training-careers-skilled-trades">Real headline</a>',
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]?.source_id).toBe("/news/2026-08-18/training-careers-skilled-trades");
+  });
+
+  it("collapses prefixed and bare hrefs for the same story into one item", () => {
+    // Same story linked twice on one listing page (image tile + headline),
+    // one copy rendered prefixed and one rendered bare — must not be treated
+    // as two different stories.
+    const html = [
+      '<a href="/index%2Ephp/news/2026-08-20/brown-ai-teaching-learning" aria-hidden="true"><img src="x.jpg"></a>',
+      '<a href="/news/2026-08-20/brown-ai-teaching-learning">Q&amp;A: How Brown University is navigating AI</a>',
+    ].join("\n");
+    const items = parseBrownNewsListing(html);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.source_id).toBe("/news/2026-08-20/brown-ai-teaching-learning");
+    expect(items[0]?.title).toBe("Q&A: How Brown University is navigating AI");
+  });
+
+  it("still fails closed on a genuinely unrelated /index.php link", () => {
+    expect(parseBrownNewsListing('<a href="/index.php/about">About</a>')).toEqual([]);
+  });
+});
