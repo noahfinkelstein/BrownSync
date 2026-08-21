@@ -70,9 +70,20 @@ export type BrownNewsItem = {
  * be a headline before length is ever used as a tiebreak, so boilerplate
  * ("Read Article") and empty image anchors lose to a real headline, and a
  * dek-bearing blob loses to everything.
+ *
+ * Observed 2026-08-21: the CMS now renders SOME cards (typically the two
+ * newest) with the clean `/news/...` alias and the rest with a `/news/...`
+ * front-controller path prefixed by an URL-encoded `/index.php` segment
+ * (`/index%2Ephp/news/...`, sometimes the literal `/index.php/news/...`).
+ * Both forms 200 on brown.edu and point at the same story; the prefix is a
+ * rendering inconsistency, not a distinct content type. The optional,
+ * non-capturing prefix below is consumed and discarded so the captured href
+ * (group 1) — and therefore source_id/url — stay the canonical `/news/...`
+ * form regardless of which way a given card happened to render, keeping one
+ * story's identity stable across polls even if the CMS flips its rendering.
  */
 const ANCHOR_RE =
-  /<a\b[^>]*href="(\/news\/(\d{4})-(\d{2})-(\d{2})\/[a-z0-9][a-z0-9\-_.]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  /<a\b[^>]*href="(?:\/index(?:%2[eE]|\.)php)?(\/news\/(\d{4})-(\d{2})-(\d{2})\/[a-z0-9][a-z0-9\-_.]*)"[^>]*>([\s\S]*?)<\/a>/gi;
 
 function isRealDate(y: number, m: number, d: number): boolean {
   if (m < 1 || m > 12 || d < 1 || d > 31) return false;
