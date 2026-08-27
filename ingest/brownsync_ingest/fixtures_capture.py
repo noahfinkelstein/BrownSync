@@ -1033,8 +1033,9 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
-    for week in range(LIBCAL_WEEKS):
-        stamp = sunday + timedelta(weeks=week)
+    stamps = [sunday + timedelta(weeks=week) for week in range(LIBCAL_WEEKS)]
+    _prune_stale_hours_grids(session, keep_stamps={stamp.isoformat() for stamp in stamps})
+    for stamp in stamps:
         try:
             session.capture(
                 source="libraries_hours",
@@ -1045,6 +1046,26 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
             )
         except Exception as error:  # noqa: BLE001
             session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+
+
+def _prune_stale_hours_grids(session: CaptureSession, *, keep_stamps: set[str]) -> None:
+    """Delete previously recorded weekly grids the current window has rolled past.
+
+    `capture_libraries` records a sliding 7-week window under a dated
+    filename per week. Without this, a week that scrolls out of the window
+    leaves its file on disk forever — `preload_manifest` only carries
+    forward entries for sources it is NOT recapturing, so `libraries_hours`
+    (recaptured every run) never gets its old entries carried forward, and
+    the orphaned file fails `test_every_stored_fixture_is_manifested` on
+    every subsequent run.
+    """
+    directory = session.fixtures_root / "recorded" / "libraries"
+    if not directory.is_dir():
+        return
+    for path in directory.glob("hours-grid-*.html"):
+        stamp = path.stem.removeprefix("hours-grid-")
+        if stamp not in keep_stamps:
+            path.unlink()
     session.note(
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."

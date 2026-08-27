@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date
 from pathlib import Path
 from typing import Callable
 
@@ -818,6 +819,50 @@ class TestCaptureOverpassDiningAthletics:
         assert entry["expected"]["vevent_count"] == 1
         assert entry["expected"]["published_ttl"] == "PT120M"
         assert any("poll no more often" in note for note in session.notes)
+
+
+class TestCaptureLibraries:
+    LIBCAL_BODY = "<table><tr><td>Rockefeller</td></tr></table>"
+
+    def test_a_previous_weeks_grid_that_rolled_out_of_the_window_is_deleted(self, tmp_path: Path) -> None:
+        # 2026-08-26 is a Wednesday; the window anchors to Sunday 2026-08-23
+        # and runs LIBCAL_WEEKS forward. 2026-07-26 is well before that
+        # window, so it must be pruned rather than left as an orphan that
+        # `test_every_stored_fixture_is_manifested` would trip on forever.
+        session = offline_session(
+            tmp_path, lambda request: httpx.Response(200, content=self.LIBCAL_BODY.encode())
+        )
+        stale = session.fixtures_root / "recorded" / "libraries" / "hours-grid-2026-07-26.html"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text("stale week, long rolled out of the window")
+
+        harness.capture_libraries(session, start=date(2026, 8, 26))
+
+        assert not stale.exists()
+        captured_paths = {entry["path"] for entry in session.entries}
+        assert "recorded/libraries/hours-grid-2026-07-26.html" not in captured_paths
+        assert "recorded/libraries/hours-grid-2026-08-23.html" in captured_paths
+
+    def test_a_file_still_inside_the_window_survives_pruning(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path, lambda request: httpx.Response(200, content=self.LIBCAL_BODY.encode())
+        )
+        in_window = session.fixtures_root / "recorded" / "libraries" / "hours-grid-2026-08-30.html"
+        in_window.parent.mkdir(parents=True, exist_ok=True)
+        in_window.write_text("last run's copy of a week still inside the new window")
+
+        harness.capture_libraries(session, start=date(2026, 8, 26))
+
+        # Overwritten by the fresh capture, not merely left alone — but never
+        # unlinked, since 2026-08-30 falls inside the 08-23..7-week window.
+        assert in_window.read_text() == self.LIBCAL_BODY
+
+    def test_no_recorded_directory_yet_is_not_an_error(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path, lambda request: httpx.Response(200, content=self.LIBCAL_BODY.encode())
+        )
+        harness.capture_libraries(session, start=date(2026, 8, 26))
+        assert len(session.entries) == harness.LIBCAL_WEEKS
 
 
 # -- main --------------------------------------------------------------------
