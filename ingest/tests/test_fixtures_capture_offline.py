@@ -12,6 +12,7 @@ bytes alone.
 """
 from __future__ import annotations
 
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -882,3 +883,84 @@ class TestMain:
         assert [entry["source"] for entry in manifest["fixtures"]] == ["good_src", "other_src"]
         # The bad group was not selected, so its stale gap survives untouched.
         assert manifest["gaps"] == [{"source": "bad_declared", "reason": "stale 403"}]
+
+
+# -- capture_libraries: rolling-window sweep vs. the pinned CSV witness ------
+
+
+class TestCaptureLibrariesPrune:
+    """The rolling 7-week window must self-clean without eating the one grid
+    pinned forever against `brown_library_hours.csv` (tests/libraries/
+    test_hours.py::TestAgainstTheUserCsv) — see the regression this guards:
+    a naive sweep-by-filename deleted that witness file and dropped its
+    manifest entry on every run once its date fell out of the window.
+    """
+
+    GRID_HTML = "<html><body><table><tr><td>Rockefeller</td></tr></table></body></html>"
+
+    @staticmethod
+    def _grid_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=TestCaptureLibrariesPrune.GRID_HTML.encode(), headers={"content-type": "text/html"})
+
+    def _seed(self, tmp_path: Path) -> None:
+        libraries_dir = tmp_path / "fixtures" / "recorded" / "libraries"
+        libraries_dir.mkdir(parents=True)
+        # The pinned witness, and a rolled-off week that must be swept.
+        (libraries_dir / "hours-grid-2026-07-26.html").write_text("witness")
+        (libraries_dir / "hours-grid-2026-08-02.html").write_text("stale")
+        other_dir = tmp_path / "fixtures" / "recorded" / "other"
+        other_dir.mkdir(parents=True)
+        (other_dir / "kept.json").write_text("{}")
+        manifest = {
+            "schema_version": 1,
+            "notes": [],
+            "gaps": [],
+            "fixtures": [
+                {"path": "recorded/libraries/hours-grid-2026-07-26.html", "source": "libraries_hours", "sha256": "witness-hash"},
+                {"path": "recorded/libraries/hours-grid-2026-08-02.html", "source": "libraries_hours", "sha256": "stale-hash"},
+                {"path": "recorded/other/kept.json", "source": "other_src", "sha256": "other-hash"},
+            ],
+        }
+        (tmp_path / "fixtures" / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    def test_a_rolled_off_week_is_deleted_but_the_pinned_witness_survives_on_disk(
+        self, tmp_path: Path
+    ) -> None:
+        self._seed(tmp_path)
+        session = offline_session(tmp_path, self._grid_handler)
+        harness.preload_manifest(session, selected_sources={"libraries_hours"})
+        harness.capture_libraries(session, start=date(2026, 8, 30))
+
+        libraries_dir = tmp_path / "fixtures" / "recorded" / "libraries"
+        assert (libraries_dir / "hours-grid-2026-07-26.html").is_file(), "pinned witness must never be swept"
+        assert not (libraries_dir / "hours-grid-2026-08-02.html").exists(), "rolled-off week must be pruned"
+        # The freshly-captured window is the 7 Sundays starting 2026-08-30.
+        expected_window = {
+            "2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20",
+            "2026-09-27", "2026-10-04", "2026-10-11",
+        }
+        for stamp in expected_window:
+            assert (libraries_dir / f"hours-grid-{stamp}.html").is_file()
+
+    def test_the_witness_manifest_entry_survives_even_though_its_source_is_selected(
+        self, tmp_path: Path
+    ) -> None:
+        self._seed(tmp_path)
+        session = offline_session(tmp_path, self._grid_handler)
+        harness.preload_manifest(session, selected_sources={"libraries_hours"})
+        harness.capture_libraries(session, start=date(2026, 8, 30))
+
+        paths = {entry["path"] for entry in session.entries}
+        assert "recorded/libraries/hours-grid-2026-07-26.html" in paths, (
+            "preload must carry the pinned witness forward despite its source being recaptured"
+        )
+        assert "recorded/libraries/hours-grid-2026-08-02.html" not in paths, (
+            "the rolled-off week's stale manifest entry must not survive"
+        )
+        assert "recorded/other/kept.json" in paths
+
+        manifest_path = session.write_manifest()
+        written = json.loads(manifest_path.read_text(encoding="utf-8"))
+        written_paths = {entry["path"] for entry in written["fixtures"]}
+        assert "recorded/libraries/hours-grid-2026-07-26.html" in written_paths
+        assert not (tmp_path / "fixtures" / "recorded" / "libraries" / "hours-grid-2026-08-02.html").exists()

@@ -1027,14 +1027,23 @@ LIBCAL_GRID = "https://libcal.brown.edu/widget/hours/grid?iid=1403&lid=0&date={d
 LIBCAL_WEEKS = 7
 
 
+_HOURS_GRID_STAMP = re.compile(r"^hours-grid-(\d{4}-\d{2}-\d{2})\.html$")
+
+#: The week-of-2026-07-26 grid is pinned forever as the independent witness
+#: for `tests/libraries/test_hours.py::TestAgainstTheUserCsv` — it is checked
+#: byte-for-byte against a hand-captured CSV snapshot, not against the
+#: rolling window below. The sweep must never treat it as stale.
+_PINNED_HOURS_GRID_FILES = frozenset({"hours-grid-2026-07-26.html"})
+
+
 def capture_libraries(session: CaptureSession, *, start: date | None = None) -> None:
     # Anchored to the Sunday on or before the start date: the widget returns a
     # Sunday-to-Saturday grid regardless of which day you ask for, so asking
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
-    for week in range(LIBCAL_WEEKS):
-        stamp = sunday + timedelta(weeks=week)
+    stamps = {sunday + timedelta(weeks=week) for week in range(LIBCAL_WEEKS)}
+    for stamp in sorted(stamps):
         try:
             session.capture(
                 source="libraries_hours",
@@ -1045,6 +1054,20 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
             )
         except Exception as error:  # noqa: BLE001
             session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+    # The rolling window slides forward every week, so a file captured last
+    # run can fall out of range without ever being re-captured — nothing
+    # else in this module deletes it. Left alone it lingers as an
+    # unmanifested fixture forever (test_fixtures.py ::
+    # test_every_stored_fixture_is_manifested), so sweep every stamped file
+    # that isn't part of THIS run's window before moving on.
+    libraries_dir = session.fixtures_root / "recorded" / "libraries"
+    if libraries_dir.is_dir():
+        keep = {f"hours-grid-{stamp.isoformat()}.html" for stamp in stamps} | _PINNED_HOURS_GRID_FILES
+        for path in libraries_dir.iterdir():
+            match = _HOURS_GRID_STAMP.match(path.name)
+            if match and path.name not in keep:
+                path.unlink()
+                print(f"  pruned stale libraries_hours fixture: {path.relative_to(session.fixtures_root)}")
     session.note(
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."
@@ -1089,20 +1112,30 @@ GROUP_SOURCES: dict[str, tuple[str, ...]] = {
 }
 
 
+#: Fixtures that must never be dropped by a recapture even though their
+#: source is in the run's selected group — evidence pinned forever as a
+#: cross-check witness rather than as a live snapshot to keep current. Keyed
+#: by manifest "path". Currently just the one library-hours grid frozen
+#: against `brown_library_hours.csv` (see `_PINNED_HOURS_GRID_FILES`); listed
+#: here too so its manifest ENTRY survives a libraries recapture the same way
+#: `_PINNED_HOURS_GRID_FILES` keeps its bytes on disk.
+PINNED_FIXTURE_PATHS = frozenset({f"recorded/libraries/{name}" for name in _PINNED_HOURS_GRID_FILES})
+
+
 def preload_manifest(session: CaptureSession, *, selected_sources: set[str]) -> None:
     """Carry forward existing manifest evidence for sources NOT being recaptured.
 
     Entries, gaps, and ``<source>:``-prefixed notes owned by the selected
     sources are dropped so the fresh run replaces them; everything else —
-    including user_provided inputs, which no capture group owns — survives
-    verbatim.
+    including user_provided inputs, which no capture group owns, and any
+    path listed in `PINNED_FIXTURE_PATHS` — survives verbatim.
     """
     path = session.fixtures_root / "manifest.json"
     if not path.is_file():
         return
     existing = json.loads(path.read_text(encoding="utf-8"))
     for entry in existing.get("fixtures", []):
-        if entry.get("source") not in selected_sources:
+        if entry.get("source") not in selected_sources or entry.get("path") in PINNED_FIXTURE_PATHS:
             session.entries.append(entry)
     for gap in existing.get("gaps", []):
         if gap.get("source") not in selected_sources:
