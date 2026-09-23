@@ -12,6 +12,7 @@ bytes alone.
 """
 from __future__ import annotations
 
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -750,6 +751,50 @@ DINING_MENUS_BODY = json.dumps(
         }
     ]
 ).encode()
+
+
+class TestCaptureLibraries:
+    def test_a_fresh_run_writes_seven_weekly_grids(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path,
+            lambda request: httpx.Response(200, content=b"<table><tr>Rockefeller</tr></table>"),
+        )
+        harness.capture_libraries(session, start=date(2026, 9, 23))
+        sources = [entry["source"] for entry in session.entries]
+        assert sources == ["libraries_hours"] * harness.LIBCAL_WEEKS
+        paths = sorted(entry["path"] for entry in session.entries)
+        assert paths[0] == "recorded/libraries/hours-grid-2026-09-20.html"
+        assert paths[-1] == "recorded/libraries/hours-grid-2026-11-01.html"
+        assert session.gaps == []
+
+    def test_a_stale_week_left_over_from_an_earlier_run_is_pruned(self, tmp_path: Path) -> None:
+        session = offline_session(
+            tmp_path,
+            lambda request: httpx.Response(200, content=b"<table><tr>Rockefeller</tr></table>"),
+        )
+        directory = session.fixtures_root / "recorded" / "libraries"
+        directory.mkdir(parents=True)
+        stale = directory / "hours-grid-2026-08-02.html"
+        stale.write_text("<table><tr>Rockefeller</tr></table>", encoding="utf-8")
+        harness.capture_libraries(session, start=date(2026, 9, 23))
+        on_disk = {path.name for path in directory.glob("hours-grid-*.html")}
+        expected_names = {entry["path"].rsplit("/", 1)[-1] for entry in session.entries}
+        assert not stale.exists()
+        assert on_disk == expected_names
+        assert len(on_disk) == harness.LIBCAL_WEEKS
+
+    def test_a_fetch_failure_gaps_the_week_and_leaves_other_weeks_untouched(self, tmp_path: Path) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "date=2026-09-27" in str(request.url):
+                return httpx.Response(404)
+            return httpx.Response(200, content=b"<table><tr>Rockefeller</tr></table>")
+
+        session = offline_session(tmp_path, handler)
+        harness.capture_libraries(session, start=date(2026, 9, 23))
+        assert len(session.entries) == harness.LIBCAL_WEEKS - 1
+        (gap,) = session.gaps
+        assert gap["source"] == "libraries_hours"
+        assert "2026-09-27" in gap["reason"]
 
 
 class TestCaptureOverpassDiningAthletics:

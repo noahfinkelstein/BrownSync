@@ -1033,8 +1033,8 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
     # mid-week silently records the same week twice.
     today = start or datetime.now(UTC).date()
     sunday = today - timedelta(days=(today.weekday() + 1) % 7)
-    for week in range(LIBCAL_WEEKS):
-        stamp = sunday + timedelta(weeks=week)
+    stamps = [sunday + timedelta(weeks=week) for week in range(LIBCAL_WEEKS)]
+    for stamp in stamps:
         try:
             session.capture(
                 source="libraries_hours",
@@ -1045,10 +1045,30 @@ def capture_libraries(session: CaptureSession, *, start: date | None = None) -> 
             )
         except Exception as error:  # noqa: BLE001
             session.gap("libraries_hours", f"week {stamp.isoformat()}: {type(error).__name__}: {error}")
+    _prune_stale_hours_grids(session, keep_stamps=stamps)
     session.note(
         "libraries_hours: Springshare LibCal widget endpoint, public and unauthenticated. "
         "Seven weekly grids per refresh — the widget itself paginates a week at a time."
     )
+
+
+def _prune_stale_hours_grids(session: CaptureSession, *, keep_stamps: list[date]) -> None:
+    """Delete hours-grid fixtures whose week has rolled out of the current window.
+
+    The 7-week window is anchored to "today" and shifts forward on every run,
+    so a file committed for a week now behind the window is neither
+    refreshed nor referenced by the fresh manifest. Left on disk it is an
+    orphan that fails ``test_every_stored_fixture_is_manifested`` (and
+    inflates ``load_grids()``'s glob of the whole directory) on every
+    subsequent run, not just the one where it aged out.
+    """
+    keep_names = {f"hours-grid-{stamp.isoformat()}.html" for stamp in keep_stamps}
+    directory = session.fixtures_root / "recorded" / "libraries"
+    if not directory.is_dir():
+        return
+    for path in directory.glob("hours-grid-*.html"):
+        if path.name not in keep_names:
+            path.unlink()
 
 
 def _libcal_expected(body: bytes) -> dict[str, Any]:
