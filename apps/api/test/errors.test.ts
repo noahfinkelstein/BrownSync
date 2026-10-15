@@ -68,6 +68,15 @@ describe("isDbUnavailable", () => {
     expect(isDbUnavailable(new Error("connection attempt failed"))).toBe(true);
   });
 
+  it("recognizes a paused/misconfigured Supabase pooler rejecting the tenant", () => {
+    // Observed in production poller logs (2026-09-04): Supabase's pgbouncer
+    // rejects the startup packet for a paused project with this message.
+    expect(
+      isDbUnavailable(new Error("tenant/user postgres.hkrxahzdqqxxovvilalm not found")),
+    ).toBe(true);
+    expect(isDbUnavailable(new Error("FATAL: Tenant or user not found"))).toBe(true);
+  });
+
   it("does not classify ordinary errors as unavailability", () => {
     expect(isDbUnavailable(new Error("syntax error"))).toBe(false);
     expect(isDbUnavailable({ code: "23505" })).toBe(false); // unique violation
