@@ -68,6 +68,14 @@ describe("isDbUnavailable", () => {
     expect(isDbUnavailable(new Error("connection attempt failed"))).toBe(true);
   });
 
+  it("recognizes Supavisor pooler rejection (paused/misrouted project), case-insensitively", () => {
+    // Observed in production (2026-11-02 freshness audit): the Node poller
+    // sees this with code ENOTFOUND (already covered), but the cf/ build's
+    // rejection carries no code — only "Tenant or user not found".
+    expect(isDbUnavailable(new Error("Tenant or user not found"))).toBe(true);
+    expect(isDbUnavailable(new Error("tenant or user not found"))).toBe(true);
+  });
+
   it("does not classify ordinary errors as unavailability", () => {
     expect(isDbUnavailable(new Error("syntax error"))).toBe(false);
     expect(isDbUnavailable({ code: "23505" })).toBe(false); // unique violation
