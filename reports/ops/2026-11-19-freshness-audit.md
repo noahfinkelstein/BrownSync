@@ -60,12 +60,24 @@ returning zero rows.
 **Pattern flagged: GitHub disables scheduled (`cron`) triggers for a
 workflow after 60 days with no repository activity.** Last repo activity
 was ~2026-09-04 (last Poll/CI runs); today is 2026-11-19 — a 75–76 day
-gap. That means the `schedule:` triggers on Poll and Refresh data artifacts
-are very likely sitting disabled in GitHub right now, independent of the
-Supabase outage, and will **not** self-heal even once the database comes
-back — they need to be manually re-enabled (push any commit to main, or
-toggle the workflow off/on under **Actions → the workflow → ⋯ → Enable
-workflow**).
+gap, well past that threshold.
+
+**Correction found while opening this report's own PR (#68):** this is
+worse than a schedule-only disablement. `gh api
+.../actions/workflows` reports all six workflows as `state: active` (not
+`disabled_inactivity`), yet opening PR #68 against `main` triggered **zero**
+check runs for CI — a `pull_request`-triggered workflow, not a `schedule`
+one, so the 60-day cron rule doesn't explain it. Combined with the two
+`workflow_dispatch` Poll runs still sitting in `queued` for 66–69 days
+(never started, never timed out), the evidence points at **GitHub Actions
+execution itself being blocked for this repo** (most consistent with an
+exhausted included-minutes quota or a hit spending limit with no payment
+method on file) rather than only the schedule trigger being switched off.
+Re-enabling a workflow's schedule toggle will not fix this if Actions
+can't run at all; the owner should check **Settings → Billing → Actions**
+(or org billing, if this repo lives under one) and **Settings → Actions →
+General** for a spending-limit or suspension notice before anything else
+on the GitHub side.
 
 ## Root cause
 
@@ -95,10 +107,14 @@ this report.
    `HYPERDRIVE`/Worker DB bindings for a replacement project and re-run
    migrations 0001–0023 against it). This is the blocking item — nothing
    else in this list matters until the DB answers.
-2. **Re-enable the `schedule:` triggers** on **Poll** and **Refresh data
-   artifacts** in GitHub (Settings → Actions, or push any commit to main) —
-   they are disabled or about to be, independent of #1, and won't resume on
-   their own.
+2. **Check GitHub Actions billing/spending-limit state** (Settings →
+   Billing → Actions, and Settings → Actions → General) — runs are queuing
+   but not executing at all, including a brand-new `pull_request` CI run on
+   PR #68, which the 60-day cron rule alone does not explain. Once Actions
+   can run again, also re-enable the `schedule:` triggers on **Poll** and
+   **Refresh data artifacts** if they show as disabled from inactivity
+   (push any commit to main, or toggle under Actions → the workflow →
+   ⋯ → Enable workflow).
 3. Cancel the two stuck `workflow_dispatch` **Poll** runs
    (34843581523, 34598916701) sitting in `queued` for ~66–69 days; they
    are not doing anything and are just noise in the Actions list.
